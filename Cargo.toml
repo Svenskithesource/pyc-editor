@@ -1,0 +1,12 @@
+[package]
+name = "pyc_editor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hashable = "0.0.0"
+indexmap = "2.9.0"
+num-bigint = "0.4.6"
+num-complex = "0.4.6"
+ordered-float = "5.0.0"
+python_marshal = "0.3.3"

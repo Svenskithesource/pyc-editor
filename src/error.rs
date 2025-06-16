@@ -6,6 +6,7 @@ pub enum Error {
     InvalidConstant(python_marshal::Object),
     UnsupportedVersion(python_marshal::magic::PyVersion),
     PythonMarshalError(python_marshal::error::Error),
+    RecursiveReference(&'static str),
 }
 
 impl From<python_marshal::error::Error> for Error {

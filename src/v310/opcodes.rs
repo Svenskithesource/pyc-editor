@@ -130,6 +130,29 @@ pub enum Opcode {
     DICT_UPDATE = 165,
 }
 
+impl Opcode {
+    pub fn is_absolute_jump(&self) -> bool {
+        matches!(
+            self,
+            Opcode::JUMP_ABSOLUTE
+                | Opcode::POP_JUMP_IF_TRUE
+                | Opcode::POP_JUMP_IF_FALSE
+                | Opcode::JUMP_IF_NOT_EXC_MATCH
+                | Opcode::JUMP_IF_TRUE_OR_POP
+                | Opcode::JUMP_IF_FALSE_OR_POP
+        )
+    }
+
+    pub fn is_relative_jump(&self) -> bool {
+        matches!(self, Opcode::JUMP_FORWARD)
+    }
+
+    /// Relative or absolute jump
+    pub fn is_jump(&self) -> bool {
+        self.is_absolute_jump() | self.is_relative_jump()
+    }
+}
+
 impl TryFrom<u8> for Opcode {
     type Error = crate::error::Error;
 

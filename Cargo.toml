@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bitflags = "2.9.1"
 hashable = "0.0.0"
 indexmap = "2.9.0"
 num-bigint = "0.4.6"

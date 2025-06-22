@@ -159,15 +159,6 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
 name = "ordered-float"
-version = "4.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bb71e1b3fa6ca1c61f383464aaf2bb0e2f8e772a1f01d486832464de363b951"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "ordered-float"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2c1f9f56e534ac6a9b8a4600bdf0f530fb393b5f393e7b4d03489c3cf0c3f01"
@@ -193,15 +184,15 @@ dependencies = [
  "indexmap",
  "num-bigint",
  "num-complex",
- "ordered-float 5.0.0",
+ "ordered-float",
  "python_marshal",
 ]
 
 [[package]]
 name = "python_marshal"
-version = "0.3.8"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95a4e2592d059d49bbbe95ff8b46a4946412e307419facb79a30ec2f060bdac3"
+checksum = "b3f60aa9ad798b4a10daee422cc054d55fd6ee8260d3df36f46f5500d0a0ef4f"
 dependencies = [
  "bitflags",
  "bstr",
@@ -212,7 +203,7 @@ dependencies = [
  "num-complex",
  "num-derive",
  "num-traits",
- "ordered-float 4.6.0",
+ "ordered-float",
 ]
 
 [[package]]

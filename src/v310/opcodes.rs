@@ -151,6 +151,10 @@ impl Opcode {
     pub fn is_jump(&self) -> bool {
         self.is_absolute_jump() | self.is_relative_jump()
     }
+
+    pub fn has_arg(self) -> bool {
+        self as u8 >= 90 // This is how Python has designed it's opcode numbering system
+    }
 }
 
 impl TryFrom<u8> for Opcode {

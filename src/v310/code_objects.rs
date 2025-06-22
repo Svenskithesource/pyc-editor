@@ -1,12 +1,13 @@
 use bitflags::bitflags;
 
 use hashable::HashableHashSet;
+use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, PyString};
 
-use crate::error::Error;
+use crate::{error::Error, PycFile};
 
 use super::opcodes::Opcode;
 
@@ -78,12 +79,53 @@ impl TryFrom<python_marshal::Object> for FrozenConstant {
     }
 }
 
+impl Into<python_marshal::Object> for FrozenConstant {
+    fn into(self) -> python_marshal::Object {
+        match self {
+            FrozenConstant::Bool(value) => python_marshal::ObjectHashable::Bool(value).into(),
+            FrozenConstant::None => python_marshal::ObjectHashable::None.into(),
+            FrozenConstant::StopIteration => python_marshal::ObjectHashable::StopIteration.into(),
+            FrozenConstant::Ellipsis => python_marshal::ObjectHashable::Ellipsis.into(),
+            FrozenConstant::Long(value) => python_marshal::ObjectHashable::Long(value).into(),
+            FrozenConstant::Float(value) => python_marshal::ObjectHashable::Float(value).into(),
+            FrozenConstant::Complex(value) => python_marshal::ObjectHashable::Complex(value).into(),
+            FrozenConstant::Bytes(value) => python_marshal::ObjectHashable::Bytes(value).into(),
+            FrozenConstant::String(value) => python_marshal::ObjectHashable::String(value).into(),
+            FrozenConstant::Tuple(values) => python_marshal::Object::Tuple(
+                values
+                    .into_iter()
+                    .map(Into::<python_marshal::Object>::into)
+                    .collect(),
+            )
+            .into(),
+            FrozenConstant::List(values) => python_marshal::Object::List(
+                values
+                    .into_iter()
+                    .map(Into::<python_marshal::Object>::into)
+                    .collect(),
+            )
+            .into(),
+            FrozenConstant::FrozenSet(values) => {
+                python_marshal::Object::FrozenSet(
+                    values
+                        .into_iter()
+                        .cloned()
+                        .map(Into::<python_marshal::Object>::into)
+                        .map(TryInto::<python_marshal::ObjectHashable>::try_into)
+                        .map(Result::unwrap) // The frozen set can only contain values we know for sure are hashable
+                        .collect::<IndexSet<_, _>>(),
+                )
+            }
+        }
+    }
+}
+
 impl TryFrom<python_marshal::Object> for Constant {
     type Error = Error;
 
     fn try_from(value: python_marshal::Object) -> Result<Self, Self::Error> {
         match value {
-            python_marshal::Object::Code(code) => match *code {
+            python_marshal::Object::Code(code) => match code {
                 python_marshal::Code::V310(code) => {
                     let code = Code::try_from(code)?;
                     Ok(Constant::CodeObject(code))
@@ -107,7 +149,7 @@ pub struct Code {
     pub nlocals: u32,
     pub stacksize: u32,
     pub flags: CodeFlags,
-    pub code: Vec<Instruction>,
+    pub code: Instructions,
     pub consts: Vec<Constant>,
     pub names: Vec<PyString>,
     pub varnames: Vec<PyString>,
@@ -117,6 +159,29 @@ pub struct Code {
     pub name: PyString,
     pub firstlineno: u32,
     pub lnotab: Vec<u8>,
+}
+
+impl Into<python_marshal::Code> for Code {
+    fn into(self) -> python_marshal::Code {
+        python_marshal::Code::V310(python_marshal::code_objects::Code310 {
+            argcount: self.argcount,
+            posonlyargcount: self.posonlyargcount,
+            kwonlyargcount: self.kwonlyargcount,
+            nlocals: self.nlocals,
+            stacksize: self.stacksize,
+            flags: self.flags,
+            code: python_marshal::Object::Bytes(self.code.into()).into(),
+            consts: python_marshal::Object::Tuple(self.consts.into()).into(),
+            names: python_marshal::Object::Tuple(self.names.into()).into(),
+            varnames: python_marshal::Object::Tuple(self.varnames.into()).into(),
+            freevars: python_marshal::Object::Tuple(self.freevars.into()).into(),
+            cellvars: python_marshal::Object::Tuple(self.cellvars.into()).into(),
+            filename: python_marshal::Object::String(self.filename).into(),
+            name: python_marshal::Object::String(self.name).into(),
+            firstlineno: self.firstlineno,
+            lnotab: python_marshal::Object::Bytes(self.lnotab).into(),
+        })
+    }
 }
 
 macro_rules! extract_strings_tuple {
@@ -198,7 +263,7 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
             nlocals: code.nlocals,
             stacksize: code.stacksize,
             flags: code.flags,
-            code: bytecode_to_instructions(&co_code)?,
+            code: Instructions::try_from(co_code.as_slice())?,
             consts: co_consts
                 .iter()
                 .map(|obj| Constant::try_from(obj.clone()))
@@ -331,6 +396,20 @@ impl From<u32> for CompareOperation {
     }
 }
 
+impl Into<u32> for &CompareOperation {
+    fn into(self) -> u32 {
+        match self {
+            CompareOperation::Smaller => 0,
+            CompareOperation::SmallerOrEqual => 1,
+            CompareOperation::Equal => 2,
+            CompareOperation::NotEqual => 3,
+            CompareOperation::Bigger => 4,
+            CompareOperation::BiggerOrEqual => 5,
+            CompareOperation::Invalid(v) => v.clone(),
+        }
+    }
+}
+
 /// Whether *_OP is inverted or not
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpInversion {
@@ -345,6 +424,16 @@ impl From<u32> for OpInversion {
             0 => Self::NoInvert,
             1 => Self::Invert,
             _ => Self::Invalid(value),
+        }
+    }
+}
+
+impl Into<u32> for &OpInversion {
+    fn into(self) -> u32 {
+        match self {
+            OpInversion::NoInvert => 0,
+            OpInversion::Invert => 1,
+            OpInversion::Invalid(v) => v.clone(),
         }
     }
 }
@@ -365,6 +454,17 @@ impl From<u32> for RaiseForms {
             1 => Self::RaiseTOS,
             2 => Self::RaiseTOS1FromTOS,
             _ => Self::Invalid(value),
+        }
+    }
+}
+
+impl Into<u32> for &RaiseForms {
+    fn into(self) -> u32 {
+        match self {
+            RaiseForms::ReraisePrev => 0,
+            RaiseForms::RaiseTOS => 1,
+            RaiseForms::RaiseTOS1FromTOS => 2,
+            RaiseForms::Invalid(v) => v.clone(),
         }
     }
 }
@@ -393,6 +493,16 @@ impl From<u32> for CallExFlags {
             0 => Self::PositionalOnly,
             1 => Self::WithKeywords,
             _ => Self::Invalid(value),
+        }
+    }
+}
+
+impl Into<u32> for &CallExFlags {
+    fn into(self) -> u32 {
+        match self {
+            CallExFlags::PositionalOnly => 0,
+            CallExFlags::WithKeywords => 1,
+            CallExFlags::Invalid(v) => v.clone(),
         }
     }
 }
@@ -448,13 +558,32 @@ pub enum FormatFlag {
 
 impl From<u32> for FormatFlag {
     fn from(value: u32) -> Self {
-        match value & 0x03 {
-            0x00 => Self::NoConversion,
-            0x01 => Self::Str,
-            0x02 => Self::Repr,
-            0x03 => Self::Ascii,
-            0x04 => Self::FmtSpec,
-            _ => Self::Invalid(value),
+        if value & 0x04 == 0x04 {
+            return Self::FmtSpec;
+        } else {
+            match value {
+                0x00 => Self::NoConversion,
+                0x01 => Self::Str,
+                0x02 => Self::Repr,
+                0x03 => Self::Ascii,
+                0x04 => panic!(
+                    "Impossible for the flag to be 0x04, should have been caught by the if above."
+                ),
+                _ => Self::Invalid(value),
+            }
+        }
+    }
+}
+
+impl Into<u32> for &FormatFlag {
+    fn into(self) -> u32 {
+        match self {
+            FormatFlag::NoConversion => 0x00,
+            FormatFlag::Str => 0x01,
+            FormatFlag::Repr => 0x02,
+            FormatFlag::Ascii => 0x03,
+            FormatFlag::FmtSpec => 0x04,
+            FormatFlag::Invalid(v) => v.clone(),
         }
     }
 }
@@ -479,136 +608,386 @@ impl From<u32> for GenKind {
     }
 }
 
+impl Into<u32> for &GenKind {
+    fn into(self) -> u32 {
+        match self {
+            GenKind::Generator => 0,
+            GenKind::Coroutine => 1,
+            GenKind::AsyncGenerator => 2,
+            GenKind::Invalid(v) => v.clone(),
+        }
+    }
+}
+
 /// Low level representation of a Python bytecode instruction
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instruction {
-    Nop,
     PopTop,
     RotTwo,
     RotThree,
-    RotFour,
     DupTop,
     DupTopTwo,
+    RotFour,
+    Nop,
     UnaryPositive,
     UnaryNegative,
     UnaryNot,
     UnaryInvert,
-    GetIter,
-    GetYieldFromIter,
+    BinaryMatrixMultiply,
+    InplaceMatrixMultiply,
     BinaryPower,
     BinaryMultiply,
-    BinaryMatrixMultiply,
-    BinaryFloorDivide,
-    BinaryTrueDivide,
     BinaryModulo,
     BinaryAdd,
     BinarySubtract,
     BinarySubscr,
+    BinaryFloorDivide,
+    BinaryTrueDivide,
+    InplaceFloorDivide,
+    InplaceTrueDivide,
+    GetLen,
+    MatchMapping,
+    MatchSequence,
+    MatchKeys,
+    CopyDictWithoutKeys,
+    WithExceptStart,
+    GetAiter,
+    GetAnext,
+    BeforeAsyncWith,
+    EndAsyncFor,
+    InplaceAdd,
+    InplaceSubtract,
+    InplaceMultiply,
+    InplaceModulo,
+    StoreSubscr,
+    DeleteSubscr,
     BinaryLshift,
     BinaryRshift,
     BinaryAnd,
     BinaryXor,
     BinaryOr,
     InplacePower,
-    InplaceMultiply,
-    InplaceMatrixMultiply,
-    InplaceFloorDivide,
-    InplaceTrueDivide,
-    InplaceModulo,
-    InplaceAdd,
-    InplaceSubtract,
+    GetIter,
+    GetYieldFromIter,
+    PrintExpr,
+    LoadBuildClass,
+    YieldFrom,
+    GetAwaitable,
+    LoadAssertionError,
     InplaceLshift,
     InplaceRshift,
     InplaceAnd,
     InplaceXor,
     InplaceOr,
-    StoreSubscr,
-    DeleteSubscr,
-    GetAwaitable,
-    GetAiter,
-    GetAnext,
-    EndAsyncFor,
-    BeforeAsyncWith,
-    SetupAsyncWith,
-    PrintExpr,
-    SetAdd(u32),
-    ListAppend(u32),
-    MapAdd(u32),
+    ListToTuple,
     ReturnValue,
-    YieldValue,
-    YieldFrom,
-    SetupAnnotations,
     ImportStar,
+    SetupAnnotations,
+    YieldValue,
     PopBlock,
     PopExcept,
-    Reraise,
-    WithExceptStart,
-    LoadAssertionError,
-    LoadBuildClass,
-    SetupWith(RelativeJump),
-    CopyDictWithoutKeys,
-    GetLen,
-    MatchMapping,
-    MatchSequence,
-    MatchKeys,
     StoreName(NameIndex),
     DeleteName(NameIndex),
     UnpackSequence(u32),
+    ForIter(RelativeJump),
     UnpackEx(u32),
     StoreAttr(NameIndex),
     DeleteAttr(NameIndex),
     StoreGlobal(NameIndex),
     DeleteGlobal(NameIndex),
+    RotN(u32),
     LoadConst(ConstIndex),
     LoadName(NameIndex),
     BuildTuple(u32),
     BuildList(u32),
     BuildSet(u32),
     BuildMap(u32),
-    BuildConstKeyMap(u32),
-    BuildString(u32),
-    ListToTuple,
-    ListExtend(u32),
-    SetUpdate(u32),
-    DictUpdate(u32),
-    DictMerge,
     LoadAttr(NameIndex),
     CompareOp(CompareOperation),
     ImportName(NameIndex),
     ImportFrom(NameIndex),
     JumpForward(RelativeJump),
-    PopJumpIfTrue(AbsoluteJump),
-    PopJumpIfFalse(AbsoluteJump),
-    JumpIfNotExcMatch(AbsoluteJump),
-    JumpIfTrueOrPop(AbsoluteJump),
     JumpIfFalseOrPop(AbsoluteJump),
+    JumpIfTrueOrPop(AbsoluteJump),
     JumpAbsolute(AbsoluteJump),
-    ForIter(RelativeJump),
+    PopJumpIfFalse(AbsoluteJump),
+    PopJumpIfTrue(AbsoluteJump),
     LoadGlobal(NameIndex),
     IsOp(OpInversion),
     ContainsOp(OpInversion),
+    Reraise,
+    JumpIfNotExcMatch(AbsoluteJump),
     SetupFinally(RelativeJump),
     LoadFast(VarNameIndex),
     StoreFast(VarNameIndex),
     DeleteFast(VarNameIndex),
-    LoadClosure(ClosureRefIndex),
-    LoadDeref(ClosureRefIndex),
-    LoadClassderef(ClosureRefIndex),
-    StoreDeref(ClosureRefIndex),
-    DeleteDeref(ClosureRefIndex),
+    GenStart(GenKind),
     RaiseVarargs(RaiseForms),
     CallFunction(u32),
-    CallFunctionKW(u32),
-    CallFunctionEx(CallExFlags),
-    LoadMethod(NameIndex),
-    CallMethod(u32),
     MakeFunction(MakeFunctionFlags),
     BuildSlice(u32),
+    LoadClosure(ClosureRefIndex),
+    LoadDeref(ClosureRefIndex),
+    StoreDeref(ClosureRefIndex),
+    DeleteDeref(ClosureRefIndex),
+    CallFunctionKW(u32),
+    CallFunctionEx(CallExFlags),
+    SetupWith(RelativeJump),
     // ExtendedArg is skipped as it's integrated into the next instruction
-    FormatValue(FormatFlag),
+    ListAppend(u32),
+    SetAdd(u32),
+    MapAdd(u32),
+    LoadClassderef(ClosureRefIndex),
     MatchClass(u32),
-    GenStart(GenKind),
-    RotN(u32),
+    SetupAsyncWith,
+    FormatValue(FormatFlag),
+    BuildConstKeyMap(u32),
+    BuildString(u32),
+    LoadMethod(NameIndex),
+    CallMethod(u32),
+    ListExtend(u32),
+    SetUpdate(u32),
+    DictMerge,
+    DictUpdate(u32),
+}
+
+#[derive(Debug, Clone)]
+pub struct Instructions(Vec<Instruction>);
+
+impl Instructions {
+    fn append_instruction(&mut self, instruction: Instruction) {
+        self.0.push(instruction);
+    }
+
+    fn to_bytes(self) -> Vec<u8> {
+        let mut bytearray = Vec::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
+
+        macro_rules! push_argument {
+            ($arg:expr) => {
+                let mut arg: u32 = $arg;
+                // Emit EXTENDED_ARGs for arguments > 0xFF
+                if arg > u8::MAX.into() {
+                    // Python bytecode uses EXTENDED_ARG for each additional byte above the lowest.
+                    // We need to emit them from most significant to least significant.
+                    let mut ext_args = Vec::new();
+                    while arg > u8::MAX.into() {
+                        ext_args.push(((arg >> 8) & 0xFF) as u8);
+                        arg >>= 8;
+                    }
+                    // Emit EXTENDED_ARGs in reverse order (most significant first)
+                    for &ext in ext_args.iter().rev() {
+                        bytearray.push(Opcode::EXTENDED_ARG as u8);
+                        bytearray.push(ext);
+                    }
+                }
+                bytearray.push($arg as u8);
+            };
+        }
+
+        for instruction in &self.0 {
+            bytearray.push(instruction.get_opcode() as u8);
+            match instruction {
+                Instruction::PopTop
+                | Instruction::RotTwo
+                | Instruction::RotThree
+                | Instruction::DupTop
+                | Instruction::DupTopTwo
+                | Instruction::RotFour
+                | Instruction::Nop
+                | Instruction::UnaryPositive
+                | Instruction::UnaryNegative
+                | Instruction::UnaryNot
+                | Instruction::UnaryInvert
+                | Instruction::BinaryMatrixMultiply
+                | Instruction::InplaceMatrixMultiply
+                | Instruction::BinaryPower
+                | Instruction::BinaryMultiply
+                | Instruction::BinaryModulo
+                | Instruction::BinaryAdd
+                | Instruction::BinarySubtract
+                | Instruction::BinarySubscr
+                | Instruction::BinaryFloorDivide
+                | Instruction::BinaryTrueDivide
+                | Instruction::InplaceFloorDivide
+                | Instruction::InplaceTrueDivide
+                | Instruction::GetLen
+                | Instruction::MatchMapping
+                | Instruction::MatchSequence
+                | Instruction::MatchKeys
+                | Instruction::CopyDictWithoutKeys
+                | Instruction::WithExceptStart
+                | Instruction::GetAiter
+                | Instruction::GetAnext
+                | Instruction::BeforeAsyncWith
+                | Instruction::EndAsyncFor
+                | Instruction::InplaceAdd
+                | Instruction::InplaceSubtract
+                | Instruction::InplaceMultiply
+                | Instruction::InplaceModulo
+                | Instruction::StoreSubscr
+                | Instruction::DeleteSubscr
+                | Instruction::BinaryLshift
+                | Instruction::BinaryRshift
+                | Instruction::BinaryAnd
+                | Instruction::BinaryXor
+                | Instruction::BinaryOr
+                | Instruction::InplacePower
+                | Instruction::GetIter
+                | Instruction::GetYieldFromIter
+                | Instruction::PrintExpr
+                | Instruction::LoadBuildClass
+                | Instruction::YieldFrom
+                | Instruction::GetAwaitable
+                | Instruction::LoadAssertionError
+                | Instruction::InplaceLshift
+                | Instruction::InplaceRshift
+                | Instruction::InplaceAnd
+                | Instruction::InplaceXor
+                | Instruction::InplaceOr
+                | Instruction::ListToTuple
+                | Instruction::ReturnValue
+                | Instruction::ImportStar
+                | Instruction::SetupAnnotations
+                | Instruction::YieldValue
+                | Instruction::PopBlock
+                | Instruction::PopExcept
+                | Instruction::Reraise
+                | Instruction::SetupAsyncWith
+                | Instruction::DictMerge => {
+                    bytearray.push(0);
+                }
+                Instruction::StoreName(name_index)
+                | Instruction::DeleteName(name_index)
+                | Instruction::StoreAttr(name_index)
+                | Instruction::DeleteAttr(name_index)
+                | Instruction::StoreGlobal(name_index)
+                | Instruction::DeleteGlobal(name_index)
+                | Instruction::LoadName(name_index)
+                | Instruction::LoadAttr(name_index)
+                | Instruction::ImportName(name_index)
+                | Instruction::ImportFrom(name_index)
+                | Instruction::LoadGlobal(name_index)
+                | Instruction::LoadMethod(name_index) => {
+                    push_argument!(name_index.index);
+                }
+                Instruction::UnpackSequence(n)
+                | Instruction::UnpackEx(n)
+                | Instruction::RotN(n)
+                | Instruction::BuildTuple(n)
+                | Instruction::BuildList(n)
+                | Instruction::BuildSet(n)
+                | Instruction::BuildMap(n)
+                | Instruction::CallFunction(n)
+                | Instruction::BuildSlice(n)
+                | Instruction::CallFunctionKW(n)
+                | Instruction::ListAppend(n)
+                | Instruction::SetAdd(n)
+                | Instruction::MapAdd(n)
+                | Instruction::MatchClass(n)
+                | Instruction::BuildConstKeyMap(n)
+                | Instruction::BuildString(n)
+                | Instruction::CallMethod(n)
+                | Instruction::ListExtend(n)
+                | Instruction::SetUpdate(n)
+                | Instruction::DictUpdate(n) => {
+                    push_argument!(n.clone());
+                }
+                Instruction::ForIter(jump)
+                | Instruction::JumpForward(jump)
+                | Instruction::SetupFinally(jump)
+                | Instruction::SetupWith(jump) => {
+                    push_argument!(jump.index);
+                }
+                Instruction::LoadConst(const_index) => {
+                    push_argument!(const_index.index);
+                }
+                Instruction::CompareOp(comp_op) => {
+                    push_argument!(Into::<u32>::into(comp_op));
+                }
+                Instruction::JumpIfFalseOrPop(jump)
+                | Instruction::JumpIfTrueOrPop(jump)
+                | Instruction::JumpAbsolute(jump)
+                | Instruction::PopJumpIfFalse(jump)
+                | Instruction::PopJumpIfTrue(jump)
+                | Instruction::JumpIfNotExcMatch(jump) => {
+                    push_argument!(jump.index);
+                }
+                Instruction::IsOp(op_inv) | Instruction::ContainsOp(op_inv) => {
+                    push_argument!(Into::<u32>::into(op_inv));
+                }
+                Instruction::LoadFast(varname_index)
+                | Instruction::StoreFast(varname_index)
+                | Instruction::DeleteFast(varname_index) => {
+                    push_argument!(varname_index.index);
+                }
+                Instruction::GenStart(kind) => {
+                    push_argument!(Into::<u32>::into(kind));
+                }
+                Instruction::RaiseVarargs(form) => {
+                    push_argument!(Into::<u32>::into(form));
+                }
+                Instruction::MakeFunction(flags) => {
+                    push_argument!(flags.bits());
+                }
+                Instruction::LoadClosure(closure_ref_index)
+                | Instruction::LoadDeref(closure_ref_index)
+                | Instruction::StoreDeref(closure_ref_index)
+                | Instruction::DeleteDeref(closure_ref_index)
+                | Instruction::LoadClassderef(closure_ref_index) => {
+                    push_argument!(closure_ref_index.index);
+                }
+                Instruction::CallFunctionEx(flags) => {
+                    push_argument!(Into::<u32>::into(flags));
+                }
+                Instruction::FormatValue(format_flag) => {
+                    push_argument!(Into::<u32>::into(format_flag));
+                }
+            }
+        }
+        bytearray
+    }
+}
+
+impl Into<Vec<u8>> for Instructions {
+    fn into(self) -> Vec<u8> {
+        self.to_bytes()
+    }
+}
+
+impl TryFrom<&[u8]> for Instructions {
+    type Error = Error;
+    fn try_from(code: &[u8]) -> Result<Self, Self::Error> {
+        if code.len() % 2 != 0 {
+            return Err(Error::InvalidBytecodeLength);
+        }
+
+        let mut instructions = Instructions(Vec::with_capacity(code.len() / 2));
+        let mut extended_arg = 0; // Used to keep track of extended arguments between instructions
+
+        for chunk in code.chunks(2) {
+            if chunk.len() != 2 {
+                return Err(Error::InvalidBytecodeLength);
+            }
+            let opcode = Opcode::try_from(chunk[0])?;
+            let arg = chunk[1];
+
+            match opcode {
+                Opcode::EXTENDED_ARG => {
+                    extended_arg = (extended_arg << 8) | arg as u32;
+                    continue;
+                }
+                _ => {
+                    let arg = (extended_arg << 8) | arg as u32;
+
+                    instructions.append_instruction((opcode, arg).into());
+                }
+            }
+
+            extended_arg = 0;
+        }
+
+        Ok(instructions)
+    }
 }
 
 impl From<(Opcode, u32)> for Instruction {
@@ -759,6 +1138,145 @@ impl From<(Opcode, u32)> for Instruction {
     }
 }
 
+impl Instruction {
+    fn get_opcode(&self) -> Opcode {
+        match self {
+            Instruction::Nop => Opcode::NOP,
+            Instruction::PopTop => Opcode::POP_TOP,
+            Instruction::RotTwo => Opcode::ROT_TWO,
+            Instruction::RotThree => Opcode::ROT_THREE,
+            Instruction::RotFour => Opcode::ROT_FOUR,
+            Instruction::DupTop => Opcode::DUP_TOP,
+            Instruction::DupTopTwo => Opcode::DUP_TOP_TWO,
+            Instruction::UnaryPositive => Opcode::UNARY_POSITIVE,
+            Instruction::UnaryNegative => Opcode::UNARY_NEGATIVE,
+            Instruction::UnaryNot => Opcode::UNARY_NOT,
+            Instruction::UnaryInvert => Opcode::UNARY_INVERT,
+            Instruction::GetIter => Opcode::GET_ITER,
+            Instruction::GetYieldFromIter => Opcode::GET_YIELD_FROM_ITER,
+            Instruction::BinaryPower => Opcode::BINARY_POWER,
+            Instruction::BinaryMultiply => Opcode::BINARY_MULTIPLY,
+            Instruction::BinaryMatrixMultiply => Opcode::BINARY_MATRIX_MULTIPLY,
+            Instruction::BinaryFloorDivide => Opcode::BINARY_FLOOR_DIVIDE,
+            Instruction::BinaryTrueDivide => Opcode::BINARY_TRUE_DIVIDE,
+            Instruction::BinaryModulo => Opcode::BINARY_MODULO,
+            Instruction::BinaryAdd => Opcode::BINARY_ADD,
+            Instruction::BinarySubtract => Opcode::BINARY_SUBTRACT,
+            Instruction::BinarySubscr => Opcode::BINARY_SUBSCR,
+            Instruction::BinaryLshift => Opcode::BINARY_LSHIFT,
+            Instruction::BinaryRshift => Opcode::BINARY_RSHIFT,
+            Instruction::BinaryAnd => Opcode::BINARY_AND,
+            Instruction::BinaryXor => Opcode::BINARY_XOR,
+            Instruction::BinaryOr => Opcode::BINARY_OR,
+            Instruction::InplacePower => Opcode::INPLACE_POWER,
+            Instruction::InplaceMultiply => Opcode::INPLACE_MULTIPLY,
+            Instruction::InplaceMatrixMultiply => Opcode::INPLACE_MATRIX_MULTIPLY,
+            Instruction::InplaceFloorDivide => Opcode::INPLACE_FLOOR_DIVIDE,
+            Instruction::InplaceTrueDivide => Opcode::INPLACE_TRUE_DIVIDE,
+            Instruction::InplaceModulo => Opcode::INPLACE_MODULO,
+            Instruction::InplaceAdd => Opcode::INPLACE_ADD,
+            Instruction::InplaceSubtract => Opcode::INPLACE_SUBTRACT,
+            Instruction::InplaceLshift => Opcode::INPLACE_LSHIFT,
+            Instruction::InplaceRshift => Opcode::INPLACE_RSHIFT,
+            Instruction::InplaceAnd => Opcode::INPLACE_AND,
+            Instruction::InplaceXor => Opcode::INPLACE_XOR,
+            Instruction::InplaceOr => Opcode::INPLACE_OR,
+            Instruction::StoreSubscr => Opcode::STORE_SUBSCR,
+            Instruction::DeleteSubscr => Opcode::DELETE_SUBSCR,
+            Instruction::GetAwaitable => Opcode::GET_AWAITABLE,
+            Instruction::GetAiter => Opcode::GET_AITER,
+            Instruction::GetAnext => Opcode::GET_ANEXT,
+            Instruction::EndAsyncFor => Opcode::END_ASYNC_FOR,
+            Instruction::BeforeAsyncWith => Opcode::BEFORE_ASYNC_WITH,
+            Instruction::SetupAsyncWith => Opcode::SETUP_ASYNC_WITH,
+            Instruction::PrintExpr => Opcode::PRINT_EXPR,
+            Instruction::SetAdd(_) => Opcode::SET_ADD,
+            Instruction::ListAppend(_) => Opcode::LIST_APPEND,
+            Instruction::MapAdd(_) => Opcode::MAP_ADD,
+            Instruction::ReturnValue => Opcode::RETURN_VALUE,
+            Instruction::YieldValue => Opcode::YIELD_VALUE,
+            Instruction::YieldFrom => Opcode::YIELD_FROM,
+            Instruction::SetupAnnotations => Opcode::SETUP_ANNOTATIONS,
+            Instruction::ImportStar => Opcode::IMPORT_STAR,
+            Instruction::PopBlock => Opcode::POP_BLOCK,
+            Instruction::PopExcept => Opcode::POP_EXCEPT,
+            Instruction::Reraise => Opcode::RERAISE,
+            Instruction::WithExceptStart => Opcode::WITH_EXCEPT_START,
+            Instruction::LoadAssertionError => Opcode::LOAD_ASSERTION_ERROR,
+            Instruction::LoadBuildClass => Opcode::LOAD_BUILD_CLASS,
+            Instruction::SetupWith(_) => Opcode::SETUP_WITH,
+            Instruction::CopyDictWithoutKeys => Opcode::COPY_DICT_WITHOUT_KEYS,
+            Instruction::GetLen => Opcode::GET_LEN,
+            Instruction::MatchMapping => Opcode::MATCH_MAPPING,
+            Instruction::MatchSequence => Opcode::MATCH_SEQUENCE,
+            Instruction::MatchKeys => Opcode::MATCH_KEYS,
+            Instruction::StoreName(_) => Opcode::STORE_NAME,
+            Instruction::DeleteName(_) => Opcode::DELETE_NAME,
+            Instruction::UnpackSequence(_) => Opcode::UNPACK_SEQUENCE,
+            Instruction::UnpackEx(_) => Opcode::UNPACK_EX,
+            Instruction::StoreAttr(_) => Opcode::STORE_ATTR,
+            Instruction::DeleteAttr(_) => Opcode::DELETE_ATTR,
+            Instruction::StoreGlobal(_) => Opcode::STORE_GLOBAL,
+            Instruction::DeleteGlobal(_) => Opcode::DELETE_GLOBAL,
+            Instruction::LoadConst(_) => Opcode::LOAD_CONST,
+            Instruction::LoadName(_) => Opcode::LOAD_NAME,
+            Instruction::BuildTuple(_) => Opcode::BUILD_TUPLE,
+            Instruction::BuildList(_) => Opcode::BUILD_LIST,
+            Instruction::BuildSet(_) => Opcode::BUILD_SET,
+            Instruction::BuildMap(_) => Opcode::BUILD_MAP,
+            Instruction::BuildConstKeyMap(_) => Opcode::BUILD_CONST_KEY_MAP,
+            Instruction::BuildString(_) => Opcode::BUILD_STRING,
+            Instruction::ListToTuple => Opcode::LIST_TO_TUPLE,
+            Instruction::ListExtend(_) => Opcode::LIST_EXTEND,
+            Instruction::SetUpdate(_) => Opcode::SET_UPDATE,
+            Instruction::DictUpdate(_) => Opcode::DICT_UPDATE,
+            Instruction::DictMerge => Opcode::DICT_MERGE,
+            Instruction::LoadAttr(_) => Opcode::LOAD_ATTR,
+            Instruction::CompareOp(_) => Opcode::COMPARE_OP,
+            Instruction::ImportName(_) => Opcode::IMPORT_NAME,
+            Instruction::ImportFrom(_) => Opcode::IMPORT_FROM,
+            Instruction::JumpForward(_) => Opcode::JUMP_FORWARD,
+            Instruction::PopJumpIfTrue(_) => Opcode::POP_JUMP_IF_TRUE,
+            Instruction::PopJumpIfFalse(_) => Opcode::POP_JUMP_IF_FALSE,
+            Instruction::JumpIfNotExcMatch(_) => Opcode::JUMP_IF_NOT_EXC_MATCH,
+            Instruction::JumpIfTrueOrPop(_) => Opcode::JUMP_IF_TRUE_OR_POP,
+            Instruction::JumpIfFalseOrPop(_) => Opcode::JUMP_IF_FALSE_OR_POP,
+            Instruction::JumpAbsolute(_) => Opcode::JUMP_ABSOLUTE,
+            Instruction::ForIter(_) => Opcode::FOR_ITER,
+            Instruction::LoadGlobal(_) => Opcode::LOAD_GLOBAL,
+            Instruction::IsOp(_) => Opcode::IS_OP,
+            Instruction::ContainsOp(_) => Opcode::CONTAINS_OP,
+            Instruction::SetupFinally(_) => Opcode::SETUP_FINALLY,
+            Instruction::LoadFast(_) => Opcode::LOAD_FAST,
+            Instruction::StoreFast(_) => Opcode::STORE_FAST,
+            Instruction::DeleteFast(_) => Opcode::DELETE_FAST,
+            Instruction::LoadClosure(_) => Opcode::LOAD_CLOSURE,
+            Instruction::LoadDeref(_) => Opcode::LOAD_DEREF,
+            Instruction::LoadClassderef(_) => Opcode::LOAD_CLASSDEREF,
+            Instruction::StoreDeref(_) => Opcode::STORE_DEREF,
+            Instruction::DeleteDeref(_) => Opcode::DELETE_DEREF,
+            Instruction::RaiseVarargs(_) => Opcode::RAISE_VARARGS,
+            Instruction::CallFunction(_) => Opcode::CALL_FUNCTION,
+            Instruction::CallFunctionKW(_) => Opcode::CALL_FUNCTION_KW,
+            Instruction::CallFunctionEx(_) => Opcode::CALL_FUNCTION_EX,
+            Instruction::LoadMethod(_) => Opcode::LOAD_METHOD,
+            Instruction::CallMethod(_) => Opcode::CALL_METHOD,
+            Instruction::MakeFunction(_) => Opcode::MAKE_FUNCTION,
+            Instruction::BuildSlice(_) => Opcode::BUILD_SLICE,
+            Instruction::FormatValue(_) => Opcode::FORMAT_VALUE,
+            Instruction::MatchClass(_) => Opcode::MATCH_CLASS,
+            Instruction::GenStart(_) => Opcode::GEN_START,
+            Instruction::RotN(_) => Opcode::ROT_N,
+        }
+    }
+}
+
+impl Into<u8> for Instruction {
+    fn into(self) -> u8 {
+        (self.get_opcode() as u8)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Pyc {
     pub python_version: python_marshal::magic::PyVersion,
@@ -771,30 +1289,42 @@ impl TryFrom<python_marshal::PycFile> for Pyc {
     type Error = Error;
 
     fn try_from(pyc: python_marshal::PycFile) -> Result<Self, Self::Error> {
-        if pyc.python_version.major != 3 || pyc.python_version.minor != 10 {
-            Err(Error::WrongVersion)
-        } else {
-            let (code_object, refs) = resolve_all_refs(pyc.object, pyc.references)?;
+        let (code_object, refs) = resolve_all_refs(pyc.object, pyc.references)?;
 
-            if !refs.is_empty() {
-                return Err(Error::RecursiveReference(
-                    "This pyc file contains references that cannot be resolved. This should never happen on a valid pyc file generated by Python.",
-                ));
+        if !refs.is_empty() {
+            return Err(Error::RecursiveReference(
+                "This pyc file contains references that cannot be resolved. This should never happen on a valid pyc file generated by Python.",
+            ));
+        }
+
+        let code_object = extract_object!(Some(code_object), python_marshal::Object::Code(code) => code, python_marshal::error::Error::UnexpectedObject)?;
+
+        match code_object {
+            python_marshal::Code::V310(code) => {
+                let code = Code::try_from(code)?;
+                Ok(Pyc {
+                    python_version: pyc.python_version,
+                    timestamp: pyc.timestamp.ok_or(Error::WrongVersion)?,
+                    hash: pyc.hash,
+                    code,
+                })
             }
+            _ => Err(Error::WrongVersion),
+        }
+    }
+}
 
-            let code_object = extract_object!(Some(code_object), python_marshal::Object::Code(code) => code, python_marshal::error::Error::UnexpectedObject)?;
-
-            match *code_object {
-                python_marshal::Code::V310(code) => {
-                    let code = Code::try_from(code)?;
-                    Ok(Pyc {
-                        python_version: pyc.python_version,
-                        timestamp: pyc.timestamp.ok_or(Error::WrongVersion)?,
-                        hash: pyc.hash,
-                        code,
-                    })
+impl Into<python_marshal::PycFile> for PycFile {
+    fn into(self) -> python_marshal::PycFile {
+        match self.clone() {
+            PycFile::V310(pyc) => {
+                python_marshal::PycFile {
+                    python_version: pyc.python_version,
+                    timestamp: Some(pyc.timestamp),
+                    hash: pyc.hash,
+                    object: python_marshal::Object::Code(pyc.code.into()),
+                    references: Vec::new(), // All references are resolved in this editor.
                 }
-                _ => Err(Error::WrongVersion),
             }
         }
     }

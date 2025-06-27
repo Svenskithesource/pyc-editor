@@ -33,6 +33,15 @@ pub enum Constant {
     CodeObject(Code),
 }
 
+impl Into<python_marshal::Object> for Constant {
+    fn into(self) -> python_marshal::Object {
+        match self {
+            Constant::CodeObject(code) => python_marshal::Object::Code(code.into()),
+            Constant::FrozenConstant(constant) => constant.into(),
+        }
+    }
+}
+
 impl TryFrom<python_marshal::Object> for FrozenConstant {
     type Error = Error;
 
@@ -171,11 +180,38 @@ impl Into<python_marshal::Code> for Code {
             stacksize: self.stacksize,
             flags: self.flags,
             code: python_marshal::Object::Bytes(self.code.into()).into(),
-            consts: python_marshal::Object::Tuple(self.consts.into()).into(),
-            names: python_marshal::Object::Tuple(self.names.into()).into(),
-            varnames: python_marshal::Object::Tuple(self.varnames.into()).into(),
-            freevars: python_marshal::Object::Tuple(self.freevars.into()).into(),
-            cellvars: python_marshal::Object::Tuple(self.cellvars.into()).into(),
+            consts: python_marshal::Object::Tuple(
+                self.consts.into_iter().map(|c| c.into()).collect(),
+            )
+            .into(),
+            names: python_marshal::Object::Tuple(
+                self.names
+                    .into_iter()
+                    .map(|c| python_marshal::Object::String(c))
+                    .collect(),
+            )
+            .into(),
+            varnames: python_marshal::Object::Tuple(
+                self.varnames
+                    .into_iter()
+                    .map(|c| python_marshal::Object::String(c))
+                    .collect(),
+            )
+            .into(),
+            freevars: python_marshal::Object::Tuple(
+                self.freevars
+                    .into_iter()
+                    .map(|c| python_marshal::Object::String(c))
+                    .collect(),
+            )
+            .into(),
+            cellvars: python_marshal::Object::Tuple(
+                self.cellvars
+                    .into_iter()
+                    .map(|c| python_marshal::Object::String(c))
+                    .collect(),
+            )
+            .into(),
             filename: python_marshal::Object::String(self.filename).into(),
             name: python_marshal::Object::String(self.name).into(),
             firstlineno: self.firstlineno,
@@ -438,7 +474,7 @@ impl Into<u32> for &OpInversion {
     }
 }
 
-/// THe different types of raising forms. See https://docs.python.org/3.10/library/dis.html#opcode-RAISE_VARARGS
+/// The different types of raising forms. See https://docs.python.org/3.10/library/dis.html#opcode-RAISE_VARARGS
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RaiseForms {
     ReraisePrev,
@@ -622,13 +658,15 @@ impl Into<u32> for &GenKind {
 /// Low level representation of a Python bytecode instruction
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instruction {
-    PopTop,
-    RotTwo,
-    RotThree,
+    PopTop(u32),
+    /// Python leaves the ROTN argument after optimizing. See https://github.com/python/cpython/blob/3.10/Python/compile.c#L7522
+    RotTwo(u32),
+    RotThree(u32),
     DupTop,
     DupTopTwo,
-    RotFour,
-    Nop,
+    RotFour(u32),
+    Nop(u32),
+    /// Version 3.10 has an unique bug where some NOPs are left with an arg. See https://github.com/python/cpython/issues/89918#issuecomment-1093937041
     UnaryPositive,
     UnaryNegative,
     UnaryNot,
@@ -715,7 +753,7 @@ pub enum Instruction {
     LoadGlobal(NameIndex),
     IsOp(OpInversion),
     ContainsOp(OpInversion),
-    Reraise,
+    Reraise(RaiseForms),
     JumpIfNotExcMatch(AbsoluteJump),
     SetupFinally(RelativeJump),
     LoadFast(VarNameIndex),
@@ -762,8 +800,8 @@ impl Instructions {
     fn to_bytes(self) -> Vec<u8> {
         let mut bytearray = Vec::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
-        macro_rules! push_argument {
-            ($arg:expr) => {
+        macro_rules! push_inst {
+            ($instruction:expr, $arg:expr) => {
                 let mut arg: u32 = $arg;
                 // Emit EXTENDED_ARGs for arguments > 0xFF
                 if arg > u8::MAX.into() {
@@ -780,20 +818,15 @@ impl Instructions {
                         bytearray.push(ext);
                     }
                 }
+                bytearray.push($instruction.get_opcode() as u8);
                 bytearray.push($arg as u8);
             };
         }
 
         for instruction in &self.0 {
-            bytearray.push(instruction.get_opcode() as u8);
             match instruction {
-                Instruction::PopTop
-                | Instruction::RotTwo
-                | Instruction::RotThree
-                | Instruction::DupTop
+                Instruction::DupTop
                 | Instruction::DupTopTwo
-                | Instruction::RotFour
-                | Instruction::Nop
                 | Instruction::UnaryPositive
                 | Instruction::UnaryNegative
                 | Instruction::UnaryNot
@@ -851,10 +884,9 @@ impl Instructions {
                 | Instruction::YieldValue
                 | Instruction::PopBlock
                 | Instruction::PopExcept
-                | Instruction::Reraise
                 | Instruction::SetupAsyncWith
                 | Instruction::DictMerge => {
-                    bytearray.push(0);
+                    push_inst!(instruction, 0);
                 }
                 Instruction::StoreName(name_index)
                 | Instruction::DeleteName(name_index)
@@ -868,9 +900,14 @@ impl Instructions {
                 | Instruction::ImportFrom(name_index)
                 | Instruction::LoadGlobal(name_index)
                 | Instruction::LoadMethod(name_index) => {
-                    push_argument!(name_index.index);
+                    push_inst!(instruction, name_index.index);
                 }
-                Instruction::UnpackSequence(n)
+                Instruction::PopTop(n)
+                | Instruction::RotTwo(n)
+                | Instruction::RotThree(n)
+                | Instruction::RotFour(n)
+                | Instruction::Nop(n)
+                | Instruction::UnpackSequence(n)
                 | Instruction::UnpackEx(n)
                 | Instruction::RotN(n)
                 | Instruction::BuildTuple(n)
@@ -890,19 +927,19 @@ impl Instructions {
                 | Instruction::ListExtend(n)
                 | Instruction::SetUpdate(n)
                 | Instruction::DictUpdate(n) => {
-                    push_argument!(n.clone());
+                    push_inst!(instruction, n.clone());
                 }
                 Instruction::ForIter(jump)
                 | Instruction::JumpForward(jump)
                 | Instruction::SetupFinally(jump)
                 | Instruction::SetupWith(jump) => {
-                    push_argument!(jump.index);
+                    push_inst!(instruction, jump.index);
                 }
                 Instruction::LoadConst(const_index) => {
-                    push_argument!(const_index.index);
+                    push_inst!(instruction, const_index.index);
                 }
                 Instruction::CompareOp(comp_op) => {
-                    push_argument!(Into::<u32>::into(comp_op));
+                    push_inst!(instruction, Into::<u32>::into(comp_op));
                 }
                 Instruction::JumpIfFalseOrPop(jump)
                 | Instruction::JumpIfTrueOrPop(jump)
@@ -910,37 +947,40 @@ impl Instructions {
                 | Instruction::PopJumpIfFalse(jump)
                 | Instruction::PopJumpIfTrue(jump)
                 | Instruction::JumpIfNotExcMatch(jump) => {
-                    push_argument!(jump.index);
+                    push_inst!(instruction, jump.index);
+                }
+                Instruction::Reraise(forms) => {
+                    push_inst!(instruction, Into::<u32>::into(forms));
                 }
                 Instruction::IsOp(op_inv) | Instruction::ContainsOp(op_inv) => {
-                    push_argument!(Into::<u32>::into(op_inv));
+                    push_inst!(instruction, Into::<u32>::into(op_inv));
                 }
                 Instruction::LoadFast(varname_index)
                 | Instruction::StoreFast(varname_index)
                 | Instruction::DeleteFast(varname_index) => {
-                    push_argument!(varname_index.index);
+                    push_inst!(instruction, varname_index.index);
                 }
                 Instruction::GenStart(kind) => {
-                    push_argument!(Into::<u32>::into(kind));
+                    push_inst!(instruction, Into::<u32>::into(kind));
                 }
                 Instruction::RaiseVarargs(form) => {
-                    push_argument!(Into::<u32>::into(form));
+                    push_inst!(instruction, Into::<u32>::into(form));
                 }
                 Instruction::MakeFunction(flags) => {
-                    push_argument!(flags.bits());
+                    push_inst!(instruction, flags.bits());
                 }
                 Instruction::LoadClosure(closure_ref_index)
                 | Instruction::LoadDeref(closure_ref_index)
                 | Instruction::StoreDeref(closure_ref_index)
                 | Instruction::DeleteDeref(closure_ref_index)
                 | Instruction::LoadClassderef(closure_ref_index) => {
-                    push_argument!(closure_ref_index.index);
+                    push_inst!(instruction, closure_ref_index.index);
                 }
                 Instruction::CallFunctionEx(flags) => {
-                    push_argument!(Into::<u32>::into(flags));
+                    push_inst!(instruction, Into::<u32>::into(flags));
                 }
                 Instruction::FormatValue(format_flag) => {
-                    push_argument!(Into::<u32>::into(format_flag));
+                    push_inst!(instruction, Into::<u32>::into(format_flag));
                 }
             }
         }
@@ -993,11 +1033,11 @@ impl TryFrom<&[u8]> for Instructions {
 impl From<(Opcode, u32)> for Instruction {
     fn from(value: (Opcode, u32)) -> Self {
         match value.0 {
-            Opcode::NOP => Instruction::Nop,
-            Opcode::POP_TOP => Instruction::PopTop,
-            Opcode::ROT_TWO => Instruction::RotTwo,
-            Opcode::ROT_THREE => Instruction::RotThree,
-            Opcode::ROT_FOUR => Instruction::RotFour,
+            Opcode::NOP => Instruction::Nop(value.1),
+            Opcode::POP_TOP => Instruction::PopTop(value.1),
+            Opcode::ROT_TWO => Instruction::RotTwo(value.1),
+            Opcode::ROT_THREE => Instruction::RotThree(value.1),
+            Opcode::ROT_FOUR => Instruction::RotFour(value.1),
             Opcode::DUP_TOP => Instruction::DupTop,
             Opcode::DUP_TOP_TWO => Instruction::DupTopTwo,
             Opcode::UNARY_POSITIVE => Instruction::UnaryPositive,
@@ -1052,7 +1092,7 @@ impl From<(Opcode, u32)> for Instruction {
             Opcode::IMPORT_STAR => Instruction::ImportStar,
             Opcode::POP_BLOCK => Instruction::PopBlock,
             Opcode::POP_EXCEPT => Instruction::PopExcept,
-            Opcode::RERAISE => Instruction::Reraise,
+            Opcode::RERAISE => Instruction::Reraise(value.1.into()),
             Opcode::WITH_EXCEPT_START => Instruction::WithExceptStart,
             Opcode::LOAD_ASSERTION_ERROR => Instruction::LoadAssertionError,
             Opcode::LOAD_BUILD_CLASS => Instruction::LoadBuildClass,
@@ -1141,11 +1181,11 @@ impl From<(Opcode, u32)> for Instruction {
 impl Instruction {
     fn get_opcode(&self) -> Opcode {
         match self {
-            Instruction::Nop => Opcode::NOP,
-            Instruction::PopTop => Opcode::POP_TOP,
-            Instruction::RotTwo => Opcode::ROT_TWO,
-            Instruction::RotThree => Opcode::ROT_THREE,
-            Instruction::RotFour => Opcode::ROT_FOUR,
+            Instruction::Nop(_) => Opcode::NOP,
+            Instruction::PopTop(_) => Opcode::POP_TOP,
+            Instruction::RotTwo(_) => Opcode::ROT_TWO,
+            Instruction::RotThree(_) => Opcode::ROT_THREE,
+            Instruction::RotFour(_) => Opcode::ROT_FOUR,
             Instruction::DupTop => Opcode::DUP_TOP,
             Instruction::DupTopTwo => Opcode::DUP_TOP_TWO,
             Instruction::UnaryPositive => Opcode::UNARY_POSITIVE,
@@ -1200,7 +1240,7 @@ impl Instruction {
             Instruction::ImportStar => Opcode::IMPORT_STAR,
             Instruction::PopBlock => Opcode::POP_BLOCK,
             Instruction::PopExcept => Opcode::POP_EXCEPT,
-            Instruction::Reraise => Opcode::RERAISE,
+            Instruction::Reraise(_) => Opcode::RERAISE,
             Instruction::WithExceptStart => Opcode::WITH_EXCEPT_START,
             Instruction::LoadAssertionError => Opcode::LOAD_ASSERTION_ERROR,
             Instruction::LoadBuildClass => Opcode::LOAD_BUILD_CLASS,

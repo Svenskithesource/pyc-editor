@@ -3,13 +3,13 @@ mod v310;
 
 use error::Error;
 use python_marshal::{self, magic::PyVersion};
-use std::{fmt::Write, io::Read};
+use std::{io::Read, io::Write};
 
 #[derive(Debug, Clone)]
 pub enum PycFile {
     V310(v310::code_objects::Pyc),
 }
- 
+
 pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
     let pyc_file = python_marshal::load_pyc(data)?;
 
@@ -27,7 +27,11 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
 }
 
 pub fn dump_pyc(writer: &mut impl Write, pyc_file: PycFile) -> Result<(), Error> {
-    // let pyc: python_marshal::PycFile = pyc_file.into();
+    let pyc: python_marshal::PycFile = pyc_file.into();
+
+    python_marshal::dump_pyc(writer, pyc)?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -40,8 +44,22 @@ mod tests {
     fn test_load_pyc() {
         let file = File::open("tests/test.pyc").unwrap();
         let reader = BufReader::new(file);
+        let original_pyc = python_marshal::load_pyc(reader).unwrap();
+        let original_pyc = python_marshal::resolver::resolve_all_refs(
+            original_pyc.object,
+            original_pyc.references,
+        )
+        .unwrap()
+        .0;
+
+        let file = File::open("tests/test.pyc").unwrap();
+        let reader = BufReader::new(file);
         let pyc_file = load_pyc(reader).unwrap();
 
         dbg!(&pyc_file);
+
+        let pyc: python_marshal::PycFile = pyc_file.into();
+
+        assert_eq!(original_pyc, pyc.object);
     }
 }

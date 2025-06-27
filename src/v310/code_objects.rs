@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 
 use hashable::HashableHashSet;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 use num_bigint::BigInt;
 use num_complex::Complex;
 use ordered_float::OrderedFloat;
@@ -33,9 +33,9 @@ pub enum Constant {
     CodeObject(Code),
 }
 
-impl Into<python_marshal::Object> for Constant {
-    fn into(self) -> python_marshal::Object {
-        match self {
+impl From<Constant> for python_marshal::Object {
+    fn from(val: Constant) -> Self {
+        match val {
             Constant::CodeObject(code) => python_marshal::Object::Code(code.into()),
             Constant::FrozenConstant(constant) => constant.into(),
         }
@@ -52,13 +52,10 @@ impl TryFrom<python_marshal::Object> for FrozenConstant {
             python_marshal::Object::Ellipsis => Ok(FrozenConstant::Ellipsis),
             python_marshal::Object::Bool(b) => Ok(FrozenConstant::Bool(b)),
             python_marshal::Object::Long(l) => Ok(FrozenConstant::Long(l)),
-            python_marshal::Object::Float(f) => {
-                Ok(FrozenConstant::Float(f))
+            python_marshal::Object::Float(f) => Ok(FrozenConstant::Float(f)),
+            python_marshal::Object::Complex(c) => {
+                Ok(FrozenConstant::Complex(Complex { re: c.re, im: c.im }))
             }
-            python_marshal::Object::Complex(c) => Ok(FrozenConstant::Complex(Complex {
-                re: c.re,
-                im: c.im,
-            })),
             python_marshal::Object::Bytes(b) => Ok(FrozenConstant::Bytes(b)),
             python_marshal::Object::String(s) => Ok(FrozenConstant::String(s)),
             python_marshal::Object::Tuple(t) => {
@@ -88,9 +85,9 @@ impl TryFrom<python_marshal::Object> for FrozenConstant {
     }
 }
 
-impl Into<python_marshal::Object> for FrozenConstant {
-    fn into(self) -> python_marshal::Object {
-        match self {
+impl From<FrozenConstant> for python_marshal::Object {
+    fn from(val: FrozenConstant) -> Self {
+        match val {
             FrozenConstant::Bool(value) => python_marshal::ObjectHashable::Bool(value).into(),
             FrozenConstant::None => python_marshal::ObjectHashable::None.into(),
             FrozenConstant::StopIteration => python_marshal::ObjectHashable::StopIteration.into(),
@@ -105,15 +102,13 @@ impl Into<python_marshal::Object> for FrozenConstant {
                     .into_iter()
                     .map(Into::<python_marshal::Object>::into)
                     .collect(),
-            )
-            .into(),
+            ),
             FrozenConstant::List(values) => python_marshal::Object::List(
                 values
                     .into_iter()
                     .map(Into::<python_marshal::Object>::into)
                     .collect(),
-            )
-            .into(),
+            ),
             FrozenConstant::FrozenSet(values) => {
                 python_marshal::Object::FrozenSet(
                     values
@@ -170,52 +165,52 @@ pub struct Code {
     pub lnotab: Vec<u8>,
 }
 
-impl Into<python_marshal::Code> for Code {
-    fn into(self) -> python_marshal::Code {
+impl From<Code> for python_marshal::Code {
+    fn from(val: Code) -> Self {
         python_marshal::Code::V310(python_marshal::code_objects::Code310 {
-            argcount: self.argcount,
-            posonlyargcount: self.posonlyargcount,
-            kwonlyargcount: self.kwonlyargcount,
-            nlocals: self.nlocals,
-            stacksize: self.stacksize,
-            flags: self.flags,
-            code: python_marshal::Object::Bytes(self.code.into()).into(),
+            argcount: val.argcount,
+            posonlyargcount: val.posonlyargcount,
+            kwonlyargcount: val.kwonlyargcount,
+            nlocals: val.nlocals,
+            stacksize: val.stacksize,
+            flags: val.flags,
+            code: python_marshal::Object::Bytes(val.code.into()).into(),
             consts: python_marshal::Object::Tuple(
-                self.consts.into_iter().map(|c| c.into()).collect(),
+                val.consts.into_iter().map(|c| c.into()).collect(),
             )
             .into(),
             names: python_marshal::Object::Tuple(
-                self.names
+                val.names
                     .into_iter()
-                    .map(|c| python_marshal::Object::String(c))
+                    .map(python_marshal::Object::String)
                     .collect(),
             )
             .into(),
             varnames: python_marshal::Object::Tuple(
-                self.varnames
+                val.varnames
                     .into_iter()
-                    .map(|c| python_marshal::Object::String(c))
+                    .map(python_marshal::Object::String)
                     .collect(),
             )
             .into(),
             freevars: python_marshal::Object::Tuple(
-                self.freevars
+                val.freevars
                     .into_iter()
-                    .map(|c| python_marshal::Object::String(c))
+                    .map(python_marshal::Object::String)
                     .collect(),
             )
             .into(),
             cellvars: python_marshal::Object::Tuple(
-                self.cellvars
+                val.cellvars
                     .into_iter()
-                    .map(|c| python_marshal::Object::String(c))
+                    .map(python_marshal::Object::String)
                     .collect(),
             )
             .into(),
-            filename: python_marshal::Object::String(self.filename).into(),
-            name: python_marshal::Object::String(self.name).into(),
-            firstlineno: self.firstlineno,
-            lnotab: python_marshal::Object::Bytes(self.lnotab).into(),
+            filename: python_marshal::Object::String(val.filename).into(),
+            name: python_marshal::Object::String(val.name).into(),
+            firstlineno: val.firstlineno,
+            lnotab: python_marshal::Object::Bytes(val.lnotab).into(),
         })
     }
 }
@@ -230,39 +225,6 @@ macro_rules! extract_strings_tuple {
             })
             .collect::<Result<Vec<_>, _>>()
     };
-}
-
-fn bytecode_to_instructions(code: &[u8]) -> Result<Vec<Instruction>, Error> {
-    if code.len() % 2 != 0 {
-        return Err(Error::InvalidBytecodeLength);
-    }
-
-    let mut instructions = Vec::with_capacity(code.len() / 2);
-    let mut extended_arg = 0; // Used to keep track of extended arguments
-
-    for chunk in code.chunks(2) {
-        if chunk.len() != 2 {
-            return Err(Error::InvalidBytecodeLength);
-        }
-        let opcode = Opcode::try_from(chunk[0])?;
-        let arg = chunk[1];
-
-        match opcode {
-            Opcode::EXTENDED_ARG => {
-                extended_arg = (extended_arg << 8) | arg as u32;
-                continue;
-            }
-            _ => {
-                let arg = (extended_arg << 8) | arg as u32;
-
-                instructions.push((opcode, arg).into());
-            }
-        }
-
-        extended_arg = 0;
-    }
-
-    Ok(instructions)
 }
 
 impl TryFrom<python_marshal::code_objects::Code310> for Code {
@@ -304,10 +266,10 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
                 .iter()
                 .map(|obj| Constant::try_from(obj.clone()))
                 .collect::<Result<Vec<_>, _>>()?,
-            names: co_names.iter().map(|obj| obj.clone()).collect(),
-            varnames: co_varnames.iter().map(|obj| obj.clone()).collect(),
-            freevars: co_freevars.iter().map(|obj| obj.clone()).collect(),
-            cellvars: co_cellvars.iter().map(|obj| obj.clone()).collect(),
+            names: co_names.to_vec(),
+            varnames: co_varnames.to_vec(),
+            freevars: co_freevars.to_vec(),
+            cellvars: co_cellvars.to_vec(),
             filename: co_filename.clone(),
             name: co_name.clone(),
             firstlineno: code.firstlineno,
@@ -432,16 +394,16 @@ impl From<u32> for CompareOperation {
     }
 }
 
-impl Into<u32> for &CompareOperation {
-    fn into(self) -> u32 {
-        match self {
+impl From<&CompareOperation> for u32 {
+    fn from(val: &CompareOperation) -> Self {
+        match val {
             CompareOperation::Smaller => 0,
             CompareOperation::SmallerOrEqual => 1,
             CompareOperation::Equal => 2,
             CompareOperation::NotEqual => 3,
             CompareOperation::Bigger => 4,
             CompareOperation::BiggerOrEqual => 5,
-            CompareOperation::Invalid(v) => v.clone(),
+            CompareOperation::Invalid(v) => *v,
         }
     }
 }
@@ -464,12 +426,12 @@ impl From<u32> for OpInversion {
     }
 }
 
-impl Into<u32> for &OpInversion {
-    fn into(self) -> u32 {
-        match self {
+impl From<&OpInversion> for u32 {
+    fn from(val: &OpInversion) -> Self {
+        match val {
             OpInversion::NoInvert => 0,
             OpInversion::Invert => 1,
-            OpInversion::Invalid(v) => v.clone(),
+            OpInversion::Invalid(v) => *v,
         }
     }
 }
@@ -494,13 +456,13 @@ impl From<u32> for RaiseForms {
     }
 }
 
-impl Into<u32> for &RaiseForms {
-    fn into(self) -> u32 {
-        match self {
+impl From<&RaiseForms> for u32 {
+    fn from(val: &RaiseForms) -> Self {
+        match val {
             RaiseForms::ReraisePrev => 0,
             RaiseForms::RaiseTOS => 1,
             RaiseForms::RaiseTOS1FromTOS => 2,
-            RaiseForms::Invalid(v) => v.clone(),
+            RaiseForms::Invalid(v) => *v,
         }
     }
 }
@@ -533,12 +495,12 @@ impl From<u32> for CallExFlags {
     }
 }
 
-impl Into<u32> for &CallExFlags {
-    fn into(self) -> u32 {
-        match self {
+impl From<&CallExFlags> for u32 {
+    fn from(val: &CallExFlags) -> Self {
+        match val {
             CallExFlags::PositionalOnly => 0,
             CallExFlags::WithKeywords => 1,
-            CallExFlags::Invalid(v) => v.clone(),
+            CallExFlags::Invalid(v) => *v,
         }
     }
 }
@@ -612,9 +574,9 @@ impl From<u32> for FormatFlag {
     }
 }
 
-impl Into<u32> for &FormatFlag {
-    fn into(self) -> u32 {
-        self.bits() as u32
+impl From<&FormatFlag> for u32 {
+    fn from(val: &FormatFlag) -> Self {
+        val.bits() as u32
     }
 }
 
@@ -638,13 +600,13 @@ impl From<u32> for GenKind {
     }
 }
 
-impl Into<u32> for &GenKind {
-    fn into(self) -> u32 {
-        match self {
+impl From<&GenKind> for u32 {
+    fn from(val: &GenKind) -> Self {
+        match val {
             GenKind::Generator => 0,
             GenKind::Coroutine => 1,
             GenKind::AsyncGenerator => 2,
-            GenKind::Invalid(v) => v.clone(),
+            GenKind::Invalid(v) => *v,
         }
     }
 }
@@ -791,7 +753,31 @@ impl Instructions {
         self.0.push(instruction);
     }
 
-    fn to_bytes(self) -> Vec<u8> {
+    pub fn get_instruction(&self, index: usize) -> Option<&Instruction> {
+        self.0.get(index)
+    }
+
+    pub fn get_instruction_mut(&mut self, index: usize) -> Option<&mut Instruction> {
+        self.0.get_mut(index)
+    }
+
+    pub fn find_instruction(&self, instruction: &Instruction) -> Option<&Instruction> {
+        self.0.iter().find(|&inst| inst == instruction)
+    }
+
+    pub fn find_instruction_mut(&mut self, instruction: &Instruction) -> Option<&mut Instruction> {
+        self.0.iter_mut().find(|inst| **inst == *instruction)
+    }
+
+    pub fn find_opcode(&self, opcode: Opcode) -> Option<&Instruction> {
+        self.0.iter().find(|&inst| inst.get_opcode() == opcode)
+    }
+
+    pub fn find_opcode_mut(&mut self, opcode: Opcode) -> Option<&mut Instruction> {
+        self.0.iter_mut().find(|inst| inst.get_opcode() == opcode)
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
         let mut bytearray = Vec::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
         macro_rules! push_inst {
@@ -920,7 +906,7 @@ impl Instructions {
                 | Instruction::SetUpdate(n)
                 | Instruction::DictUpdate(n)
                 | Instruction::DictMerge(n) => {
-                    push_inst!(instruction, n.clone());
+                    push_inst!(instruction, *n);
                 }
                 Instruction::ForIter(jump)
                 | Instruction::JumpForward(jump)
@@ -982,9 +968,9 @@ impl Instructions {
     }
 }
 
-impl Into<Vec<u8>> for Instructions {
-    fn into(self) -> Vec<u8> {
-        self.to_bytes()
+impl From<Instructions> for Vec<u8> {
+    fn from(val: Instructions) -> Self {
+        val.to_bytes()
     }
 }
 
@@ -1307,9 +1293,9 @@ impl Instruction {
     }
 }
 
-impl Into<u8> for Instruction {
-    fn into(self) -> u8 {
-        (self.get_opcode() as u8)
+impl From<Instruction> for u8 {
+    fn from(val: Instruction) -> Self {
+        val.get_opcode() as u8
     }
 }
 
@@ -1318,7 +1304,7 @@ pub struct Pyc {
     pub python_version: python_marshal::magic::PyVersion,
     pub timestamp: u32,
     pub hash: u64,
-    pub code: Code,
+    pub code_object: Code,
 }
 
 impl TryFrom<python_marshal::PycFile> for Pyc {
@@ -1342,7 +1328,7 @@ impl TryFrom<python_marshal::PycFile> for Pyc {
                     python_version: pyc.python_version,
                     timestamp: pyc.timestamp.ok_or(Error::WrongVersion)?,
                     hash: pyc.hash,
-                    code,
+                    code_object: code,
                 })
             }
             _ => Err(Error::WrongVersion),
@@ -1350,30 +1336,18 @@ impl TryFrom<python_marshal::PycFile> for Pyc {
     }
 }
 
-impl Into<python_marshal::PycFile> for PycFile {
-    fn into(self) -> python_marshal::PycFile {
-        match self.clone() {
+impl From<PycFile> for python_marshal::PycFile {
+    fn from(val: PycFile) -> Self {
+        match val.clone() {
             PycFile::V310(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
                     timestamp: Some(pyc.timestamp),
                     hash: pyc.hash,
-                    object: python_marshal::Object::Code(pyc.code.into()),
+                    object: python_marshal::Object::Code(pyc.code_object.into()),
                     references: Vec::new(), // All references are resolved in this editor.
                 }
             }
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Argument {
-    /// Positional-only argument (defined before `/`)
-    PositionalOnly(String),
-
-    /// Positional or keyword argument (defined before `*`)
-    PositionalOrKeyword(String),
-
-    /// Keyword-only argument (defined after `*`)
-    KeywordOnly(String),
 }

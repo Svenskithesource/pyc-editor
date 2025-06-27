@@ -31,10 +31,10 @@ fn diff_bytearrays(a: &[u8], b: &[u8]) -> Vec<(usize, u8, u8)> {
 fn test_recompile_standard_lib() {
     common::setup();
     env_logger::init();
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(1)
-        .build_global()
-        .unwrap();
+    // rayon::ThreadPoolBuilder::new()
+    //     .num_threads(1)
+    //     .build_global()
+    //     .unwrap();
 
     common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
@@ -60,32 +60,9 @@ fn test_recompile_standard_lib() {
             let parsed_pyc = load_pyc(reader).unwrap();
             let pyc: python_marshal::PycFile = parsed_pyc.into();
 
-            match (original_pyc.clone(), pyc.object.clone()) {
-                (
-                    python_marshal::Object::Code(python_marshal::Code::V310(old_code)),
-                    python_marshal::Object::Code(python_marshal::Code::V310(new_code)),
-                ) => {
-                    assert_eq!(old_code.argcount, new_code.argcount);
-                    assert_eq!(old_code.posonlyargcount, new_code.posonlyargcount);
-                    assert_eq!(old_code.kwonlyargcount, new_code.kwonlyargcount);
-                    assert_eq!(old_code.nlocals, new_code.nlocals);
-                    assert_eq!(old_code.stacksize, new_code.stacksize);
-                    assert_eq!(old_code.flags, new_code.flags);
-                    assert_eq!(old_code.code, new_code.code);
-                    assert_eq!(old_code.names, new_code.names);
-                    assert_eq!(old_code.varnames, new_code.varnames);
-                    assert_eq!(old_code.freevars, new_code.freevars);
-                    assert_eq!(old_code.cellvars, new_code.cellvars);
-                    assert_eq!(old_code.filename, new_code.filename);
-                    assert_eq!(old_code.name, new_code.name);
-                    assert_eq!(old_code.firstlineno, new_code.firstlineno);
-                    assert_eq!(old_code.lnotab, new_code.lnotab);
-                }
-                _ => assert!(false, "Pyc file does not contain a code object."),
-            }
-
             std::assert_eq!(
-                original_pyc, pyc.object,
+                original_pyc,
+                pyc.object,
                 "{:?} has not been recompiled succesfully",
                 &pyc_file
             );

@@ -1,5 +1,5 @@
 pub mod error;
-mod v310;
+pub mod v310;
 
 use error::Error;
 use python_marshal::{self, magic::PyVersion};

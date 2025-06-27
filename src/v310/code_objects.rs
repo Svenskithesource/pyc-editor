@@ -53,11 +53,11 @@ impl TryFrom<python_marshal::Object> for FrozenConstant {
             python_marshal::Object::Bool(b) => Ok(FrozenConstant::Bool(b)),
             python_marshal::Object::Long(l) => Ok(FrozenConstant::Long(l)),
             python_marshal::Object::Float(f) => {
-                Ok(FrozenConstant::Float(ordered_float::OrderedFloat(f)))
+                Ok(FrozenConstant::Float(f))
             }
             python_marshal::Object::Complex(c) => Ok(FrozenConstant::Complex(Complex {
-                re: OrderedFloat(c.re),
-                im: OrderedFloat(c.im),
+                re: c.re,
+                im: c.im,
             })),
             python_marshal::Object::Bytes(b) => Ok(FrozenConstant::Bytes(b)),
             python_marshal::Object::String(s) => Ok(FrozenConstant::String(s)),
@@ -576,51 +576,45 @@ impl From<u32> for SliceCount {
     }
 }
 
-/// Represents the conversion to apply to a value before f-string formatting.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FormatFlag {
-    /// No conversion, format the value as-is.
-    NoConversion,
-    /// Convert the value using `str()`.
-    Str,
-    /// Convert the value using `repr()`.
-    Repr,
-    /// Convert the value using `ascii()`.
-    Ascii,
-    /// Use special fmt_spec (see https://docs.python.org/3.10/library/dis.html#opcode-FORMAT_VALUE)
-    FmtSpec,
-    Invalid(u32),
+bitflags! {
+    /// Represents the conversion to apply to a value before f-string formatting.
+    /// From https://github.com/python/cpython/blob/3.10/Python/compile.c#L4349C5-L4361C7
+    ///  Our oparg encodes 2 pieces of information: the conversion
+    ///    character, and whether or not a format_spec was provided.
+
+    ///    Convert the conversion char to 3 bits:
+    ///        : 000  0x0  FVC_NONE   The default if nothing specified.
+    ///    !s  : 001  0x1  FVC_STR
+    ///    !r  : 010  0x2  FVC_REPR
+    ///    !a  : 011  0x3  FVC_ASCII
+
+    ///    next bit is whether or not we have a format spec:
+    ///    yes : 100  0x4
+    ///    no  : 000  0x0
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct FormatFlag: u8 {
+        /// No conversion (default)
+        const FVC_NONE = 0x0;
+        /// !s conversion
+        const FVC_STR = 0x1;
+        /// !r conversion
+        const FVC_REPR = 0x2;
+        /// !a conversion
+        const FVC_ASCII = 0x3;
+        /// Format spec is present
+        const FVS_MASK = 0x4;
+    }
 }
 
 impl From<u32> for FormatFlag {
     fn from(value: u32) -> Self {
-        if value & 0x04 == 0x04 {
-            return Self::FmtSpec;
-        } else {
-            match value {
-                0x00 => Self::NoConversion,
-                0x01 => Self::Str,
-                0x02 => Self::Repr,
-                0x03 => Self::Ascii,
-                0x04 => panic!(
-                    "Impossible for the flag to be 0x04, should have been caught by the if above."
-                ),
-                _ => Self::Invalid(value),
-            }
-        }
+        FormatFlag::from_bits_retain(value as u8)
     }
 }
 
 impl Into<u32> for &FormatFlag {
     fn into(self) -> u32 {
-        match self {
-            FormatFlag::NoConversion => 0x00,
-            FormatFlag::Str => 0x01,
-            FormatFlag::Repr => 0x02,
-            FormatFlag::Ascii => 0x03,
-            FormatFlag::FmtSpec => 0x04,
-            FormatFlag::Invalid(v) => v.clone(),
-        }
+        self.bits() as u32
     }
 }
 
@@ -777,7 +771,7 @@ pub enum Instruction {
     MapAdd(u32),
     LoadClassderef(ClosureRefIndex),
     MatchClass(u32),
-    SetupAsyncWith,
+    SetupAsyncWith(RelativeJump),
     FormatValue(FormatFlag),
     BuildConstKeyMap(u32),
     BuildString(u32),
@@ -785,7 +779,7 @@ pub enum Instruction {
     CallMethod(u32),
     ListExtend(u32),
     SetUpdate(u32),
-    DictMerge,
+    DictMerge(u32),
     DictUpdate(u32),
 }
 
@@ -883,9 +877,7 @@ impl Instructions {
                 | Instruction::SetupAnnotations
                 | Instruction::YieldValue
                 | Instruction::PopBlock
-                | Instruction::PopExcept
-                | Instruction::SetupAsyncWith
-                | Instruction::DictMerge => {
+                | Instruction::PopExcept => {
                     push_inst!(instruction, 0);
                 }
                 Instruction::StoreName(name_index)
@@ -926,13 +918,15 @@ impl Instructions {
                 | Instruction::CallMethod(n)
                 | Instruction::ListExtend(n)
                 | Instruction::SetUpdate(n)
-                | Instruction::DictUpdate(n) => {
+                | Instruction::DictUpdate(n)
+                | Instruction::DictMerge(n) => {
                     push_inst!(instruction, n.clone());
                 }
                 Instruction::ForIter(jump)
                 | Instruction::JumpForward(jump)
                 | Instruction::SetupFinally(jump)
-                | Instruction::SetupWith(jump) => {
+                | Instruction::SetupWith(jump)
+                | Instruction::SetupAsyncWith(jump) => {
                     push_inst!(instruction, jump.index);
                 }
                 Instruction::LoadConst(const_index) => {
@@ -1080,7 +1074,9 @@ impl From<(Opcode, u32)> for Instruction {
             Opcode::GET_ANEXT => Instruction::GetAnext,
             Opcode::END_ASYNC_FOR => Instruction::EndAsyncFor,
             Opcode::BEFORE_ASYNC_WITH => Instruction::BeforeAsyncWith,
-            Opcode::SETUP_ASYNC_WITH => Instruction::SetupAsyncWith,
+            Opcode::SETUP_ASYNC_WITH => {
+                Instruction::SetupAsyncWith(RelativeJump { index: value.1 })
+            }
             Opcode::PRINT_EXPR => Instruction::PrintExpr,
             Opcode::SET_ADD => Instruction::SetAdd(value.1),
             Opcode::LIST_APPEND => Instruction::ListAppend(value.1),
@@ -1122,7 +1118,7 @@ impl From<(Opcode, u32)> for Instruction {
             Opcode::LIST_EXTEND => Instruction::ListExtend(value.1),
             Opcode::SET_UPDATE => Instruction::SetUpdate(value.1),
             Opcode::DICT_UPDATE => Instruction::DictUpdate(value.1),
-            Opcode::DICT_MERGE => Instruction::DictMerge,
+            Opcode::DICT_MERGE => Instruction::DictMerge(value.1),
             Opcode::LOAD_ATTR => Instruction::LoadAttr(NameIndex { index: value.1 }),
             Opcode::COMPARE_OP => Instruction::CompareOp(value.1.into()),
             Opcode::IMPORT_NAME => Instruction::ImportName(NameIndex { index: value.1 }),
@@ -1228,7 +1224,7 @@ impl Instruction {
             Instruction::GetAnext => Opcode::GET_ANEXT,
             Instruction::EndAsyncFor => Opcode::END_ASYNC_FOR,
             Instruction::BeforeAsyncWith => Opcode::BEFORE_ASYNC_WITH,
-            Instruction::SetupAsyncWith => Opcode::SETUP_ASYNC_WITH,
+            Instruction::SetupAsyncWith(_) => Opcode::SETUP_ASYNC_WITH,
             Instruction::PrintExpr => Opcode::PRINT_EXPR,
             Instruction::SetAdd(_) => Opcode::SET_ADD,
             Instruction::ListAppend(_) => Opcode::LIST_APPEND,
@@ -1270,7 +1266,7 @@ impl Instruction {
             Instruction::ListExtend(_) => Opcode::LIST_EXTEND,
             Instruction::SetUpdate(_) => Opcode::SET_UPDATE,
             Instruction::DictUpdate(_) => Opcode::DICT_UPDATE,
-            Instruction::DictMerge => Opcode::DICT_MERGE,
+            Instruction::DictMerge(_) => Opcode::DICT_MERGE,
             Instruction::LoadAttr(_) => Opcode::LOAD_ATTR,
             Instruction::CompareOp(_) => Opcode::COMPARE_OP,
             Instruction::ImportName(_) => Opcode::IMPORT_NAME,

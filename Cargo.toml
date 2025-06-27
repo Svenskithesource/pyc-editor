@@ -6,11 +6,11 @@ edition = "2021"
 [dependencies]
 bitflags = "2.9.1"
 hashable = "0.0.0"
-indexmap = "2.9.0"
+indexmap = "2.10.0"
 num-bigint = "0.4.6"
 num-complex = "0.4.6"
 ordered-float = "5.0.0"
-python_marshal = "0.3.3"
+python_marshal = "0.3.11"
 
 [dev-dependencies]
 cmd_lib = "1.9.6"

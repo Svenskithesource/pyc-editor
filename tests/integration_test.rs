@@ -31,7 +31,10 @@ fn diff_bytearrays(a: &[u8], b: &[u8]) -> Vec<(usize, u8, u8)> {
 fn test_recompile_standard_lib() {
     common::setup();
     env_logger::init();
-    rayon::ThreadPoolBuilder::new().num_threads(1).build_global().unwrap();
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build_global()
+        .unwrap();
 
     common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
@@ -57,8 +60,11 @@ fn test_recompile_standard_lib() {
             let parsed_pyc = load_pyc(reader).unwrap();
             let pyc: python_marshal::PycFile = parsed_pyc.into();
 
-            match (original_pyc, pyc.object) {
-                (python_marshal::Object::Code(python_marshal::Code::V310(old_code)), python_marshal::Object::Code(python_marshal::Code::V310(new_code))) => {
+            match (original_pyc.clone(), pyc.object.clone()) {
+                (
+                    python_marshal::Object::Code(python_marshal::Code::V310(old_code)),
+                    python_marshal::Object::Code(python_marshal::Code::V310(new_code)),
+                ) => {
                     assert_eq!(old_code.argcount, new_code.argcount);
                     assert_eq!(old_code.posonlyargcount, new_code.posonlyargcount);
                     assert_eq!(old_code.kwonlyargcount, new_code.kwonlyargcount);
@@ -78,16 +84,11 @@ fn test_recompile_standard_lib() {
                 _ => assert!(false, "Pyc file does not contain a code object."),
             }
 
-            // assert_eq!(original_pyc, pyc.object, "{:?} has not been recompiled succesfully", &pyc_file);
+            std::assert_eq!(
+                original_pyc, pyc.object,
+                "{:?} has not been recompiled succesfully",
+                &pyc_file
+            );
         });
     });
-}
-
-fn get_optimized_path(original_path: &Path, version: &PyVersion) -> PathBuf {
-    let relative_path = original_path
-        .strip_prefix(Path::new(DATA_PATH).join(format!("cpython-{}/Lib", version)))
-        .unwrap();
-    Path::new(DATA_PATH)
-        .join(format!("optimized-{}/Lib", version))
-        .join(relative_path)
 }

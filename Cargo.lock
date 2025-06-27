@@ -890,9 +890,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.9.0"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cea70ddb795996207ad57735b50c5982d8844f38ba9ee5f1aedcfb708a2aa11e"
+checksum = "fe4cd85333e22411419a0bcae1297d25e58c9443848b11dc6a86fefe8c78a661"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -1363,9 +1363,9 @@ dependencies = [
 
 [[package]]
 name = "python_marshal"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3f60aa9ad798b4a10daee422cc054d55fd6ee8260d3df36f46f5500d0a0ef4f"
+checksum = "fc8140c52df16d273cac972aee76b5b3b1ea84cac3e709761fb4501f79342b23"
 dependencies = [
  "bitflags 2.9.1",
  "bstr",

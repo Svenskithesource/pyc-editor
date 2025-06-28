@@ -1,13 +1,9 @@
-use common::DATA_PATH;
 use rayon::prelude::*;
 use std::{
     io::BufReader,
-    path::{Path, PathBuf},
 };
 
-use pretty_assertions::assert_eq;
 use pyc_editor::load_pyc;
-use python_marshal::magic::PyVersion;
 
 mod common;
 
@@ -15,16 +11,6 @@ fn delete_debug_files() {
     let _ = std::fs::remove_file("debug_output.txt");
     let _ = std::fs::remove_file("write_log.txt");
     let _ = std::fs::remove_file("read_log.txt");
-}
-
-fn diff_bytearrays(a: &[u8], b: &[u8]) -> Vec<(usize, u8, u8)> {
-    let mut diff = Vec::new();
-    for (i, (&byte_a, &byte_b)) in a.iter().zip(b.iter()).enumerate() {
-        if byte_a != byte_b {
-            diff.push((i, byte_a, byte_b));
-        }
-    }
-    diff
 }
 
 #[test]

@@ -749,11 +749,25 @@ pub enum Instruction {
 pub struct Instructions(Vec<Instruction>);
 
 impl Instructions {
+    pub fn append_instructions(&mut self, instructions: &[Instruction]) {
+        for instruction in instructions {
+            self.0.push(instruction.clone());
+        }
+    }
+
     /// Append an instruction at the end
     pub fn append_instruction(&mut self, instruction: Instruction) {
         self.0.push(instruction);
     }
 
+    /// Insert a slice of instructions at an index
+    pub fn insert_instructions(&mut self, index: usize, instructions: &[Instruction]) {
+        for (idx, instruction) in instructions.iter().enumerate() {
+            self.insert_instruction(index + idx, instruction.clone());
+        }
+    }
+
+    /// Insert instruction at a specific index. It automatically fixes jump offsets in other instructions.
     pub fn insert_instruction(&mut self, index: usize, instruction: Instruction) {
         self.0.iter_mut().enumerate().for_each(|(idx, inst)| {
             match inst {

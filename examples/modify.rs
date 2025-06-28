@@ -12,7 +12,7 @@ fn main() {
     match pyc_file {
         PycFile::V310(ref mut pyc) => {
             // Change print(a + b) to print(a - b)
-            let add = pyc
+            let (_, add) = pyc
                 .code_object
                 .code
                 .find_opcode_mut(Opcode::BINARY_ADD)

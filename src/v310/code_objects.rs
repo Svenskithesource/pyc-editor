@@ -749,32 +749,153 @@ pub enum Instruction {
 pub struct Instructions(Vec<Instruction>);
 
 impl Instructions {
-    fn append_instruction(&mut self, instruction: Instruction) {
+    /// Append an instruction at the end
+    pub fn append_instruction(&mut self, instruction: Instruction) {
         self.0.push(instruction);
     }
 
+    pub fn insert_instruction(&mut self, index: usize, instruction: Instruction) {
+        self.0.iter_mut().enumerate().for_each(|(idx, inst)| {
+            match inst {
+                Instruction::JumpAbsolute(jump)
+                | Instruction::PopJumpIfTrue(jump)
+                | Instruction::PopJumpIfFalse(jump)
+                | Instruction::JumpIfNotExcMatch(jump)
+                | Instruction::JumpIfTrueOrPop(jump)
+                | Instruction::JumpIfFalseOrPop(jump) => {
+                    if jump.index as usize >= index {
+                        // Update jump indexes that jump to this index or above it
+                        jump.index += 1
+                    }
+                }
+                Instruction::ForIter(jump)
+                | Instruction::JumpForward(jump)
+                | Instruction::SetupFinally(jump)
+                | Instruction::SetupWith(jump)
+                | Instruction::SetupAsyncWith(jump) => {
+                    // Relative jumps only need to update if the index falls within it's jump range
+                    if idx <= index && index <= jump.index as usize {
+                        jump.index += 1
+                    }
+                }
+                _ => {}
+            }
+        });
+        self.0.insert(index, instruction);
+    }
+
+    /// Get a reference to an instruction if it exists at the specified index
     pub fn get_instruction(&self, index: usize) -> Option<&Instruction> {
         self.0.get(index)
     }
 
+    /// Get a mutable reference to an instruction if it exists at the specified index
     pub fn get_instruction_mut(&mut self, index: usize) -> Option<&mut Instruction> {
         self.0.get_mut(index)
     }
 
-    pub fn find_instruction(&self, instruction: &Instruction) -> Option<&Instruction> {
-        self.0.iter().find(|&inst| inst == instruction)
+    /// Find the first occurence of specified instruction, returns its index and a reference or None if it doesn't find one
+    pub fn find_instruction(&self, instruction: &Instruction) -> Option<(usize, &Instruction)> {
+        self.0
+            .iter()
+            .enumerate()
+            .find(|&(_, inst)| inst == instruction)
     }
 
-    pub fn find_instruction_mut(&mut self, instruction: &Instruction) -> Option<&mut Instruction> {
-        self.0.iter_mut().find(|inst| **inst == *instruction)
+    /// Find the first occurence of a specified instruction and returns its index and a mutable reference to it. None if it doesn't find one.
+    pub fn find_instruction_mut(
+        &mut self,
+        instruction: &Instruction,
+    ) -> Option<(usize, &mut Instruction)> {
+        self.0
+            .iter_mut()
+            .enumerate()
+            .find(|(_, inst)| **inst == *instruction)
     }
 
-    pub fn find_opcode(&self, opcode: Opcode) -> Option<&Instruction> {
-        self.0.iter().find(|&inst| inst.get_opcode() == opcode)
+    /// Find nth occurence of a specified instruction
+    pub fn find_instruction_n(
+        &self,
+        instruction: &Instruction,
+        occurrence: usize,
+    ) -> Option<(usize, &Instruction)> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter(|&(_, inst)| inst == instruction)
+            .nth(occurrence)
     }
 
-    pub fn find_opcode_mut(&mut self, opcode: Opcode) -> Option<&mut Instruction> {
-        self.0.iter_mut().find(|inst| inst.get_opcode() == opcode)
+    /// Find nth occurence of a specified instruction and return a mutable reference of it.
+    pub fn find_instruction_n_mut(
+        &mut self,
+        instruction: &Instruction,
+        occurrence: usize,
+    ) -> Option<(usize, &mut Instruction)> {
+        // we need the index first, because we can’t get multiple mutable refs
+        if let Some((idx, _)) = self
+            .0
+            .iter()
+            .enumerate()
+            .filter(|(_, inst)| *inst == instruction)
+            .nth(occurrence)
+        {
+            self.0.get_mut(idx).map(|e| (idx, e))
+        } else {
+            None
+        }
+    }
+
+    /// Find first occurence of the specified opcode.
+    /// Returns its index and a reference to the instruction it found or None if it didn't find one.
+    pub fn find_opcode(&self, opcode: Opcode) -> Option<(usize, &Instruction)> {
+        self.0
+            .iter()
+            .enumerate()
+            .find(|&(_, inst)| inst.get_opcode() == opcode)
+    }
+
+    /// Find first occurence of the specified opcode.
+    /// Returns a mutable reference to the instruction it found or None if it didn't find one.
+    pub fn find_opcode_mut(&mut self, opcode: Opcode) -> Option<(usize, &mut Instruction)> {
+        self.0
+            .iter_mut()
+            .enumerate()
+            .find(|(_, inst)| inst.get_opcode() == opcode)
+    }
+
+    /// Find nth occurence of the specified opcode.
+    /// Returns a reference to the instruction it found or None if it didn't find one.
+    pub fn find_opcode_n(
+        &self,
+        opcode: Opcode,
+        occurrence: usize,
+    ) -> Option<(usize, &Instruction)> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter(|(_, inst)| inst.get_opcode() == opcode)
+            .nth(occurrence)
+    }
+
+    /// Find nth occurence of the specified opcode.
+    /// Returns a mutable reference to the instruction it found or None if it didn't find one.
+    pub fn find_opcode_n_mut(
+        &mut self,
+        opcode: Opcode,
+        occurrence: usize,
+    ) -> Option<(usize, &mut Instruction)> {
+        if let Some((idx, _)) = self
+            .0
+            .iter()
+            .enumerate()
+            .filter(|(_, inst)| inst.get_opcode() == opcode)
+            .nth(occurrence)
+        {
+            self.0.get_mut(idx).map(|e| (idx, e))
+        } else {
+            None
+        }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -1161,7 +1282,7 @@ impl From<(Opcode, u32)> for Instruction {
 }
 
 impl Instruction {
-    fn get_opcode(&self) -> Opcode {
+    pub fn get_opcode(&self) -> Opcode {
         match self {
             Instruction::Nop(_) => Opcode::NOP,
             Instruction::PopTop(_) => Opcode::POP_TOP,
@@ -1290,6 +1411,18 @@ impl Instruction {
             Instruction::GenStart(_) => Opcode::GEN_START,
             Instruction::RotN(_) => Opcode::ROT_N,
         }
+    }
+
+    pub fn is_jump(&self) -> bool {
+        self.get_opcode().is_jump()
+    }
+
+    pub fn is_absolute_jump(&self) -> bool {
+        self.get_opcode().is_absolute_jump()
+    }
+
+    pub fn is_relative_jump(&self) -> bool {
+        self.get_opcode().is_relative_jump()
     }
 }
 

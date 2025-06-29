@@ -10,7 +10,7 @@ indexmap = "2.10.0"
 num-bigint = "0.4.6"
 num-complex = "0.4.6"
 ordered-float = "5.0.0"
-python_marshal = "0.3.11"
+python_marshal = "0.4.1"
 
 [dev-dependencies]
 cmd_lib = "1.9.6"

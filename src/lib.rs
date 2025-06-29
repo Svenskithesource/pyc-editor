@@ -2,7 +2,7 @@ pub mod error;
 pub mod v310;
 
 use error::Error;
-use python_marshal::{self, magic::PyVersion};
+use python_marshal::{self, magic::PyVersion, minimize_references};
 use std::{io::Read, io::Write};
 
 #[derive(Debug, Clone)]
@@ -27,7 +27,12 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
 }
 
 pub fn dump_pyc(writer: &mut impl Write, pyc_file: PycFile) -> Result<(), Error> {
-    let pyc: python_marshal::PycFile = pyc_file.into();
+    let mut pyc: python_marshal::PycFile = pyc_file.into();
+
+    // let (obj, refs) = minimize_references(&pyc.object, pyc.references);
+
+    // pyc.object = obj;
+    // pyc.references = refs;
 
     python_marshal::dump_pyc(writer, pyc)?;
 
@@ -46,10 +51,9 @@ mod tests {
         let reader = BufReader::new(file);
         let original_pyc = python_marshal::load_pyc(reader).unwrap();
         let original_pyc = python_marshal::resolver::resolve_all_refs(
-            original_pyc.object,
-            original_pyc.references,
+            &original_pyc.object,
+            &original_pyc.references,
         )
-        .unwrap()
         .0;
 
         let file = File::open("tests/test.pyc").unwrap();

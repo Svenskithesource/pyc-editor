@@ -1370,7 +1370,7 @@ impl TryFrom<python_marshal::PycFile> for Pyc {
     type Error = Error;
 
     fn try_from(pyc: python_marshal::PycFile) -> Result<Self, Self::Error> {
-        let (code_object, refs) = resolve_all_refs(pyc.object, pyc.references)?;
+        let (code_object, refs) = resolve_all_refs(&pyc.object, &pyc.references);
 
         if !refs.is_empty() {
             return Err(Error::RecursiveReference(

@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use bitflags::bitflags;
 
 use hashable::HashableHashSet;
@@ -279,19 +281,19 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
 }
 
 /// Represents a relative jump offset from the current instruction.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RelativeJump {
     index: u32,
 }
 
 /// Represents an absolute jump target (a byte offset from the start of the code).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AbsoluteJump {
     index: u32,
 }
 
 /// Holds an index into co_names. Has helper functions to get the actual PyString of the name.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NameIndex {
     index: u32,
 }
@@ -303,7 +305,7 @@ impl NameIndex {
 }
 
 /// Holds an index into co_varnames. Has helper functions to get the actual PyString of the name.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VarNameIndex {
     index: u32,
 }
@@ -315,7 +317,7 @@ impl VarNameIndex {
 }
 
 /// Holds an index into co_consts. Has helper functions to get the actual constant at the index.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstIndex {
     index: u32,
 }
@@ -327,13 +329,13 @@ impl ConstIndex {
 }
 
 /// Represents a resolved reference to a variable in the cell or free variable storage.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClosureRefIndex {
     index: u32,
 }
 
 /// Represents a resolved reference to a variable in the cell or free variable storage.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClosureRef {
     /// Index into `co_cellvars`.
     /// These are variables created in the current scope that will be used by nested scopes.
@@ -368,7 +370,7 @@ impl ClosureRefIndex {
 }
 
 /// Used to represent the different comparison operations for COMPARE_OP
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompareOperation {
     Smaller,
     SmallerOrEqual,
@@ -409,7 +411,7 @@ impl From<&CompareOperation> for u32 {
 }
 
 /// Whether *_OP is inverted or not
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpInversion {
     NoInvert,
     Invert,
@@ -437,7 +439,7 @@ impl From<&OpInversion> for u32 {
 }
 
 /// The different types of raising forms. See https://docs.python.org/3.10/library/dis.html#opcode-RAISE_VARARGS
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RaiseForms {
     ReraisePrev,
     RaiseTOS,
@@ -468,7 +470,7 @@ impl From<&RaiseForms> for u32 {
 }
 
 /// Describes the configuration for a CALL_FUNCTION_EX instruction.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallExFlags {
     /// The call has positional arguments only.
     /// Stack layout (top to bottom):
@@ -612,7 +614,7 @@ impl From<&GenKind> for u32 {
 }
 
 /// Low level representation of a Python bytecode instruction
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Instruction {
     PopTop(u32),
     /// Python leaves the ROTN argument after optimizing. See https://github.com/python/cpython/blob/3.10/Python/compile.c#L7522
@@ -798,118 +800,12 @@ impl Instructions {
         self.0.insert(index, instruction);
     }
 
-    /// Get a reference to an instruction if it exists at the specified index
-    pub fn get_instruction(&self, index: usize) -> Option<&Instruction> {
-        self.0.get(index)
+    pub fn get_instructions(&self) -> &[Instruction] {
+        self.deref()
     }
 
-    /// Get a mutable reference to an instruction if it exists at the specified index
-    pub fn get_instruction_mut(&mut self, index: usize) -> Option<&mut Instruction> {
-        self.0.get_mut(index)
-    }
-
-    /// Find the first occurence of specified instruction, returns its index and a reference or None if it doesn't find one
-    pub fn find_instruction(&self, instruction: &Instruction) -> Option<(usize, &Instruction)> {
-        self.0
-            .iter()
-            .enumerate()
-            .find(|&(_, inst)| inst == instruction)
-    }
-
-    /// Find the first occurence of a specified instruction and returns its index and a mutable reference to it. None if it doesn't find one.
-    pub fn find_instruction_mut(
-        &mut self,
-        instruction: &Instruction,
-    ) -> Option<(usize, &mut Instruction)> {
-        self.0
-            .iter_mut()
-            .enumerate()
-            .find(|(_, inst)| **inst == *instruction)
-    }
-
-    /// Find nth occurence of a specified instruction
-    pub fn find_instruction_n(
-        &self,
-        instruction: &Instruction,
-        occurrence: usize,
-    ) -> Option<(usize, &Instruction)> {
-        self.0
-            .iter()
-            .enumerate()
-            .filter(|&(_, inst)| inst == instruction)
-            .nth(occurrence)
-    }
-
-    /// Find nth occurence of a specified instruction and return a mutable reference of it.
-    pub fn find_instruction_n_mut(
-        &mut self,
-        instruction: &Instruction,
-        occurrence: usize,
-    ) -> Option<(usize, &mut Instruction)> {
-        // we need the index first, because we can’t get multiple mutable refs
-        if let Some((idx, _)) = self
-            .0
-            .iter()
-            .enumerate()
-            .filter(|(_, inst)| *inst == instruction)
-            .nth(occurrence)
-        {
-            self.0.get_mut(idx).map(|e| (idx, e))
-        } else {
-            None
-        }
-    }
-
-    /// Find first occurence of the specified opcode.
-    /// Returns its index and a reference to the instruction it found or None if it didn't find one.
-    pub fn find_opcode(&self, opcode: Opcode) -> Option<(usize, &Instruction)> {
-        self.0
-            .iter()
-            .enumerate()
-            .find(|&(_, inst)| inst.get_opcode() == opcode)
-    }
-
-    /// Find first occurence of the specified opcode.
-    /// Returns a mutable reference to the instruction it found or None if it didn't find one.
-    pub fn find_opcode_mut(&mut self, opcode: Opcode) -> Option<(usize, &mut Instruction)> {
-        self.0
-            .iter_mut()
-            .enumerate()
-            .find(|(_, inst)| inst.get_opcode() == opcode)
-    }
-
-    /// Find nth occurence of the specified opcode.
-    /// Returns a reference to the instruction it found or None if it didn't find one.
-    pub fn find_opcode_n(
-        &self,
-        opcode: Opcode,
-        occurrence: usize,
-    ) -> Option<(usize, &Instruction)> {
-        self.0
-            .iter()
-            .enumerate()
-            .filter(|(_, inst)| inst.get_opcode() == opcode)
-            .nth(occurrence)
-    }
-
-    /// Find nth occurence of the specified opcode.
-    /// Returns a mutable reference to the instruction it found or None if it didn't find one.
-    pub fn find_opcode_n_mut(
-        &mut self,
-        opcode: Opcode,
-        occurrence: usize,
-    ) -> Option<(usize, &mut Instruction)> {
-        if let Some((idx, _)) = self
-            .0
-            .iter()
-            .enumerate()
-            .filter(|(_, inst)| inst.get_opcode() == opcode)
-            .nth(occurrence)
-        {
-            self.0.get_mut(idx).map(|e| (idx, e))
-        } else {
-            None
-        }
+    pub fn get_instructions_mut(&mut self) -> &mut [Instruction] {
+        self.deref_mut()
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -1100,6 +996,22 @@ impl Instructions {
             }
         }
         bytearray
+    }
+}
+
+impl Deref for Instructions {
+    type Target = [Instruction];
+
+    /// Allow the user to get a reference slice to the instructions
+    fn deref(&self) -> &Self::Target {
+        &self.0.deref()
+    }
+}
+
+impl DerefMut for Instructions {
+    /// Allow the user to get a mutable reference slice for making modifications to existing instructions.
+    fn deref_mut(&mut self) -> &mut [Instruction] {
+        self.0.deref_mut()
     }
 }
 

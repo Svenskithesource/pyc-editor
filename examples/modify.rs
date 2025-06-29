@@ -12,11 +12,13 @@ fn main() {
     match pyc_file {
         PycFile::V310(ref mut pyc) => {
             // Change print(a + b) to print(a - b)
-            let (_, add) = pyc
+            let add = pyc
                 .code_object
                 .code
-                .find_opcode_mut(Opcode::BINARY_ADD)
-                .expect("Addition not found");
+                .iter_mut()
+                .find(|i| i.get_opcode() == Opcode::BINARY_ADD)
+                .expect("Add opcode not found");
+
             *add = Instruction::BinarySubtract;
         }
     }

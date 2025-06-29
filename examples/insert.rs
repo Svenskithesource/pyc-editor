@@ -12,17 +12,20 @@ fn main() {
     match pyc_file {
         PycFile::V310(ref mut pyc) => {
             // Call print(a + b) twice
-            let (index, cloned_call) = {
-                let code = &pyc.code_object.code; // immutable
-                let (idx, instr) = code
-                    .find_opcode(Opcode::CALL_FUNCTION)
-                    .expect("CALL_FUNCTION not found");
-                (idx, instr.clone())
-            };
-
             let code = &mut pyc.code_object.code;
-            code.insert_instruction(index, Instruction::DupTop); // Duplicate argument for the call (a + b)
-            code.insert_instruction(index + 1, cloned_call); // Call print for the second time
+            let (index, &call) = code
+                .iter()
+                .enumerate()
+                .find(|(_, i)| i.get_opcode() == Opcode::CALL_FUNCTION)
+                .expect("Call not found");
+
+            code.insert_instructions(
+                index,
+                &[
+                    Instruction::DupTop, // Duplicate argument for the call (a + b)
+                    call,                // Call print for the second time
+                ],
+            );
         }
     }
 

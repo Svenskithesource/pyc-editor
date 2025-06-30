@@ -61,11 +61,11 @@ fn test_write_standard_lib() {
     common::setup();
     env_logger::init();
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             delete_debug_files();
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(&pyc_file).expect("Failed to open pyc file");

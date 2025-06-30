@@ -29,10 +29,10 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
 pub fn dump_pyc(writer: &mut impl Write, pyc_file: PycFile) -> Result<(), Error> {
     let mut pyc: python_marshal::PycFile = pyc_file.into();
 
-    // let (obj, refs) = minimize_references(&pyc.object, pyc.references);
+    let (obj, refs) = minimize_references(&pyc.object, pyc.references);
 
-    // pyc.object = obj;
-    // pyc.references = refs;
+    pyc.object = obj;
+    pyc.references = refs;
 
     python_marshal::dump_pyc(writer, pyc)?;
 

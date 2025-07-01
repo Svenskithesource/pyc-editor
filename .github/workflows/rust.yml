@@ -1,0 +1,71 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Restore stdlib cache
+      uses: actions/cache/restore@v4
+      with:
+        path: tests/data
+        key: python-stdlib-3.10.1-${{ runner.os }}
+        restore-keys: |
+          python-stdlib-
+
+    - name: Install pyenv and Python versions
+      run: |
+        versions=("3.10.1")
+
+        missing_versions=()
+        for version in "${versions[@]}"; do
+          if [ ! -d "tests/data/cpython-${version}/Lib" ]; then
+            missing_versions+=("$version")
+          fi
+        done
+
+        if [ ${#missing_versions[@]} -eq 0 ]; then
+          echo "All required stdlib folders found in cache. Skipping Python installation."
+          exit 0
+        fi
+
+        echo "Missing stdlib folders for: ${missing_versions[@]}"
+        echo "Installing pyenv and missing Python versions..."
+
+        curl https://pyenv.run | bash
+
+        export PYENV_ROOT="$HOME/.pyenv"
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init --path)"
+        eval "$(pyenv virtualenv-init -)"
+
+        for version in "${missing_versions[@]}"; do
+          pyenv install "$version"
+        done
+
+        # Export all paths to GitHub env regardless
+        echo "PYTHON_3_10=$HOME/.pyenv/versions/3.10.1/bin/python3.10" >> $GITHUB_ENV
+
+    - name: Build
+      run: cargo build --verbose
+
+    - name: Run tests
+      run: cargo test --verbose -- --nocapture
+
+    - name: Cache Python standard libraries
+      uses: actions/cache/save@v4
+      with:
+        path: tests/data
+        key: python-stdlib-3.10.1-${{ runner.os }}

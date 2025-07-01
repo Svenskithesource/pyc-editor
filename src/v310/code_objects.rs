@@ -790,6 +790,45 @@ impl Instructions {
         self.0.push(instruction);
     }
 
+    /// Delete instructions in range (ex. 1..10)
+    pub fn delete_instructions(&mut self, range: std::ops::Range<usize>) {
+        range
+            .into_iter()
+            .for_each(|index| self.delete_instruction(index));
+    }
+
+    /// Delete instruction at index
+    pub fn delete_instruction(&mut self, index: usize) {
+        self.0.iter_mut().enumerate().for_each(|(idx, inst)| {
+            match inst {
+                Instruction::JumpAbsolute(jump)
+                | Instruction::PopJumpIfTrue(jump)
+                | Instruction::PopJumpIfFalse(jump)
+                | Instruction::JumpIfNotExcMatch(jump)
+                | Instruction::JumpIfTrueOrPop(jump)
+                | Instruction::JumpIfFalseOrPop(jump) => {
+                    if jump.index as usize >= index {
+                        // Update jump indexes that jump to this index or above it
+                        jump.index -= 1
+                    }
+                }
+                Instruction::ForIter(jump)
+                | Instruction::JumpForward(jump)
+                | Instruction::SetupFinally(jump)
+                | Instruction::SetupWith(jump)
+                | Instruction::SetupAsyncWith(jump) => {
+                    // Relative jumps only need to update if the index falls within it's jump range
+                    if idx <= index && index <= jump.index as usize {
+                        jump.index -= 1
+                    }
+                }
+                _ => {}
+            }
+        });
+
+        self.0.remove(index);
+    }
+
     /// Insert a slice of instructions at an index
     pub fn insert_instructions(&mut self, index: usize, instructions: &[Instruction]) {
         for (idx, instruction) in instructions.iter().enumerate() {

@@ -85,7 +85,11 @@ fn test_write_standard_lib() {
             let mut output_file =
                 std::fs::File::create(&output_path).expect("Failed to create output file");
 
-            dump_pyc(&mut output_file, pyc).expect("Failed to dump pyc file");
+            std::io::copy(
+                &mut output_file,
+                &mut dump_pyc(pyc).expect("Failed to dump pyc file"),
+            )
+            .expect("Failed to write to the file");
         });
     });
 }

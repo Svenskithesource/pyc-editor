@@ -14,3 +14,9 @@ impl From<python_marshal::error::Error> for Error {
         Error::PythonMarshalError(err)
     }
 }
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Error::PythonMarshalError(python_marshal::error::Error::InvalidData(value))
+    }
+}

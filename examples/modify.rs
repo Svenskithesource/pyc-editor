@@ -25,7 +25,6 @@ fn main() {
 
     dbg!(&pyc_file); // Addition is changed to subtraction
 
-    // You can now write it back to bytes (which can be directly to a file)
-    let mut out = Vec::new();
-    dump_pyc(&mut out, pyc_file).expect("Invalid pyc file");
+    // You can now write it back to bytes
+    let _out = dump_pyc(pyc_file).expect("Invalid pyc file");
 }

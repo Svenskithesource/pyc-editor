@@ -334,7 +334,7 @@ pub struct RelativeJump {
 
 impl RelativeJump {
     pub fn new(index: u32) -> Self {
-        RelativeJump { index: index }
+        RelativeJump { index }
     }
 }
 
@@ -346,7 +346,7 @@ pub struct AbsoluteJump {
 
 impl AbsoluteJump {
     pub fn new(index: u32) -> Self {
-        AbsoluteJump { index: index }
+        AbsoluteJump { index }
     }
 }
 

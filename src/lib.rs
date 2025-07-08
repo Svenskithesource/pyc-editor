@@ -10,7 +10,7 @@ pub enum PycFile {
     V310(v310::code_objects::Pyc),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CodeObject {
     V310(v310::code_objects::Code),
 }
@@ -80,6 +80,16 @@ pub fn dump_code(
 
 #[cfg(test)]
 mod tests {
+    use python_marshal::Kind::ShortAsciiInterned;
+    use python_marshal::{CodeFlags, PyString};
+
+    use crate::v310::code_objects::CompareOperation::Equal;
+    use crate::v310::code_objects::Instruction::{self, LoadName};
+    use crate::v310::code_objects::{
+        AbsoluteJump, ConstIndex, Constant, FrozenConstant, Jump, NameIndex,
+    };
+    use crate::v310::opcodes::Opcode;
+
     use super::*;
     use std::fs::File;
     use std::io::BufReader;
@@ -99,10 +109,111 @@ mod tests {
         let reader = BufReader::new(file);
         let pyc_file = load_pyc(reader).unwrap();
 
-        dbg!(&pyc_file);
-
         let pyc: python_marshal::PycFile = pyc_file.into();
 
         assert_eq!(original_pyc, pyc.object);
+    }
+
+    #[test]
+    fn test_extended_arg() {
+        let mut instructions: v310::code_objects::Instructions = ([
+            (Opcode::LOAD_NAME, 0).into(),
+            (Opcode::LOAD_CONST, 0).into(),
+            Instruction::CompareOp(Equal),
+            (Opcode::POP_JUMP_IF_FALSE, 4).into(),
+            (Opcode::LOAD_NAME, 1).into(),
+            (Opcode::LOAD_NAME, 2).into(),
+            (Opcode::CALL_FUNCTION, 1).into(),
+            (Opcode::POP_TOP, 0).into(),
+            (Opcode::LOAD_CONST, 1).into(),
+            (Opcode::RETURN_VALUE, 0).into(),
+            (Opcode::LOAD_CONST, 1).into(),
+            (Opcode::RETURN_VALUE, 0).into(),
+        ]
+        .as_slice())
+        .into();
+
+        instructions.insert_instructions(3, &vec![(Opcode::NOP, 0).into(); 300]);
+
+        let og_target = instructions
+            .get_jump_target(Jump::Absolute(AbsoluteJump::new(304)))
+            .expect("Must be to the load name after the jump");
+
+        dbg!(og_target);
+
+        let code = CodeObject::V310(v310::code_objects::Code {
+            argcount: 0,
+            posonlyargcount: 0,
+            kwonlyargcount: 0,
+            nlocals: 0,
+            stacksize: 2,
+            flags: CodeFlags::from_bits_truncate(CodeFlags::NOFREE.bits()),
+            code: instructions,
+            consts: vec![
+                Constant::FrozenConstant(FrozenConstant::Long(1.into())),
+                Constant::FrozenConstant(FrozenConstant::None),
+            ],
+            names: vec![
+                PyString {
+                    value: "x".into(),
+                    kind: ShortAsciiInterned,
+                },
+                PyString {
+                    value: "print".into(),
+                    kind: ShortAsciiInterned,
+                },
+                PyString {
+                    value: "b".into(),
+                    kind: ShortAsciiInterned,
+                },
+            ],
+            varnames: vec![],
+            freevars: vec![],
+            cellvars: vec![],
+            filename: PyString {
+                value: "<string>".into(),
+                kind: ShortAsciiInterned,
+            },
+            name: PyString {
+                value: "<module>".into(),
+                kind: ShortAsciiInterned,
+            },
+            firstlineno: 1,
+            lnotab: vec![24, 0],
+        });
+
+        let dumped = dump_code(code.clone(), (3, 10).into(), 4).unwrap();
+
+        println!("{:?}", &dumped);
+
+        let new_code =
+            load_code(std::io::Cursor::new(dumped), (3, 10).into()).expect("Should never fail");
+
+        match new_code {
+            CodeObject::V310(ref code) => {
+                dbg!(&code.code, &code.code.len());
+                match code
+                    .code
+                    .iter()
+                    .find(|i| i.get_opcode() == Opcode::POP_JUMP_IF_FALSE)
+                    .expect("There must be a jump")
+                {
+                    Instruction::PopJumpIfFalse(jump) => {
+                        dbg!(jump);
+                        let target = code
+                            .code
+                            .get_jump_target(jump.clone().into())
+                            .expect("Should never fail");
+
+                        dbg!(target);
+
+                        assert_eq!(og_target, target);
+                    }
+                    _ => panic!(),
+                }
+            }
+        }
+
+        assert_eq!(code, new_code);
     }
 }

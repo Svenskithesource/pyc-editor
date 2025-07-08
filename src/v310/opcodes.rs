@@ -133,29 +133,34 @@ pub enum Opcode {
 }
 
 impl Opcode {
+    /// From (by removing relative jumps): https://github.com/python/cpython/blob/fdc9d214c01cb4588f540cfa03726bbf2a33fc15/Include/opcode.h#L149-L158
     pub fn is_absolute_jump(&self) -> bool {
         matches!(
             self,
-            Opcode::JUMP_ABSOLUTE
-                | Opcode::POP_JUMP_IF_TRUE
-                | Opcode::POP_JUMP_IF_FALSE
-                | Opcode::JUMP_IF_NOT_EXC_MATCH
+            Opcode::JUMP_IF_FALSE_OR_POP
                 | Opcode::JUMP_IF_TRUE_OR_POP
-                | Opcode::JUMP_IF_FALSE_OR_POP
+                | Opcode::JUMP_ABSOLUTE
+                | Opcode::POP_JUMP_IF_FALSE
+                | Opcode::POP_JUMP_IF_TRUE
+                | Opcode::JUMP_IF_NOT_EXC_MATCH
         )
     }
 
+    /// From: https://github.com/python/cpython/blob/fdc9d214c01cb4588f540cfa03726bbf2a33fc15/Include/opcode.h#L139-L148
     pub fn is_relative_jump(&self) -> bool {
-        matches!(self, Opcode::JUMP_FORWARD)
+        matches!(
+            self,
+            Opcode::FOR_ITER
+                | Opcode::JUMP_FORWARD
+                | Opcode::SETUP_FINALLY
+                | Opcode::SETUP_WITH
+                | Opcode::SETUP_ASYNC_WITH
+        )
     }
 
     /// Relative or absolute jump
     pub fn is_jump(&self) -> bool {
         self.is_absolute_jump() | self.is_relative_jump()
-    }
-
-    pub fn has_arg(self) -> bool {
-        self as u8 >= 90 // This is how Python has designed it's opcode numbering system
     }
 }
 

@@ -11,23 +11,16 @@ use crate::common::DATA_PATH;
 
 mod common;
 
-fn delete_debug_files() {
-    let _ = std::fs::remove_file("debug_output.txt");
-    let _ = std::fs::remove_file("write_log.txt");
-    let _ = std::fs::remove_file("read_log.txt");
-}
-
 #[test]
 fn test_recompile_standard_lib() {
     common::setup();
     env_logger::init();
 
-    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.par_iter().for_each(|pyc_file| {
-            delete_debug_files();
+        pyc_files.iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(&pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
@@ -43,7 +36,20 @@ fn test_recompile_standard_lib() {
             let reader = BufReader::new(file);
 
             let parsed_pyc = load_pyc(reader).unwrap();
-            let pyc: python_marshal::PycFile = parsed_pyc.into();
+            let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
+
+            if original_pyc != pyc.object {
+                match parsed_pyc {
+                    pyc_editor::PycFile::V310(pyc_editor::v310::code_objects::Pyc {
+                        python_version: _,
+                        timestamp: _,
+                        hash: _,
+                        code_object: code,
+                    }) => {
+                        // dbg!(code);
+                    }
+                }
+            }
 
             std::assert_eq!(
                 original_pyc,
@@ -66,7 +72,6 @@ fn test_write_standard_lib() {
         let pyc_files = common::find_pyc_files(version);
 
         pyc_files.par_iter().for_each(|pyc_file| {
-            delete_debug_files();
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(&pyc_file).expect("Failed to open pyc file");
             let mut reader = BufReader::new(file);

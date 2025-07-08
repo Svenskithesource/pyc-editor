@@ -29,7 +29,7 @@ pub enum FrozenConstant {
     FrozenSet(HashableHashSet<FrozenConstant>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Constant {
     FrozenConstant(FrozenConstant),
     CodeObject(Code),
@@ -147,7 +147,7 @@ impl TryFrom<python_marshal::Object> for Constant {
 }
 
 // Low level representation of a Python code object
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Code {
     pub argcount: u32,
     pub posonlyargcount: u32,
@@ -308,16 +308,46 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Jump {
+    Relative(RelativeJump),
+    Absolute(AbsoluteJump),
+}
+
+impl From<RelativeJump> for Jump {
+    fn from(value: RelativeJump) -> Self {
+        Self::Relative(value)
+    }
+}
+
+impl From<AbsoluteJump> for Jump {
+    fn from(value: AbsoluteJump) -> Self {
+        Self::Absolute(value)
+    }
+}
+
 /// Represents a relative jump offset from the current instruction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RelativeJump {
     index: u32,
 }
 
+impl RelativeJump {
+    pub fn new(index: u32) -> Self {
+        RelativeJump { index: index }
+    }
+}
+
 /// Represents an absolute jump target (a byte offset from the start of the code).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AbsoluteJump {
     index: u32,
+}
+
+impl AbsoluteJump {
+    pub fn new(index: u32) -> Self {
+        AbsoluteJump { index: index }
+    }
 }
 
 /// Holds an index into co_names. Has helper functions to get the actual PyString of the name.
@@ -775,7 +805,7 @@ pub enum Instruction {
     DictUpdate(u32),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Instructions(Vec<Instruction>);
 
 impl Instructions {
@@ -875,7 +905,16 @@ impl Instructions {
         self.deref_mut()
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
+    pub fn get_jump_target(&self, jump: Jump) -> Option<Instruction> {
+        match jump {
+            Jump::Absolute(AbsoluteJump { index }) | Jump::Relative(RelativeJump { index }) => {
+                self.0.get(index as usize).cloned()
+            }
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut mut_self = self.clone();
         let mut bytearray = Vec::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
         macro_rules! push_inst {
@@ -896,172 +935,72 @@ impl Instructions {
                         bytearray.push(ext);
                     }
                 }
+
                 bytearray.push($instruction.get_opcode() as u8);
-                bytearray.push($arg as u8);
+                bytearray.push($arg as u8)
             };
         }
 
-        for instruction in &self.0 {
-            match instruction {
-                Instruction::DupTop
-                | Instruction::DupTopTwo
-                | Instruction::UnaryPositive
-                | Instruction::UnaryNegative
-                | Instruction::UnaryNot
-                | Instruction::UnaryInvert
-                | Instruction::BinaryMatrixMultiply
-                | Instruction::InplaceMatrixMultiply
-                | Instruction::BinaryPower
-                | Instruction::BinaryMultiply
-                | Instruction::BinaryModulo
-                | Instruction::BinaryAdd
-                | Instruction::BinarySubtract
-                | Instruction::BinarySubscr
-                | Instruction::BinaryFloorDivide
-                | Instruction::BinaryTrueDivide
-                | Instruction::InplaceFloorDivide
-                | Instruction::InplaceTrueDivide
-                | Instruction::GetLen
-                | Instruction::MatchMapping
-                | Instruction::MatchSequence
-                | Instruction::MatchKeys
-                | Instruction::CopyDictWithoutKeys
-                | Instruction::WithExceptStart
-                | Instruction::GetAiter
-                | Instruction::GetAnext
-                | Instruction::BeforeAsyncWith
-                | Instruction::EndAsyncFor
-                | Instruction::InplaceAdd
-                | Instruction::InplaceSubtract
-                | Instruction::InplaceMultiply
-                | Instruction::InplaceModulo
-                | Instruction::StoreSubscr
-                | Instruction::DeleteSubscr
-                | Instruction::BinaryLshift
-                | Instruction::BinaryRshift
-                | Instruction::BinaryAnd
-                | Instruction::BinaryXor
-                | Instruction::BinaryOr
-                | Instruction::InplacePower
-                | Instruction::GetIter
-                | Instruction::GetYieldFromIter
-                | Instruction::PrintExpr
-                | Instruction::LoadBuildClass
-                | Instruction::YieldFrom
-                | Instruction::GetAwaitable
-                | Instruction::LoadAssertionError
-                | Instruction::InplaceLshift
-                | Instruction::InplaceRshift
-                | Instruction::InplaceAnd
-                | Instruction::InplaceXor
-                | Instruction::InplaceOr
-                | Instruction::ListToTuple
-                | Instruction::ReturnValue
-                | Instruction::ImportStar
-                | Instruction::SetupAnnotations
-                | Instruction::YieldValue
-                | Instruction::PopBlock
-                | Instruction::PopExcept => {
-                    push_inst!(instruction, 0);
+        // Update jump offsets to include the extended args that are about to be calculated
+        let mut updated_offset = true;
+        let mut updated_indexes = vec![]; // Holds already updated indexes (we only want to update them once)
+        while updated_offset {
+            // Update multiple times in case an increase in index caused a new extended arg to exist
+            updated_offset = false;
+            for index in 0..mut_self.len() {
+                if updated_indexes.contains(&index) {
+                    continue;
                 }
-                Instruction::StoreName(name_index)
-                | Instruction::DeleteName(name_index)
-                | Instruction::StoreAttr(name_index)
-                | Instruction::DeleteAttr(name_index)
-                | Instruction::StoreGlobal(name_index)
-                | Instruction::DeleteGlobal(name_index)
-                | Instruction::LoadName(name_index)
-                | Instruction::LoadAttr(name_index)
-                | Instruction::ImportName(name_index)
-                | Instruction::ImportFrom(name_index)
-                | Instruction::LoadGlobal(name_index)
-                | Instruction::LoadMethod(name_index) => {
-                    push_inst!(instruction, name_index.index);
-                }
-                Instruction::PopTop(n)
-                | Instruction::RotTwo(n)
-                | Instruction::RotThree(n)
-                | Instruction::RotFour(n)
-                | Instruction::Nop(n)
-                | Instruction::UnpackSequence(n)
-                | Instruction::UnpackEx(n)
-                | Instruction::RotN(n)
-                | Instruction::BuildTuple(n)
-                | Instruction::BuildList(n)
-                | Instruction::BuildSet(n)
-                | Instruction::BuildMap(n)
-                | Instruction::CallFunction(n)
-                | Instruction::BuildSlice(n)
-                | Instruction::CallFunctionKW(n)
-                | Instruction::ListAppend(n)
-                | Instruction::SetAdd(n)
-                | Instruction::MapAdd(n)
-                | Instruction::MatchClass(n)
-                | Instruction::BuildConstKeyMap(n)
-                | Instruction::BuildString(n)
-                | Instruction::CallMethod(n)
-                | Instruction::ListExtend(n)
-                | Instruction::SetUpdate(n)
-                | Instruction::DictUpdate(n)
-                | Instruction::DictMerge(n) => {
-                    push_inst!(instruction, *n);
-                }
-                Instruction::ForIter(jump)
-                | Instruction::JumpForward(jump)
-                | Instruction::SetupFinally(jump)
-                | Instruction::SetupWith(jump)
-                | Instruction::SetupAsyncWith(jump) => {
-                    push_inst!(instruction, jump.index);
-                }
-                Instruction::LoadConst(const_index) => {
-                    push_inst!(instruction, const_index.index);
-                }
-                Instruction::CompareOp(comp_op) => {
-                    push_inst!(instruction, Into::<u32>::into(comp_op));
-                }
-                Instruction::JumpIfFalseOrPop(jump)
-                | Instruction::JumpIfTrueOrPop(jump)
-                | Instruction::JumpAbsolute(jump)
-                | Instruction::PopJumpIfFalse(jump)
-                | Instruction::PopJumpIfTrue(jump)
-                | Instruction::JumpIfNotExcMatch(jump) => {
-                    push_inst!(instruction, jump.index);
-                }
-                Instruction::Reraise(forms) => {
-                    push_inst!(instruction, Into::<u32>::into(forms));
-                }
-                Instruction::IsOp(op_inv) | Instruction::ContainsOp(op_inv) => {
-                    push_inst!(instruction, Into::<u32>::into(op_inv));
-                }
-                Instruction::LoadFast(varname_index)
-                | Instruction::StoreFast(varname_index)
-                | Instruction::DeleteFast(varname_index) => {
-                    push_inst!(instruction, varname_index.index);
-                }
-                Instruction::GenStart(kind) => {
-                    push_inst!(instruction, Into::<u32>::into(kind));
-                }
-                Instruction::RaiseVarargs(form) => {
-                    push_inst!(instruction, Into::<u32>::into(form));
-                }
-                Instruction::MakeFunction(flags) => {
-                    push_inst!(instruction, flags.bits());
-                }
-                Instruction::LoadClosure(closure_ref_index)
-                | Instruction::LoadDeref(closure_ref_index)
-                | Instruction::StoreDeref(closure_ref_index)
-                | Instruction::DeleteDeref(closure_ref_index)
-                | Instruction::LoadClassderef(closure_ref_index) => {
-                    push_inst!(instruction, closure_ref_index.index);
-                }
-                Instruction::CallFunctionEx(flags) => {
-                    push_inst!(instruction, Into::<u32>::into(flags));
-                }
-                Instruction::FormatValue(format_flag) => {
-                    push_inst!(instruction, Into::<u32>::into(format_flag));
+
+                let arg = mut_self[index].get_raw_value();
+
+                if arg > u8::MAX.into() {
+                    // Calculate how many extended args an instruction will need
+                    let extended_arg_count = ((32 - arg.leading_zeros()) + 7) / 8;
+                    let extended_arg_count = extended_arg_count.saturating_sub(1); // Don't count the instruction itself
+
+                    updated_offset = true;
+                    updated_indexes.push(index);
+
+                    self.iter().enumerate().for_each(|(idx, inst)| {
+                        if (inst.is_absolute_jump() && (inst.get_raw_value() as usize > index))
+                            || (inst.is_relative_jump()
+                                && (idx < index && index < idx + 1 + inst.get_raw_value() as usize))
+                        {
+                            // Check the original instruction jump offset and not the already updated one
+                            match mut_self
+                                .get_mut(idx)
+                                .expect("The lists are always the same length")
+                            {
+                                Instruction::JumpAbsolute(jump)
+                                | Instruction::PopJumpIfTrue(jump)
+                                | Instruction::PopJumpIfFalse(jump)
+                                | Instruction::JumpIfNotExcMatch(jump)
+                                | Instruction::JumpIfTrueOrPop(jump)
+                                | Instruction::JumpIfFalseOrPop(jump) => {
+                                    // Update jump indexes that jump above this index
+                                    jump.index += extended_arg_count
+                                }
+                                Instruction::ForIter(jump)
+                                | Instruction::JumpForward(jump)
+                                | Instruction::SetupFinally(jump)
+                                | Instruction::SetupWith(jump)
+                                | Instruction::SetupAsyncWith(jump) => {
+                                    // Relative jumps only need to update if the index falls within it's jump range
+                                    jump.index += extended_arg_count
+                                }
+                                _ => {}
+                            }
+                        }
+                    });
                 }
             }
         }
+
+        for instruction in mut_self.0 {
+            push_inst!(instruction, instruction.get_raw_value());
+        }
+
         bytearray
     }
 }
@@ -1097,8 +1036,10 @@ impl TryFrom<&[u8]> for Instructions {
 
         let mut instructions = Instructions(Vec::with_capacity(code.len() / 2));
         let mut extended_arg = 0; // Used to keep track of extended arguments between instructions
+        let mut removed_extended_args = vec![]; // Used to offset jump indexes
+        let mut removed_count = 0;
 
-        for chunk in code.chunks(2) {
+        for (index, chunk) in code.chunks(2).enumerate() {
             if chunk.len() != 2 {
                 return Err(Error::InvalidBytecodeLength);
             }
@@ -1107,6 +1048,8 @@ impl TryFrom<&[u8]> for Instructions {
 
             match opcode {
                 Opcode::EXTENDED_ARG => {
+                    removed_extended_args.push(index - removed_count);
+                    removed_count += 1;
                     extended_arg = (extended_arg << 8) | arg as u32;
                     continue;
                 }
@@ -1120,7 +1063,48 @@ impl TryFrom<&[u8]> for Instructions {
             extended_arg = 0;
         }
 
+        // Update jump offsets to exclude the extended args that were removed
+        for index in removed_extended_args {
+            instructions.iter_mut().enumerate().for_each(|(idx, inst)| {
+                if (inst.is_absolute_jump() && (inst.get_raw_value() as usize > index))
+                    || (inst.is_relative_jump()
+                        && (idx < index && index < idx + 1 + inst.get_raw_value() as usize))
+                {
+                    match inst {
+                        Instruction::JumpAbsolute(jump)
+                        | Instruction::PopJumpIfTrue(jump)
+                        | Instruction::PopJumpIfFalse(jump)
+                        | Instruction::JumpIfNotExcMatch(jump)
+                        | Instruction::JumpIfTrueOrPop(jump)
+                        | Instruction::JumpIfFalseOrPop(jump) => {
+                            // Update jump indexes that jump above this index
+                            jump.index -= 1
+                        }
+                        Instruction::ForIter(jump)
+                        | Instruction::JumpForward(jump)
+                        | Instruction::SetupFinally(jump)
+                        | Instruction::SetupWith(jump)
+                        | Instruction::SetupAsyncWith(jump) => {
+                            // Relative jumps only need to update if the index falls within it's jump range
+                            jump.index -= 1
+                        }
+                        _ => {}
+                    }
+                }
+            });
+        }
+
         Ok(instructions)
+    }
+}
+
+impl From<&[Instruction]> for Instructions {
+    fn from(value: &[Instruction]) -> Self {
+        let mut instructions = Instructions(Vec::with_capacity(value.len()));
+
+        instructions.append_instructions(value);
+
+        instructions
     }
 }
 
@@ -1416,6 +1400,138 @@ impl Instruction {
 
     pub fn is_relative_jump(&self) -> bool {
         self.get_opcode().is_relative_jump()
+    }
+
+    fn get_raw_value(&self) -> u32 {
+        match &self {
+            Instruction::DupTop
+            | Instruction::DupTopTwo
+            | Instruction::UnaryPositive
+            | Instruction::UnaryNegative
+            | Instruction::UnaryNot
+            | Instruction::UnaryInvert
+            | Instruction::BinaryMatrixMultiply
+            | Instruction::InplaceMatrixMultiply
+            | Instruction::BinaryPower
+            | Instruction::BinaryMultiply
+            | Instruction::BinaryModulo
+            | Instruction::BinaryAdd
+            | Instruction::BinarySubtract
+            | Instruction::BinarySubscr
+            | Instruction::BinaryFloorDivide
+            | Instruction::BinaryTrueDivide
+            | Instruction::InplaceFloorDivide
+            | Instruction::InplaceTrueDivide
+            | Instruction::GetLen
+            | Instruction::MatchMapping
+            | Instruction::MatchSequence
+            | Instruction::MatchKeys
+            | Instruction::CopyDictWithoutKeys
+            | Instruction::WithExceptStart
+            | Instruction::GetAiter
+            | Instruction::GetAnext
+            | Instruction::BeforeAsyncWith
+            | Instruction::EndAsyncFor
+            | Instruction::InplaceAdd
+            | Instruction::InplaceSubtract
+            | Instruction::InplaceMultiply
+            | Instruction::InplaceModulo
+            | Instruction::StoreSubscr
+            | Instruction::DeleteSubscr
+            | Instruction::BinaryLshift
+            | Instruction::BinaryRshift
+            | Instruction::BinaryAnd
+            | Instruction::BinaryXor
+            | Instruction::BinaryOr
+            | Instruction::InplacePower
+            | Instruction::GetIter
+            | Instruction::GetYieldFromIter
+            | Instruction::PrintExpr
+            | Instruction::LoadBuildClass
+            | Instruction::YieldFrom
+            | Instruction::GetAwaitable
+            | Instruction::LoadAssertionError
+            | Instruction::InplaceLshift
+            | Instruction::InplaceRshift
+            | Instruction::InplaceAnd
+            | Instruction::InplaceXor
+            | Instruction::InplaceOr
+            | Instruction::ListToTuple
+            | Instruction::ReturnValue
+            | Instruction::ImportStar
+            | Instruction::SetupAnnotations
+            | Instruction::YieldValue
+            | Instruction::PopBlock
+            | Instruction::PopExcept => 0,
+            Instruction::StoreName(name_index)
+            | Instruction::DeleteName(name_index)
+            | Instruction::StoreAttr(name_index)
+            | Instruction::DeleteAttr(name_index)
+            | Instruction::StoreGlobal(name_index)
+            | Instruction::DeleteGlobal(name_index)
+            | Instruction::LoadName(name_index)
+            | Instruction::LoadAttr(name_index)
+            | Instruction::ImportName(name_index)
+            | Instruction::ImportFrom(name_index)
+            | Instruction::LoadGlobal(name_index)
+            | Instruction::LoadMethod(name_index) => name_index.index,
+            Instruction::PopTop(n)
+            | Instruction::RotTwo(n)
+            | Instruction::RotThree(n)
+            | Instruction::RotFour(n)
+            | Instruction::Nop(n)
+            | Instruction::UnpackSequence(n)
+            | Instruction::UnpackEx(n)
+            | Instruction::RotN(n)
+            | Instruction::BuildTuple(n)
+            | Instruction::BuildList(n)
+            | Instruction::BuildSet(n)
+            | Instruction::BuildMap(n)
+            | Instruction::CallFunction(n)
+            | Instruction::BuildSlice(n)
+            | Instruction::CallFunctionKW(n)
+            | Instruction::ListAppend(n)
+            | Instruction::SetAdd(n)
+            | Instruction::MapAdd(n)
+            | Instruction::MatchClass(n)
+            | Instruction::BuildConstKeyMap(n)
+            | Instruction::BuildString(n)
+            | Instruction::CallMethod(n)
+            | Instruction::ListExtend(n)
+            | Instruction::SetUpdate(n)
+            | Instruction::DictUpdate(n)
+            | Instruction::DictMerge(n) => *n,
+            Instruction::ForIter(jump)
+            | Instruction::JumpForward(jump)
+            | Instruction::SetupFinally(jump)
+            | Instruction::SetupWith(jump)
+            | Instruction::SetupAsyncWith(jump) => jump.index,
+            Instruction::LoadConst(const_index) => const_index.index,
+            Instruction::CompareOp(comp_op) => Into::<u32>::into(comp_op),
+            Instruction::JumpIfFalseOrPop(jump)
+            | Instruction::JumpIfTrueOrPop(jump)
+            | Instruction::JumpAbsolute(jump)
+            | Instruction::PopJumpIfFalse(jump)
+            | Instruction::PopJumpIfTrue(jump)
+            | Instruction::JumpIfNotExcMatch(jump) => jump.index,
+            Instruction::Reraise(forms) => Into::<u32>::into(forms),
+            Instruction::IsOp(op_inv) | Instruction::ContainsOp(op_inv) => {
+                Into::<u32>::into(op_inv)
+            }
+            Instruction::LoadFast(varname_index)
+            | Instruction::StoreFast(varname_index)
+            | Instruction::DeleteFast(varname_index) => varname_index.index,
+            Instruction::GenStart(kind) => Into::<u32>::into(kind),
+            Instruction::RaiseVarargs(form) => Into::<u32>::into(form),
+            Instruction::MakeFunction(flags) => flags.bits(),
+            Instruction::LoadClosure(closure_ref_index)
+            | Instruction::LoadDeref(closure_ref_index)
+            | Instruction::StoreDeref(closure_ref_index)
+            | Instruction::DeleteDeref(closure_ref_index)
+            | Instruction::LoadClassderef(closure_ref_index) => closure_ref_index.index,
+            Instruction::CallFunctionEx(flags) => Into::<u32>::into(flags),
+            Instruction::FormatValue(format_flag) => Into::<u32>::into(format_flag),
+        }
     }
 }
 

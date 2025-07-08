@@ -84,9 +84,9 @@ mod tests {
     use python_marshal::{CodeFlags, PyString};
 
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::Instruction::{self, LoadName};
+    use crate::v310::code_objects::Instruction::{self};
     use crate::v310::code_objects::{
-        AbsoluteJump, ConstIndex, Constant, FrozenConstant, Jump, NameIndex,
+        AbsoluteJump, Constant, FrozenConstant, Jump,
     };
     use crate::v310::opcodes::Opcode;
 

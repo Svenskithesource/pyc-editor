@@ -1,4 +1,4 @@
-use python_marshal::{magic::PyVersion, minimize_references, PycFile};
+use python_marshal::magic::PyVersion;
 use rayon::prelude::*;
 use std::{
     io::BufReader,
@@ -37,19 +37,6 @@ fn test_recompile_standard_lib() {
 
             let parsed_pyc = load_pyc(reader).unwrap();
             let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
-
-            if original_pyc != pyc.object {
-                match parsed_pyc {
-                    pyc_editor::PycFile::V310(pyc_editor::v310::code_objects::Pyc {
-                        python_version: _,
-                        timestamp: _,
-                        hash: _,
-                        code_object: code,
-                    }) => {
-                        // dbg!(code);
-                    }
-                }
-            }
 
             std::assert_eq!(
                 original_pyc,

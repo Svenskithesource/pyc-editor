@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    ops::{Deref, DerefMut},
+};
 
 use bitflags::bitflags;
 
@@ -8,6 +11,7 @@ use num_bigint::BigInt;
 use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
+use store_interval_tree::{EntryMut, Interval, IntervalTree};
 
 use crate::{error::Error, PycFile};
 
@@ -848,7 +852,7 @@ impl Instructions {
                 | Instruction::SetupWith(jump)
                 | Instruction::SetupAsyncWith(jump) => {
                     // Relative jumps only need to update if the index falls within it's jump range
-                    if idx <= index && index <= jump.index as usize {
+                    if idx <= index && index + idx <= jump.index as usize {
                         jump.index -= 1
                     }
                 }
@@ -887,7 +891,7 @@ impl Instructions {
                 | Instruction::SetupWith(jump)
                 | Instruction::SetupAsyncWith(jump) => {
                     // Relative jumps only need to update if the index falls within it's jump range
-                    if idx <= index && index <= jump.index as usize {
+                    if idx <= index && index + idx <= jump.index as usize {
                         jump.index += 1
                     }
                 }
@@ -914,11 +918,10 @@ impl Instructions {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut mut_self = self.clone();
         let mut bytearray = Vec::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
         macro_rules! push_inst {
-            ($instruction:expr, $arg:expr) => {
+            ($instruction:expr, $arg:expr) => {{
                 let mut arg: u32 = $arg;
                 // Emit EXTENDED_ARGs for arguments > 0xFF
                 if arg > u8::MAX.into() {
@@ -938,67 +941,117 @@ impl Instructions {
 
                 bytearray.push($instruction.get_opcode() as u8);
                 bytearray.push($arg as u8)
-            };
+            }};
         }
 
-        // Update jump offsets to include the extended args that are about to be calculated
-        let mut updated_offset = true;
-        let mut updated_indexes = vec![]; // Holds already updated indexes (we only want to update them once)
-        while updated_offset {
-            // Update multiple times in case an increase in index caused a new extended arg to exist
-            updated_offset = false;
-            for index in 0..mut_self.len() {
-                if updated_indexes.contains(&index) {
-                    continue;
-                }
+        // mapping of original to updated index
+        let mut absolute_jump_indexes: BTreeMap<u32, u32> = BTreeMap::new();
+        let mut relative_jump_indexes = IntervalTree::<u32, u32>::new(); // (u32, u32) is the from and to index for relative jumps
 
-                let arg = mut_self[index].get_raw_value();
+        self.iter().enumerate().for_each(|(idx, inst)| match inst {
+            Instruction::JumpAbsolute(jump)
+            | Instruction::PopJumpIfTrue(jump)
+            | Instruction::PopJumpIfFalse(jump)
+            | Instruction::JumpIfNotExcMatch(jump)
+            | Instruction::JumpIfTrueOrPop(jump)
+            | Instruction::JumpIfFalseOrPop(jump) => {
+                absolute_jump_indexes.insert(jump.index, jump.index);
+            }
+            Instruction::ForIter(jump)
+            | Instruction::JumpForward(jump)
+            | Instruction::SetupFinally(jump)
+            | Instruction::SetupWith(jump)
+            | Instruction::SetupAsyncWith(jump) => {
+                relative_jump_indexes.insert(
+                    Interval::new(
+                        std::ops::Bound::Included(idx as u32),
+                        std::ops::Bound::Included(idx as u32 + jump.index + 1),
+                    ),
+                    jump.index,
+                );
+            }
+            _ => {}
+        });
 
-                if arg > u8::MAX.into() {
-                    // Calculate how many extended args an instruction will need
-                    let extended_arg_count = ((32 - arg.leading_zeros()) + 7) / 8;
-                    let extended_arg_count = extended_arg_count.saturating_sub(1); // Don't count the instruction itself
+        for (index, instruction) in self.iter().enumerate() {
+            let arg = instruction.get_raw_value();
 
-                    updated_offset = true;
-                    updated_indexes.push(index);
+            if arg > u8::MAX.into() {
+                // Calculate how many extended args an instruction will need
+                let extended_arg_count = ((32 - arg.leading_zeros()) + 7) / 8;
+                let extended_arg_count = extended_arg_count.saturating_sub(1); // Don't count the instruction itself
 
-                    self.iter().enumerate().for_each(|(idx, inst)| {
-                        if (inst.is_absolute_jump() && (inst.get_raw_value() as usize > index))
-                            || (inst.is_relative_jump()
-                                && (idx < index && index < idx + 1 + inst.get_raw_value() as usize))
-                        {
-                            // Check the original instruction jump offset and not the already updated one
-                            match mut_self
-                                .get_mut(idx)
-                                .expect("The lists are always the same length")
-                            {
-                                Instruction::JumpAbsolute(jump)
-                                | Instruction::PopJumpIfTrue(jump)
-                                | Instruction::PopJumpIfFalse(jump)
-                                | Instruction::JumpIfNotExcMatch(jump)
-                                | Instruction::JumpIfTrueOrPop(jump)
-                                | Instruction::JumpIfFalseOrPop(jump) => {
-                                    // Update jump indexes that jump above this index
-                                    jump.index += extended_arg_count
-                                }
-                                Instruction::ForIter(jump)
-                                | Instruction::JumpForward(jump)
-                                | Instruction::SetupFinally(jump)
-                                | Instruction::SetupWith(jump)
-                                | Instruction::SetupAsyncWith(jump) => {
-                                    // Relative jumps only need to update if the index falls within it's jump range
-                                    jump.index += extended_arg_count
-                                }
-                                _ => {}
-                            }
-                        }
-                    });
+                absolute_jump_indexes
+                    .range_mut((
+                        std::ops::Bound::Excluded(index as u32),
+                        std::ops::Bound::Unbounded,
+                    ))
+                    .for_each(|(_, new)| *new += extended_arg_count);
+
+                for mut entry in relative_jump_indexes.query_mut(&Interval::new(
+                    std::ops::Bound::Included(index as u32),
+                    std::ops::Bound::Excluded((index + 1) as u32),
+                )) {
+                    *entry.value() += extended_arg_count
                 }
             }
         }
 
-        for instruction in mut_self.0 {
-            push_inst!(instruction, instruction.get_raw_value());
+        for (idx, instruction) in self.0.iter().enumerate() {
+            match instruction {
+                Instruction::JumpAbsolute(jump)
+                | Instruction::PopJumpIfTrue(jump)
+                | Instruction::PopJumpIfFalse(jump)
+                | Instruction::JumpIfNotExcMatch(jump)
+                | Instruction::JumpIfTrueOrPop(jump)
+                | Instruction::JumpIfFalseOrPop(jump) => {
+                    push_inst!(instruction, absolute_jump_indexes[&jump.index]);
+                }
+                Instruction::ForIter(jump)
+                | Instruction::JumpForward(jump)
+                | Instruction::SetupFinally(jump)
+                | Instruction::SetupWith(jump)
+                | Instruction::SetupAsyncWith(jump) => {
+                    let interval = Interval::new(
+                        std::ops::Bound::Included(idx as u32),
+                        std::ops::Bound::Included(idx as u32 + jump.index + 1),
+                    );
+
+                    // dbg!(
+                    //     relative_jump_indexes.query(&interval).collect::<Vec<_>>(),
+                    //     &interval
+                    // );
+
+                    if cfg!(debug_assertions) {
+                        let indexes = relative_jump_indexes
+                            .query(&interval)
+                            .filter(|entry| *entry.interval() == interval)
+                            .collect::<Vec<_>>();
+
+                        assert!(indexes.len() == 1);
+
+                        push_inst!(
+                            instruction,
+                            *indexes
+                                .first()
+                                .expect("This interval should always exist")
+                                .value()
+                        );
+                    } else {
+                        // This is faster, so use for release builds
+                        push_inst!(
+                            instruction,
+                            *relative_jump_indexes
+                                .query(&interval)
+                                .filter(|entry| *entry.interval() == interval)
+                                .next()
+                                .expect("This interval should always exist")
+                                .value()
+                        );
+                    }
+                }
+                _ => push_inst!(instruction, instruction.get_raw_value()),
+            }
         }
 
         bytearray
@@ -1063,35 +1116,104 @@ impl TryFrom<&[u8]> for Instructions {
             extended_arg = 0;
         }
 
+        // mapping of original to updated index
+        let mut absolute_jump_indexes: BTreeMap<u32, u32> = BTreeMap::new();
+        let mut relative_jump_indexes = IntervalTree::<u32, u32>::new(); // (u32, u32) is the from and to index for relative jumps
+
+        instructions
+            .iter()
+            .enumerate()
+            .for_each(|(idx, inst)| match inst {
+                Instruction::JumpAbsolute(jump)
+                | Instruction::PopJumpIfTrue(jump)
+                | Instruction::PopJumpIfFalse(jump)
+                | Instruction::JumpIfNotExcMatch(jump)
+                | Instruction::JumpIfTrueOrPop(jump)
+                | Instruction::JumpIfFalseOrPop(jump) => {
+                    absolute_jump_indexes.insert(jump.index, jump.index);
+                }
+                Instruction::ForIter(jump)
+                | Instruction::JumpForward(jump)
+                | Instruction::SetupFinally(jump)
+                | Instruction::SetupWith(jump)
+                | Instruction::SetupAsyncWith(jump) => {
+                    relative_jump_indexes.insert(
+                        Interval::new(
+                            std::ops::Bound::Included(idx as u32),
+                            std::ops::Bound::Included(idx as u32 + jump.index + 1),
+                        ),
+                        jump.index,
+                    );
+                }
+                _ => {}
+            });
+
         // Update jump offsets to exclude the extended args that were removed
         for index in removed_extended_args {
-            instructions.iter_mut().enumerate().for_each(|(idx, inst)| {
-                if (inst.is_absolute_jump() && (inst.get_raw_value() as usize > index))
-                    || (inst.is_relative_jump()
-                        && (idx < index && index < idx + 1 + inst.get_raw_value() as usize))
-                {
-                    match inst {
-                        Instruction::JumpAbsolute(jump)
-                        | Instruction::PopJumpIfTrue(jump)
-                        | Instruction::PopJumpIfFalse(jump)
-                        | Instruction::JumpIfNotExcMatch(jump)
-                        | Instruction::JumpIfTrueOrPop(jump)
-                        | Instruction::JumpIfFalseOrPop(jump) => {
-                            // Update jump indexes that jump above this index
-                            jump.index -= 1
-                        }
-                        Instruction::ForIter(jump)
-                        | Instruction::JumpForward(jump)
-                        | Instruction::SetupFinally(jump)
-                        | Instruction::SetupWith(jump)
-                        | Instruction::SetupAsyncWith(jump) => {
-                            // Relative jumps only need to update if the index falls within it's jump range
-                            jump.index -= 1
-                        }
-                        _ => {}
+            absolute_jump_indexes
+                .range_mut((
+                    std::ops::Bound::Excluded(index as u32),
+                    std::ops::Bound::Unbounded,
+                ))
+                .for_each(|(_, new)| *new -= 1);
+
+            for mut entry in relative_jump_indexes.query_mut(&Interval::new(
+                std::ops::Bound::Included(index as u32),
+                std::ops::Bound::Excluded((index + 1) as u32),
+            )) {
+                *entry.value() -= 1
+            }
+        }
+
+        for (idx, instruction) in instructions.iter_mut().enumerate() {
+            match instruction {
+                Instruction::JumpAbsolute(jump)
+                | Instruction::PopJumpIfTrue(jump)
+                | Instruction::PopJumpIfFalse(jump)
+                | Instruction::JumpIfNotExcMatch(jump)
+                | Instruction::JumpIfTrueOrPop(jump)
+                | Instruction::JumpIfFalseOrPop(jump) => {
+                    jump.index = absolute_jump_indexes[&jump.index];
+                }
+                Instruction::ForIter(jump)
+                | Instruction::JumpForward(jump)
+                | Instruction::SetupFinally(jump)
+                | Instruction::SetupWith(jump)
+                | Instruction::SetupAsyncWith(jump) => {
+                    let interval = Interval::new(
+                        std::ops::Bound::Included(idx as u32),
+                        std::ops::Bound::Included(idx as u32 + jump.index + 1),
+                    );
+
+                    // dbg!(
+                    //     relative_jump_indexes.query(&interval).collect::<Vec<_>>(),
+                    //     &interval
+                    // );
+
+                    if cfg!(debug_assertions) {
+                        let indexes = relative_jump_indexes
+                            .query(&interval)
+                            .filter(|entry| *entry.interval() == interval)
+                            .collect::<Vec<_>>();
+
+                        assert!(indexes.len() == 1);
+
+                        jump.index = *indexes
+                            .first()
+                            .expect("This interval should always exist")
+                            .value();
+                    } else {
+                        // This is faster, so use for release builds
+                        jump.index = *relative_jump_indexes
+                            .query(&interval)
+                            .filter(|entry| *entry.interval() == interval)
+                            .next()
+                            .expect("This interval should always exist")
+                            .value();
                     }
                 }
-            });
+                _ => {}
+            }
         }
 
         Ok(instructions)

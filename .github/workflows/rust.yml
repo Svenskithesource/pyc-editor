@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "faster-extended-arg-algo" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "faster-extended-arg-algo" ]
 
 env:
   CARGO_TERM_COLOR: always

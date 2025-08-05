@@ -2,10 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{
     error::Error,
-    v310::{
-        ext_instructions::ExtInstructions,
-        opcodes::Opcode,
-    },
+    v310::{ext_instructions::ExtInstructions, opcodes::Opcode},
 };
 
 /// Low level representation of a Python bytecode instruction with their original u8 argument.
@@ -182,7 +179,7 @@ impl Instructions {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytearray = Vec::with_capacity(self.0.len() * 2);
 
-        for (idx, instruction) in self.0.iter().enumerate() {
+        for instruction in self.0.iter() {
             bytearray.push(instruction.get_opcode() as u8);
             bytearray.push(instruction.get_raw_value())
         }

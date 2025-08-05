@@ -3,17 +3,17 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use store_interval_tree::IntervalTree;
+use store_interval_tree::{Interval, IntervalTree};
 
 use crate::v310::{
-        code_objects::{
-            AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
-            GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
-            VarNameIndex,
-        },
-        instructions::{Instruction, Instructions},
-        opcodes::Opcode,
-    };
+    code_objects::{
+        AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
+        GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
+        VarNameIndex,
+    },
+    instructions::{Instruction, Instructions},
+    opcodes::Opcode,
+};
 
 /// Used to represent opargs for opcodes that don't require arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -276,7 +276,7 @@ impl ExtInstructions {
     pub fn to_instructions(&self) -> Instructions {
         // mapping of original to updated index
         let mut absolute_jump_indexes: BTreeMap<u32, u32> = BTreeMap::new();
-        let relative_jump_indexes = IntervalTree::<u32, u32>::new(); // (u32, u32) is the from and to index for relative jumps
+        let mut relative_jump_indexes = IntervalTree::<u32, u32>::new(); // (u32, u32) is the from and to index for relative jumps
 
         self.iter().enumerate().for_each(|(idx, inst)| match inst {
             ExtInstruction::JumpAbsolute(jump)
@@ -286,6 +286,19 @@ impl ExtInstructions {
             | ExtInstruction::JumpIfTrueOrPop(jump)
             | ExtInstruction::JumpIfFalseOrPop(jump) => {
                 absolute_jump_indexes.insert(jump.index, jump.index);
+            }
+            ExtInstruction::ForIter(jump)
+            | ExtInstruction::JumpForward(jump)
+            | ExtInstruction::SetupFinally(jump)
+            | ExtInstruction::SetupWith(jump)
+            | ExtInstruction::SetupAsyncWith(jump) => {
+                relative_jump_indexes.insert(
+                    Interval::new(
+                        std::ops::Bound::Excluded(idx as u32),
+                        std::ops::Bound::Excluded(idx as u32 + jump.index + 1),
+                    ),
+                    jump.index,
+                );
             }
             _ => {}
         });
@@ -309,6 +322,10 @@ impl ExtInstructions {
                         std::ops::Bound::Unbounded,
                     ))
                     .for_each(|(_, new)| *new += extended_arg_count);
+
+                for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
+                    *entry.value() += extended_arg_count
+                }
             }
         }
 
@@ -322,6 +339,18 @@ impl ExtInstructions {
                 | ExtInstruction::JumpIfNotExcMatch(jump)
                 | ExtInstruction::JumpIfTrueOrPop(jump)
                 | ExtInstruction::JumpIfFalseOrPop(jump) => absolute_jump_indexes[&jump.index],
+                ExtInstruction::ForIter(jump)
+                | ExtInstruction::JumpForward(jump)
+                | ExtInstruction::SetupFinally(jump)
+                | ExtInstruction::SetupWith(jump)
+                | ExtInstruction::SetupAsyncWith(jump) => *relative_jump_indexes
+                    .query(&Interval::new(
+                        std::ops::Bound::Excluded(idx as u32),
+                        std::ops::Bound::Excluded(idx as u32 + jump.index + 1),
+                    ))
+                    .next()
+                    .expect("The jump table should always contain all jump indexes")
+                    .value(),
                 _ => instruction.get_raw_value(),
             };
 
@@ -378,13 +407,14 @@ impl From<ExtInstructions> for Vec<u8> {
 impl From<&[Instruction]> for ExtInstructions {
     fn from(code: &[Instruction]) -> Self {
         let mut extended_arg = 0; // Used to keep track of extended arguments between instructions
-        let removed_count = 0;
         let mut absolute_jump_indexes: BTreeMap<u32, u32> = BTreeMap::new();
+        let mut relative_jump_indexes: IntervalTree<u32, u32> = IntervalTree::new();
 
         for (index, instruction) in code.iter().enumerate() {
             match instruction {
                 Instruction::ExtendedArg(arg) => {
-                    extended_arg = (*arg as u32 | extended_arg) << 8;
+                    let arg = *arg as u32 | extended_arg;
+                    extended_arg = arg << 8;
                     continue;
                 }
                 Instruction::JumpAbsolute(arg)
@@ -395,6 +425,20 @@ impl From<&[Instruction]> for ExtInstructions {
                 | Instruction::JumpIfFalseOrPop(arg) => {
                     let arg = *arg as u32 | extended_arg;
                     absolute_jump_indexes.insert(arg, arg);
+                }
+                Instruction::ForIter(arg)
+                | Instruction::JumpForward(arg)
+                | Instruction::SetupFinally(arg)
+                | Instruction::SetupWith(arg)
+                | Instruction::SetupAsyncWith(arg) => {
+                    let arg = *arg as u32 | extended_arg;
+                    relative_jump_indexes.insert(
+                        Interval::new(
+                            std::ops::Bound::Excluded(index as u32),
+                            std::ops::Bound::Excluded(index as u32 + arg + 1),
+                        ),
+                        arg,
+                    );
                 }
                 _ => {}
             }
@@ -409,7 +453,11 @@ impl From<&[Instruction]> for ExtInstructions {
                         std::ops::Bound::Excluded(index as u32),
                         std::ops::Bound::Unbounded,
                     ))
-                    .for_each(|(original_index, updated_index)| *updated_index -= 1);
+                    .for_each(|(_, updated_index)| *updated_index -= 1);
+
+                for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
+                    *entry.value() -= 1
+                }
             }
         }
 
@@ -418,7 +466,8 @@ impl From<&[Instruction]> for ExtInstructions {
         for (index, instruction) in code.iter().enumerate() {
             match instruction {
                 Instruction::ExtendedArg(arg) => {
-                    extended_arg = (extended_arg << 8) | *arg as u32;
+                    let arg = *arg as u32 | extended_arg;
+                    extended_arg = arg << 8;
                     continue;
                 }
                 Instruction::JumpAbsolute(arg)
@@ -431,8 +480,30 @@ impl From<&[Instruction]> for ExtInstructions {
                         (
                             instruction.get_opcode(),
                             *absolute_jump_indexes
-                                .get(&((extended_arg << 8) | *arg as u32))
+                                .get(&(*arg as u32 | extended_arg))
                                 .expect("The jump table should always contain all jump indexes"),
+                        )
+                            .into(),
+                    );
+                }
+                Instruction::ForIter(arg)
+                | Instruction::JumpForward(arg)
+                | Instruction::SetupFinally(arg)
+                | Instruction::SetupWith(arg)
+                | Instruction::SetupAsyncWith(arg) => {
+                    ext_instructions.append_instruction(
+                        (
+                            instruction.get_opcode(),
+                            *relative_jump_indexes
+                                .query(&Interval::new(
+                                    std::ops::Bound::Excluded(index as u32),
+                                    std::ops::Bound::Excluded(
+                                        index as u32 + (*arg as u32 | extended_arg) + 1,
+                                    ),
+                                ))
+                                .next()
+                                .expect("The jump table should always contain all jump indexes")
+                                .value(),
                         )
                             .into(),
                     );
@@ -440,7 +511,7 @@ impl From<&[Instruction]> for ExtInstructions {
                 _ => ext_instructions.append_instruction(
                     (
                         instruction.get_opcode(),
-                        (extended_arg << 8) | instruction.get_raw_value() as u32,
+                        instruction.get_raw_value() as u32 | extended_arg,
                     )
                         .into(),
                 ),

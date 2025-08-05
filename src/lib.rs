@@ -80,8 +80,6 @@ pub fn dump_code(
 
 #[cfg(test)]
 mod tests {
-    
-    
 
     use crate::v310::code_objects::CompareOperation::Equal;
     use crate::v310::code_objects::{AbsoluteJump, Jump};
@@ -207,6 +205,56 @@ mod tests {
         );
 
         assert_eq!(resolved.len(), 259);
+
+        assert_eq!(instructions, resolved.to_instructions());
+    }
+
+    #[test]
+    fn test_relative_jump() {
+        // Create a list of instructions that look like this:
+        // 0    NOP           1
+        // ...
+        // 11   JUMP_FORWARD  5 (to 17 = 11 + 5 + 1)
+        // 12   EXTENDED_ARG  1
+        // 13   NOP           0
+        // ...
+        // 17  RETURN_VALUE  0
+        let mut instructions = Instructions::with_capacity(17);
+
+        // Fill instruction list with nops until index 10 (11 items)
+        for _ in instructions.len()..11 {
+            instructions.append_instruction(Instruction::Nop(0));
+        }
+
+        assert_eq!(instructions.len(), 11);
+
+        instructions.append_instructions(
+            vec![
+                Instruction::JumpForward(5), // This jumps to index 17
+                Instruction::ExtendedArg(1),
+            ]
+            .as_slice(),
+        );
+
+        // Fill instruction list with nops until index 16 (17 items)
+        for _ in instructions.len()..17 {
+            instructions.append_instruction(Instruction::Nop(0));
+        }
+
+        assert_eq!(instructions.len(), 17);
+
+        instructions.append_instruction(Instruction::ReturnValue(0));
+
+        let resolved = instructions.to_resolved();
+
+        let jump = resolved.get(11).unwrap().get_raw_value();
+
+        assert_eq!(resolved.len(), 17);
+
+        assert_eq!(
+            resolved.get(jump as usize + 11 + 1).unwrap(),
+            &ExtInstruction::ReturnValue(0.into())
+        );
 
         assert_eq!(instructions, resolved.to_instructions());
     }

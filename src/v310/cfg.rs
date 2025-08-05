@@ -1,4 +1,4 @@
-use crate::v310::code_objects::Instructions;
+use crate::v310::ext_instructions::ExtInstructions;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockIndex {
@@ -11,7 +11,7 @@ pub enum BlockIndex {
 
 /// Represents a block in the control flow graph
 pub struct Block {
-    instructions: Instructions,
+    instructions: ExtInstructions,
     /// Index to block for conditional jump
     branch_block: BlockIndex,
     /// Index to default block (unconditional)
@@ -34,8 +34,8 @@ pub struct ControlFlowGraph {
     start_index: BlockIndex,
 }
 
-impl From<Instructions> for ControlFlowGraph {
-    fn from(value: Instructions) -> Self {
+impl From<ExtInstructions> for ControlFlowGraph {
+    fn from(value: ExtInstructions) -> Self {
         let mut blocks = vec![];
 
         ControlFlowGraph {

@@ -1,6 +1,6 @@
 use pyc_editor::{
     dump_pyc, load_pyc,
-    v310::{code_objects::Instruction, opcodes::Opcode},
+    v310::{ext_instructions::ExtInstruction, opcodes::Opcode},
     PycFile,
 };
 
@@ -19,7 +19,7 @@ fn main() {
                 .find(|i| i.get_opcode() == Opcode::BINARY_ADD)
                 .expect("Add opcode not found");
 
-            *add = Instruction::BinarySubtract;
+            *add = ExtInstruction::BinarySubtract(0.into());
         }
     }
 

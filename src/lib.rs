@@ -84,10 +84,10 @@ mod tests {
     use python_marshal::{CodeFlags, PyString};
 
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::Instruction::{self};
     use crate::v310::code_objects::{
         AbsoluteJump, Constant, FrozenConstant, Jump,
     };
+    use crate::v310::ext_instructions::ExtInstruction;
     use crate::v310::opcodes::Opcode;
 
     use super::*;
@@ -116,10 +116,10 @@ mod tests {
 
     #[test]
     fn test_extended_arg() {
-        let mut instructions: v310::code_objects::Instructions = ([
+        let mut instructions: v310::ext_instructions::ExtInstructions = ([
             (Opcode::LOAD_NAME, 0).into(),
             (Opcode::LOAD_CONST, 0).into(),
-            Instruction::CompareOp(Equal),
+            ExtInstruction::CompareOp(Equal),
             (Opcode::POP_JUMP_IF_FALSE, 4).into(),
             (Opcode::LOAD_NAME, 1).into(),
             (Opcode::LOAD_NAME, 2).into(),
@@ -198,7 +198,7 @@ mod tests {
                     .find(|i| i.get_opcode() == Opcode::POP_JUMP_IF_FALSE)
                     .expect("There must be a jump")
                 {
-                    Instruction::PopJumpIfFalse(jump) => {
+                    ExtInstruction::PopJumpIfFalse(jump) => {
                         dbg!(jump);
                         let target = code
                             .code

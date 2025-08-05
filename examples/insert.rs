@@ -1,6 +1,6 @@
 use pyc_editor::{
     dump_pyc, load_pyc,
-    v310::{code_objects::Instruction, opcodes::Opcode},
+    v310::{ext_instructions::ExtInstruction, opcodes::Opcode},
     PycFile,
 };
 
@@ -22,8 +22,8 @@ fn main() {
             code.insert_instructions(
                 index,
                 &[
-                    Instruction::DupTop, // Duplicate argument for the call (a + b)
-                    call,                // Call print for the second time
+                    ExtInstruction::DupTop(0.into()), // Duplicate argument for the call (a + b)
+                    call,                             // Call print for the second time
                 ],
             );
         }

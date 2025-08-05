@@ -156,6 +156,10 @@ impl Instructions {
         Instructions(Vec::with_capacity(capacity))
     }
 
+    pub fn new(instructions: Vec<Instruction>) -> Self {
+        Instructions(instructions)
+    }
+
     /// Returns the instructions but with the extended_args resolved
     pub fn to_resolved(&self) -> ExtInstructions {
         ExtInstructions::from(self.0.as_slice())

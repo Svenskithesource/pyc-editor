@@ -86,6 +86,7 @@ mod tests {
     use crate::v310::code_objects::CompareOperation::Equal;
     use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, Jump};
     use crate::v310::ext_instructions::ExtInstruction;
+    use crate::v310::instructions::{Instruction, Instructions};
     use crate::v310::opcodes::Opcode;
 
     use super::*;
@@ -159,5 +160,54 @@ mod tests {
         }
 
         assert_eq!(instructions, resolved);
+    }
+
+    #[test]
+    fn test_absolute_jump() {
+        // Create a list of instructions that look like this:
+        // 0    EXTENDED_ARG  1
+        // 1    JUMP_ABSOLUTE 4 (to 260)
+        // 2    NOP           0
+        // ...
+        // 149  EXTENDED_ARG  1
+        // 150  NOP           1
+        // ...
+        // 259  NOP           1
+        // 260  RETURN_VALUE  0
+        let mut instructions = Instructions::new(vec![
+            Instruction::ExtendedArg(1),
+            Instruction::JumpAbsolute(4), // This is a jump to 260 (256 + 4) in reality (via extended arg).
+        ]);
+
+        // Fill instruction list with nops until index 149 (150 items)
+        for _ in instructions.len()..150 {
+            instructions.append_instruction(Instruction::Nop(0));
+        }
+
+        assert_eq!(instructions.len(), 150);
+
+        instructions.append_instruction(Instruction::ExtendedArg(1));
+
+        // Fill instruction list with nops until index 259 (260 items)
+        for _ in instructions.len()..260 {
+            instructions.append_instruction(Instruction::Nop(0));
+        }
+
+        assert_eq!(instructions.len(), 260);
+
+        instructions.append_instruction(Instruction::ReturnValue(0));
+
+        let resolved = instructions.to_resolved();
+
+        let jump = resolved.iter().nth(0).unwrap().get_raw_value();
+
+        assert_eq!(
+            resolved.iter().nth(jump as usize).unwrap(),
+            &ExtInstruction::ReturnValue(0.into())
+        );
+
+        assert_eq!(resolved.len(), 259);
+
+        assert_eq!(instructions, resolved.to_instructions());
     }
 }

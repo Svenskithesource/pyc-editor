@@ -202,7 +202,7 @@ mod tests {
                         dbg!(jump);
                         let target = code
                             .code
-                            .get_jump_target(jump.clone().into())
+                            .get_jump_target((*jump).into())
                             .expect("Should never fail");
 
                         dbg!(target);

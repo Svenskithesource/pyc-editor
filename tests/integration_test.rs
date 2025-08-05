@@ -23,7 +23,7 @@ fn test_recompile_standard_lib() {
         pyc_files.iter().for_each(|pyc_file| {
             if pyc_file.ends_with("build_scripts.cpython-310.pyc") {
                 println!("Testing pyc file: {:?}", pyc_file);
-                let file = std::fs::File::open(&pyc_file).expect("Failed to open pyc file");
+                let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
                 let reader = BufReader::new(file);
 
                 let original_pyc =
@@ -34,7 +34,7 @@ fn test_recompile_standard_lib() {
                 )
                 .0;
 
-                let file = std::fs::File::open(&pyc_file).expect("Failed to open pyc file");
+                let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
                 let reader = BufReader::new(file);
 
                 let parsed_pyc = load_pyc(reader).unwrap();
@@ -64,12 +64,12 @@ fn test_write_standard_lib() {
 
         pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
-            let file = std::fs::File::open(&pyc_file).expect("Failed to open pyc file");
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let mut reader = BufReader::new(file);
 
             let pyc = load_pyc(&mut reader).expect("Failed to read pyc file");
 
-            let output_dir = get_custom_path(&pyc_file.parent().unwrap(), version, "rewritten")
+            let output_dir = get_custom_path(pyc_file.parent().unwrap(), version, "rewritten")
                 .parent()
                 .unwrap()
                 .to_path_buf();
@@ -83,7 +83,7 @@ fn test_write_standard_lib() {
 
             output_file
                 .write(&dump_pyc(pyc).expect("Failed to dump pyc file"))
-                .expect(&format!("Failed to write to {:?}", output_path));
+                .unwrap_or_else(|_| panic!("Failed to write to {:?}", output_path));
         });
     });
 }

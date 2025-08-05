@@ -19,6 +19,7 @@ use crate::{
 
 /// Used to represent opargs for opcodes that don't require arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub struct InvalidArgument(u32);
 
 impl From<u32> for InvalidArgument {
@@ -27,11 +28,6 @@ impl From<u32> for InvalidArgument {
     }
 }
 
-impl Default for InvalidArgument {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 /// Low level representation of a Python bytecode instruction with resolved arguments (extended arg is resolved)
 /// We have arguments for every opcode, even if those aren't used. This is so we can have a full representation of the instructions, even if they're invalid.
@@ -402,9 +398,7 @@ impl ExtInstructions {
                         push_inst!(
                             instruction,
                             *relative_jump_indexes
-                                .query(&interval)
-                                .filter(|entry| *entry.interval() == interval)
-                                .next()
+                                .query(&interval).find(|entry| *entry.interval() == interval)
                                 .expect("This interval should always exist")
                                 .value()
                         );
@@ -565,9 +559,7 @@ impl TryFrom<&[u8]> for ExtInstructions {
                     } else {
                         // This is faster, so use for release builds
                         jump.index = *relative_jump_indexes
-                            .query(&interval)
-                            .filter(|entry| *entry.interval() == interval)
-                            .next()
+                            .query(&interval).find(|entry| *entry.interval() == interval)
                             .expect("This interval should always exist")
                             .value();
                     }

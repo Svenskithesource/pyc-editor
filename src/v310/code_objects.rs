@@ -1,8 +1,3 @@
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    ops::{Deref, DerefMut},
-};
-
 use bitflags::bitflags;
 
 use hashable::HashableHashSet;
@@ -11,11 +6,8 @@ use num_bigint::BigInt;
 use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
-use store_interval_tree::{EntryMut, Interval, IntervalTree};
 
 use crate::{error::Error, v310::ext_instructions::ExtInstructions, PycFile};
-
-use super::opcodes::Opcode;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FrozenConstant {

@@ -80,11 +80,11 @@ pub fn dump_code(
 
 #[cfg(test)]
 mod tests {
-    use python_marshal::Kind::ShortAsciiInterned;
-    use python_marshal::{CodeFlags, PyString};
+    
+    
 
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, Jump};
+    use crate::v310::code_objects::{AbsoluteJump, Jump};
     use crate::v310::ext_instructions::ExtInstruction;
     use crate::v310::instructions::{Instruction, Instructions};
     use crate::v310::opcodes::Opcode;
@@ -199,10 +199,10 @@ mod tests {
 
         let resolved = instructions.to_resolved();
 
-        let jump = resolved.iter().nth(0).unwrap().get_raw_value();
+        let jump = resolved.first().unwrap().get_raw_value();
 
         assert_eq!(
-            resolved.iter().nth(jump as usize).unwrap(),
+            resolved.get(jump as usize).unwrap(),
             &ExtInstruction::ReturnValue(0.into())
         );
 

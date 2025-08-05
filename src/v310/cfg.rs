@@ -36,7 +36,7 @@ pub struct ControlFlowGraph {
 
 impl From<ExtInstructions> for ControlFlowGraph {
     fn from(value: ExtInstructions) -> Self {
-        let mut blocks = vec![];
+        let blocks = vec![];
 
         ControlFlowGraph {
             blocks,

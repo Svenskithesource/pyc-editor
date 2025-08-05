@@ -3,11 +3,6 @@ use std::ops::{Deref, DerefMut};
 use crate::{
     error::Error,
     v310::{
-        code_objects::{
-            AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
-            GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
-            VarNameIndex,
-        },
         ext_instructions::ExtInstructions,
         opcodes::Opcode,
     },
@@ -189,7 +184,7 @@ impl Instructions {
 
         for (idx, instruction) in self.0.iter().enumerate() {
             bytearray.push(instruction.get_opcode() as u8);
-            bytearray.push(instruction.get_raw_value() as u8)
+            bytearray.push(instruction.get_raw_value())
         }
 
         bytearray

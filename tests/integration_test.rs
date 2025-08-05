@@ -123,7 +123,7 @@ fn test_write_standard_lib() {
                 std::fs::File::create(&output_path).expect("Failed to create output file");
 
             output_file
-                .write(&dump_pyc(pyc).expect("Failed to dump pyc file"))
+                .write_all(&dump_pyc(pyc).expect("Failed to dump pyc file"))
                 .unwrap_or_else(|_| panic!("Failed to write to {:?}", output_path));
         });
     });

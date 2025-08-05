@@ -7,7 +7,7 @@ use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
-use crate::{error::Error, v310::{ext_instructions::ExtInstructions, instructions::Instructions}, PycFile};
+use crate::{error::Error, v310::instructions::Instructions, PycFile};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FrozenConstant {

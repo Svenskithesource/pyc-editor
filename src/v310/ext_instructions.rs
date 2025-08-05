@@ -3,11 +3,9 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use store_interval_tree::{Interval, IntervalTree};
+use store_interval_tree::IntervalTree;
 
-use crate::{
-    error::Error,
-    v310::{
+use crate::v310::{
         code_objects::{
             AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
             GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
@@ -15,8 +13,7 @@ use crate::{
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,
-    },
-};
+    };
 
 /// Used to represent opargs for opcodes that don't require arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -279,7 +276,7 @@ impl ExtInstructions {
     pub fn to_instructions(&self) -> Instructions {
         // mapping of original to updated index
         let mut absolute_jump_indexes: BTreeMap<u32, u32> = BTreeMap::new();
-        let mut relative_jump_indexes = IntervalTree::<u32, u32>::new(); // (u32, u32) is the from and to index for relative jumps
+        let relative_jump_indexes = IntervalTree::<u32, u32>::new(); // (u32, u32) is the from and to index for relative jumps
 
         self.iter().enumerate().for_each(|(idx, inst)| match inst {
             ExtInstruction::JumpAbsolute(jump)
@@ -318,7 +315,7 @@ impl ExtInstructions {
         let mut instructions: Instructions = Instructions::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
         for (idx, instruction) in self.0.iter().enumerate() {
-            let mut arg = match instruction {
+            let arg = match instruction {
                 ExtInstruction::JumpAbsolute(jump)
                 | ExtInstruction::PopJumpIfTrue(jump)
                 | ExtInstruction::PopJumpIfFalse(jump)
@@ -381,7 +378,7 @@ impl From<ExtInstructions> for Vec<u8> {
 impl From<&[Instruction]> for ExtInstructions {
     fn from(code: &[Instruction]) -> Self {
         let mut extended_arg = 0; // Used to keep track of extended arguments between instructions
-        let mut removed_count = 0;
+        let removed_count = 0;
         let mut absolute_jump_indexes: BTreeMap<u32, u32> = BTreeMap::new();
 
         for (index, instruction) in code.iter().enumerate() {
@@ -406,16 +403,13 @@ impl From<&[Instruction]> for ExtInstructions {
         }
 
         for (index, instruction) in code.iter().enumerate() {
-            match instruction {
-                Instruction::ExtendedArg(_) => {
-                    absolute_jump_indexes
-                        .range_mut((
-                            std::ops::Bound::Excluded(index as u32),
-                            std::ops::Bound::Unbounded,
-                        ))
-                        .for_each(|(original_index, updated_index)| *updated_index -= 1);
-                }
-                _ => {}
+            if let Instruction::ExtendedArg(_) = instruction {
+                absolute_jump_indexes
+                    .range_mut((
+                        std::ops::Bound::Excluded(index as u32),
+                        std::ops::Bound::Unbounded,
+                    ))
+                    .for_each(|(original_index, updated_index)| *updated_index -= 1);
             }
         }
 

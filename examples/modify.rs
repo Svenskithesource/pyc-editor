@@ -19,7 +19,7 @@ fn main() {
                 .find(|i| i.get_opcode() == Opcode::BINARY_ADD)
                 .expect("Add opcode not found");
 
-            *add = Instruction::BinarySubtract(0.into());
+            *add = Instruction::BinarySubtract(0);
         }
     }
 

@@ -16,38 +16,79 @@ fn test_recompile_standard_lib() {
     common::setup();
     env_logger::init();
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
-            if pyc_file.ends_with("build_scripts.cpython-310.pyc") {
-                println!("Testing pyc file: {:?}", pyc_file);
-                let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
-                let reader = BufReader::new(file);
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
 
-                let original_pyc =
-                    python_marshal::load_pyc(reader).expect("Failed to load pyc file");
-                let original_pyc = python_marshal::resolver::resolve_all_refs(
-                    &original_pyc.object,
-                    &original_pyc.references,
-                )
-                .0;
+            let original_pyc = python_marshal::load_pyc(reader).expect("Failed to load pyc file");
+            let original_pyc = python_marshal::resolver::resolve_all_refs(
+                &original_pyc.object,
+                &original_pyc.references,
+            )
+            .0;
 
-                let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
-                let reader = BufReader::new(file);
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
 
-                let parsed_pyc = load_pyc(reader).unwrap();
-                dbg!(&parsed_pyc);
-                let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
+            let parsed_pyc = load_pyc(reader).unwrap();
 
-                std::assert_eq!(
-                    original_pyc,
-                    pyc.object,
-                    "{:?} has not been recompiled succesfully",
-                    &pyc_file
-                );
+            let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
+
+            std::assert_eq!(
+                original_pyc,
+                pyc.object,
+                "{:?} has not been recompiled succesfully",
+                &pyc_file
+            );
+        });
+    });
+}
+
+#[test]
+fn test_recompile_resolved_standard_lib() {
+    common::setup();
+    env_logger::init();
+
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let original_pyc = python_marshal::load_pyc(reader).expect("Failed to load pyc file");
+            let original_pyc = python_marshal::resolver::resolve_all_refs(
+                &original_pyc.object,
+                &original_pyc.references,
+            )
+            .0;
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let mut parsed_pyc = load_pyc(reader).unwrap();
+
+            match parsed_pyc {
+                pyc_editor::PycFile::V310(ref mut pyc) => {
+                    pyc.code_object.code = pyc.code_object.code.to_resolved().to_instructions();
+                }
             }
+
+            let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
+
+            std::assert_eq!(
+                original_pyc,
+                pyc.object,
+                "{:?} has not been recompiled succesfully",
+                &pyc_file
+            );
         });
     });
 }

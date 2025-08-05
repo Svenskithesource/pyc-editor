@@ -7,7 +7,7 @@ use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
-use crate::{error::Error, v310::ext_instructions::ExtInstructions, PycFile};
+use crate::{error::Error, v310::{ext_instructions::ExtInstructions, instructions::Instructions}, PycFile};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FrozenConstant {
@@ -151,7 +151,7 @@ pub struct Code {
     pub nlocals: u32,
     pub stacksize: u32,
     pub flags: CodeFlags,
-    pub code: ExtInstructions,
+    pub code: Instructions,
     pub consts: Vec<Constant>,
     pub names: Vec<PyString>,
     pub varnames: Vec<PyString>,
@@ -283,7 +283,7 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
             nlocals: code.nlocals,
             stacksize: code.stacksize,
             flags: code.flags,
-            code: ExtInstructions::try_from(co_code.as_slice())?,
+            code: Instructions::try_from(co_code.as_slice())?,
             consts: co_consts
                 .iter()
                 .map(|obj| Constant::try_from(obj.clone()))

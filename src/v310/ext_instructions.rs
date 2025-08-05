@@ -13,13 +13,13 @@ use crate::{
             GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
             VarNameIndex,
         },
+        instructions::{Instruction, Instructions},
         opcodes::Opcode,
     },
 };
 
 /// Used to represent opargs for opcodes that don't require arguments
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct InvalidArgument(u32);
 
 impl From<u32> for InvalidArgument {
@@ -27,7 +27,6 @@ impl From<u32> for InvalidArgument {
         InvalidArgument(value)
     }
 }
-
 
 /// Low level representation of a Python bytecode instruction with resolved arguments (extended arg is resolved)
 /// We have arguments for every opcode, even if those aren't used. This is so we can have a full representation of the instructions, even if they're invalid.
@@ -273,8 +272,8 @@ impl ExtInstructions {
         }
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytearray = Vec::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
+    pub fn to_instructions(&self) -> Instructions {
+        let mut instructions: Instructions = Instructions::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
         macro_rules! push_inst {
             ($instruction:expr, $arg:expr) => {{
@@ -290,13 +289,11 @@ impl ExtInstructions {
                     }
                     // Emit EXTENDED_ARGs in reverse order (most significant first)
                     for &ext in ext_args.iter().rev() {
-                        bytearray.push(Opcode::EXTENDED_ARG as u8);
-                        bytearray.push(ext);
+                        instructions.append_instruction((Opcode::EXTENDED_ARG, ext).into());
                     }
                 }
 
-                bytearray.push($instruction.get_opcode() as u8);
-                bytearray.push($arg as u8)
+                instructions.append_instruction(($instruction.get_opcode(), $arg as u8).into());
             }};
         }
 
@@ -398,7 +395,8 @@ impl ExtInstructions {
                         push_inst!(
                             instruction,
                             *relative_jump_indexes
-                                .query(&interval).find(|entry| *entry.interval() == interval)
+                                .query(&interval)
+                                .find(|entry| *entry.interval() == interval)
                                 .expect("This interval should always exist")
                                 .value()
                         );
@@ -408,7 +406,11 @@ impl ExtInstructions {
             }
         }
 
-        bytearray
+        instructions
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.to_instructions().to_bytes()
     }
 }
 
@@ -434,24 +436,16 @@ impl From<ExtInstructions> for Vec<u8> {
     }
 }
 
-impl TryFrom<&[u8]> for ExtInstructions {
-    type Error = Error;
-    fn try_from(code: &[u8]) -> Result<Self, Self::Error> {
-        if code.len() % 2 != 0 {
-            return Err(Error::InvalidBytecodeLength);
-        }
-
-        let mut instructions = ExtInstructions(Vec::with_capacity(code.len() / 2));
+impl From<&[Instruction]> for ExtInstructions {
+    fn from(code: &[Instruction]) -> Self {
+        let mut ext_instructions = ExtInstructions(Vec::with_capacity(code.len() / 2));
         let mut extended_arg = 0; // Used to keep track of extended arguments between instructions
         let mut removed_extended_args = vec![]; // Used to offset jump indexes
         let mut removed_count = 0;
 
-        for (index, chunk) in code.chunks(2).enumerate() {
-            if chunk.len() != 2 {
-                return Err(Error::InvalidBytecodeLength);
-            }
-            let opcode = Opcode::try_from(chunk[0])?;
-            let arg = chunk[1];
+        for (index, instruction) in code.iter().enumerate() {
+            let opcode = instruction.get_opcode();
+            let arg = instruction.get_raw_value();
 
             match opcode {
                 Opcode::EXTENDED_ARG => {
@@ -463,7 +457,7 @@ impl TryFrom<&[u8]> for ExtInstructions {
                 _ => {
                     let arg = (extended_arg << 8) | arg as u32;
 
-                    instructions.append_instruction((opcode, arg).into());
+                    ext_instructions.append_instruction((opcode, arg).into());
                 }
             }
 
@@ -474,7 +468,7 @@ impl TryFrom<&[u8]> for ExtInstructions {
         let mut absolute_jump_indexes: BTreeMap<u32, u32> = BTreeMap::new();
         let mut relative_jump_indexes = IntervalTree::<u32, u32>::new(); // (u32, u32) is the from and to index for relative jumps
 
-        instructions
+        ext_instructions
             .iter()
             .enumerate()
             .for_each(|(idx, inst)| match inst {
@@ -519,7 +513,7 @@ impl TryFrom<&[u8]> for ExtInstructions {
             }
         }
 
-        for (idx, instruction) in instructions.iter_mut().enumerate() {
+        for (idx, instruction) in ext_instructions.iter_mut().enumerate() {
             match instruction {
                 ExtInstruction::JumpAbsolute(jump)
                 | ExtInstruction::PopJumpIfTrue(jump)
@@ -559,7 +553,8 @@ impl TryFrom<&[u8]> for ExtInstructions {
                     } else {
                         // This is faster, so use for release builds
                         jump.index = *relative_jump_indexes
-                            .query(&interval).find(|entry| *entry.interval() == interval)
+                            .query(&interval)
+                            .find(|entry| *entry.interval() == interval)
                             .expect("This interval should always exist")
                             .value();
                     }
@@ -568,7 +563,7 @@ impl TryFrom<&[u8]> for ExtInstructions {
             }
         }
 
-        Ok(instructions)
+        ext_instructions
     }
 }
 
@@ -1010,11 +1005,5 @@ impl ExtInstruction {
             ExtInstruction::CallFunctionEx(flags) => Into::<u32>::into(flags),
             ExtInstruction::FormatValue(format_flag) => Into::<u32>::into(format_flag),
         }
-    }
-}
-
-impl From<ExtInstruction> for u8 {
-    fn from(val: ExtInstruction) -> Self {
-        val.get_opcode() as u8
     }
 }

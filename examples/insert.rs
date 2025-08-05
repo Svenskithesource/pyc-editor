@@ -12,20 +12,22 @@ fn main() {
     match pyc_file {
         PycFile::V310(ref mut pyc) => {
             // Call print(a + b) twice
-            let code = &mut pyc.code_object.code;
-            let (index, &call) = code
+            let mut resolved = pyc.code_object.code.to_resolved();
+            let (index, &call) = resolved
                 .iter()
                 .enumerate()
                 .find(|(_, i)| i.get_opcode() == Opcode::CALL_FUNCTION)
                 .expect("Call not found");
 
-            code.insert_instructions(
+            resolved.insert_instructions(
                 index,
                 &[
                     ExtInstruction::DupTop(0.into()), // Duplicate argument for the call (a + b)
                     call,                             // Call print for the second time
                 ],
             );
+
+            pyc.code_object.code = resolved.to_instructions();
         }
     }
 

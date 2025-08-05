@@ -84,9 +84,7 @@ mod tests {
     use python_marshal::{CodeFlags, PyString};
 
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::{
-        AbsoluteJump, Constant, FrozenConstant, Jump,
-    };
+    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, Jump};
     use crate::v310::ext_instructions::ExtInstruction;
     use crate::v310::opcodes::Opcode;
 
@@ -141,79 +139,25 @@ mod tests {
 
         dbg!(og_target);
 
-        let code = CodeObject::V310(v310::code_objects::Code {
-            argcount: 0,
-            posonlyargcount: 0,
-            kwonlyargcount: 0,
-            nlocals: 0,
-            stacksize: 2,
-            flags: CodeFlags::from_bits_truncate(CodeFlags::NOFREE.bits()),
-            code: instructions,
-            consts: vec![
-                Constant::FrozenConstant(FrozenConstant::Long(1.into())),
-                Constant::FrozenConstant(FrozenConstant::None),
-            ],
-            names: vec![
-                PyString {
-                    value: "x".into(),
-                    kind: ShortAsciiInterned,
-                },
-                PyString {
-                    value: "print".into(),
-                    kind: ShortAsciiInterned,
-                },
-                PyString {
-                    value: "b".into(),
-                    kind: ShortAsciiInterned,
-                },
-            ],
-            varnames: vec![],
-            freevars: vec![],
-            cellvars: vec![],
-            filename: PyString {
-                value: "<string>".into(),
-                kind: ShortAsciiInterned,
-            },
-            name: PyString {
-                value: "<module>".into(),
-                kind: ShortAsciiInterned,
-            },
-            firstlineno: 1,
-            lnotab: vec![24, 0],
-        });
+        let resolved = instructions.to_instructions().to_resolved();
+        match resolved
+            .iter()
+            .find(|i| i.get_opcode() == Opcode::POP_JUMP_IF_FALSE)
+            .expect("There must be a jump")
+        {
+            ExtInstruction::PopJumpIfFalse(jump) => {
+                dbg!(jump);
+                let target = resolved
+                    .get_jump_target((*jump).into())
+                    .expect("Should never fail");
 
-        let dumped = dump_code(code.clone(), (3, 10).into(), 4).unwrap();
+                dbg!(target);
 
-        println!("{:?}", &dumped);
-
-        let new_code =
-            load_code(std::io::Cursor::new(dumped), (3, 10).into()).expect("Should never fail");
-
-        match new_code {
-            CodeObject::V310(ref code) => {
-                dbg!(&code.code, &code.code.len());
-                match code
-                    .code
-                    .iter()
-                    .find(|i| i.get_opcode() == Opcode::POP_JUMP_IF_FALSE)
-                    .expect("There must be a jump")
-                {
-                    ExtInstruction::PopJumpIfFalse(jump) => {
-                        dbg!(jump);
-                        let target = code
-                            .code
-                            .get_jump_target((*jump).into())
-                            .expect("Should never fail");
-
-                        dbg!(target);
-
-                        assert_eq!(og_target, target);
-                    }
-                    _ => panic!(),
-                }
+                assert_eq!(og_target, target);
             }
+            _ => panic!(),
         }
 
-        assert_eq!(code, new_code);
+        assert_eq!(instructions, resolved);
     }
 }

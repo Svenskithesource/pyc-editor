@@ -25,3 +25,8 @@ pretty_assertions = "1.4.1"
 rayon = "1.10.0"
 reqwest = { version = "0.12.20", features = ["blocking"] }
 zip = "4.2.0"
+criterion = { version = "0.7.0", features = ["html_reports"] }
+
+[[bench]]
+name = "extended_args"
+harness = false

@@ -5,7 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pyc_editor::{dump_pyc, load_pyc, v310::code_objects::Constant};
+use pyc_editor::{
+    dump_pyc, load_pyc,
+    v310::{code_objects::Constant, ext_instructions::ExtInstructions},
+};
 
 use crate::common::DATA_PATH;
 
@@ -54,7 +57,7 @@ fn test_recompile_standard_lib() {
 }
 
 #[test]
-fn test_recompile_resolved_standard_lib() {
+fn test_recompile_resolved_auto_standard_lib() {
     common::setup();
     LOGGER_INIT.call_once(|| {
         env_logger::init();
@@ -82,7 +85,122 @@ fn test_recompile_resolved_standard_lib() {
             let mut parsed_pyc = load_pyc(reader).unwrap();
 
             fn rewrite_code_object(code: &mut pyc_editor::v310::code_objects::Code) {
-                code.code = code.code.to_resolved().to_instructions();
+                code.code = ExtInstructions::from_instructions(code.code.iter().as_slice())
+                    .to_instructions();
+
+                for constant in &mut code.consts {
+                    if let Constant::CodeObject(ref mut const_code) = constant {
+                        rewrite_code_object(const_code);
+                    }
+                }
+            }
+
+            match parsed_pyc {
+                pyc_editor::PycFile::V310(ref mut pyc) => {
+                    rewrite_code_object(&mut pyc.code_object);
+                }
+            }
+
+            let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
+
+            std::assert_eq!(
+                original_pyc,
+                pyc.object,
+                "{:?} has not been recompiled succesfully",
+                &pyc_file
+            );
+        });
+    });
+}
+
+#[test]
+fn test_recompile_resolved_small_standard_lib() {
+    common::setup();
+    LOGGER_INIT.call_once(|| {
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let original_pyc = python_marshal::load_pyc(reader).expect("Failed to load pyc file");
+            let original_pyc = python_marshal::resolver::resolve_all_refs(
+                &original_pyc.object,
+                &original_pyc.references,
+            )
+            .0;
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let mut parsed_pyc = load_pyc(reader).unwrap();
+
+            fn rewrite_code_object(code: &mut pyc_editor::v310::code_objects::Code) {
+                code.code = ExtInstructions::from_instructions_small(code.code.iter().as_slice())
+                    .to_instructions_small();
+
+                for constant in &mut code.consts {
+                    if let Constant::CodeObject(ref mut const_code) = constant {
+                        rewrite_code_object(const_code);
+                    }
+                }
+            }
+
+            match parsed_pyc {
+                pyc_editor::PycFile::V310(ref mut pyc) => {
+                    rewrite_code_object(&mut pyc.code_object);
+                }
+            }
+
+            let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
+
+            std::assert_eq!(
+                original_pyc,
+                pyc.object,
+                "{:?} has not been recompiled succesfully",
+                &pyc_file
+            );
+        });
+    });
+}
+
+#[test]
+fn test_recompile_resolved_big_standard_lib() {
+    common::setup();
+    LOGGER_INIT.call_once(|| {
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let original_pyc = python_marshal::load_pyc(reader).expect("Failed to load pyc file");
+            let original_pyc = python_marshal::resolver::resolve_all_refs(
+                &original_pyc.object,
+                &original_pyc.references,
+            )
+            .0;
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let mut parsed_pyc = load_pyc(reader).unwrap();
+
+            fn rewrite_code_object(code: &mut pyc_editor::v310::code_objects::Code) {
+                code.code = ExtInstructions::from_instructions_big(code.code.iter().as_slice())
+                    .to_instructions_big();
 
                 for constant in &mut code.consts {
                     if let Constant::CodeObject(ref mut const_code) = constant {

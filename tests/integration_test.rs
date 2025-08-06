@@ -7,7 +7,7 @@ use std::{
 
 use pyc_editor::{
     dump_pyc, load_pyc,
-    v310::{code_objects::Constant, ext_instructions::ExtInstructions},
+    v310::code_objects::Constant,
 };
 
 use crate::common::DATA_PATH;

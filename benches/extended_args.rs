@@ -10,12 +10,8 @@ fn resolve_instructions(instructions: Instructions) -> ExtInstructions {
     instructions.to_resolved()
 }
 
-fn to_instructions_small(instructions: ExtInstructions) -> Instructions {
-    instructions.to_instructions_small()
-}
-
-fn to_instructions_big(instructions: ExtInstructions) -> Instructions {
-    instructions.to_instructions_big()
+fn to_instructions(instructions: ExtInstructions) -> Instructions {
+    instructions.to_instructions()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -47,12 +43,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| resolve_instructions(black_box(instructions.clone())))
     });
 
-    c.bench_function("extended_arg old algo 100K", |b| {
-        b.iter(|| to_instructions_small(black_box(resolved_instructions.clone())))
-    });
-
-    c.bench_function("extended_arg new algo 100K", |b| {
-        b.iter(|| to_instructions_big(black_box(resolved_instructions.clone())))
+    c.bench_function("extended_arg dump 100K", |b| {
+        b.iter(|| to_instructions(black_box(resolved_instructions.clone())))
     });
 
     let mut instructions = Instructions::with_capacity(10);
@@ -83,12 +75,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| resolve_instructions(black_box(instructions.clone())))
     });
 
-    c.bench_function("extended_arg old algo 10", |b| {
-        b.iter(|| to_instructions_small(black_box(resolved_instructions.clone())))
-    });
-
-    c.bench_function("extended_arg new algo 10", |b| {
-        b.iter(|| to_instructions_big(black_box(resolved_instructions.clone())))
+    c.bench_function("extended_arg dump 10", |b| {
+        b.iter(|| to_instructions(black_box(resolved_instructions.clone())))
     });
 }
 

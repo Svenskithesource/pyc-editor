@@ -330,6 +330,12 @@ impl RelativeJump {
     }
 }
 
+impl From<u32> for RelativeJump {
+    fn from(value: u32) -> Self {
+        RelativeJump { index: value }
+    }
+}
+
 /// Represents an absolute jump target (a byte offset from the start of the code).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AbsoluteJump {
@@ -339,6 +345,12 @@ pub struct AbsoluteJump {
 impl AbsoluteJump {
     pub fn new(index: u32) -> Self {
         AbsoluteJump { index }
+    }
+}
+
+impl From<u32> for AbsoluteJump {
+    fn from(value: u32) -> Self {
+        AbsoluteJump { index: value }
     }
 }
 

@@ -83,7 +83,7 @@ mod tests {
 
     use crate::v310::code_objects::CompareOperation::Equal;
     use crate::v310::code_objects::{AbsoluteJump, Jump};
-    use crate::v310::ext_instructions::ExtInstruction;
+    use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v310::instructions::{Instruction, Instructions};
     use crate::v310::opcodes::Opcode;
 
@@ -257,5 +257,25 @@ mod tests {
         );
 
         assert_eq!(instructions, resolved.to_instructions());
+    }
+
+    #[test]
+    fn test_extra_extended_arg() {
+        let ext_instructions = ExtInstructions::new(vec![
+            ExtInstruction::JumpAbsolute(255.into()),
+            ExtInstruction::JumpAbsolute(300.into()), // This will need an extended arg, which will increase the offset above which also causes that to need an extended arg.
+        ]);
+
+        let instructions = ext_instructions.to_instructions();
+
+        assert_eq!(
+            instructions,
+            Instructions::new(vec![
+                Instruction::ExtendedArg(1),
+                Instruction::JumpAbsolute(1),
+                Instruction::ExtendedArg(1),
+                Instruction::JumpAbsolute(46)
+            ])
+        )
     }
 }

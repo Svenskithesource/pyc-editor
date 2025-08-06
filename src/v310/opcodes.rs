@@ -114,7 +114,7 @@ pub enum Opcode {
     CALL_FUNCTION_KW = 141,
     CALL_FUNCTION_EX = 142,
     SETUP_WITH = 143,
-    EXTENDED_ARG = 144, // Only here for completeness
+    EXTENDED_ARG = 144,
     LIST_APPEND = 145,
     SET_ADD = 146,
     MAP_ADD = 147,

@@ -169,6 +169,10 @@ impl ExtInstructions {
         ExtInstructions(Vec::with_capacity(capacity))
     }
 
+    pub fn new(instructions: Vec<ExtInstruction>) -> Self {
+        ExtInstructions(instructions)
+    }
+
     pub fn append_instructions(&mut self, instructions: &[ExtInstruction]) {
         for instruction in instructions {
             self.0.push(*instruction);
@@ -303,6 +307,11 @@ impl ExtInstructions {
             _ => {}
         });
 
+        // We keep a list of jump indexes that become bigger than 255 while recalculating the jump indexes.
+        // We will need to account for those afterwards.
+        let mut absolute_jumps_to_update = vec![];
+        let mut relative_jumps_to_update = vec![];
+
         for (index, instruction) in self.iter().enumerate() {
             let arg = instruction.get_raw_value();
 
@@ -316,12 +325,97 @@ impl ExtInstructions {
                     3
                 };
 
-                absolute_jump_indexes
-                    .range_mut((
-                        std::ops::Bound::Excluded(index as u32),
-                        std::ops::Bound::Unbounded,
-                    ))
-                    .for_each(|(_, new)| *new += extended_arg_count);
+                for (original, new) in absolute_jump_indexes.range_mut((
+                    std::ops::Bound::Excluded(index as u32),
+                    std::ops::Bound::Unbounded,
+                )) {
+                    if *new <= u8::MAX.into() && *new + extended_arg_count > u8::MAX.into() {
+                        absolute_jumps_to_update.push(*original);
+                    }
+
+                    *new += extended_arg_count;
+                }
+
+                for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
+                    let interval_clone = (*entry.interval()).clone();
+                    let entry_value = entry.value();
+
+                    if *entry_value <= u8::MAX.into()
+                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    {
+                        relative_jumps_to_update.push(interval_clone);
+                    }
+
+                    *entry_value += extended_arg_count;
+                }
+            }
+        }
+
+        // Keep updating the offsets until there are no new extended args that need to be accounted for
+        while !absolute_jumps_to_update.is_empty() || !relative_jumps_to_update.is_empty() {
+            let absolute_clone = absolute_jumps_to_update.clone();
+            let relative_clone = relative_jumps_to_update.clone();
+
+            absolute_jumps_to_update.clear();
+            relative_jumps_to_update.clear();
+
+            for (index, instruction) in self.iter().enumerate() {
+                let arg = match instruction {
+                    ExtInstruction::JumpAbsolute(jump)
+                    | ExtInstruction::PopJumpIfTrue(jump)
+                    | ExtInstruction::PopJumpIfFalse(jump)
+                    | ExtInstruction::JumpIfNotExcMatch(jump)
+                    | ExtInstruction::JumpIfTrueOrPop(jump)
+                    | ExtInstruction::JumpIfFalseOrPop(jump) => {
+                        if absolute_clone.contains(&jump.index) {
+                            *absolute_jump_indexes
+                                .get(&jump.index)
+                                .expect("The jump table should always contain all jump indexes")
+                        } else {
+                            continue;
+                        }
+                    }
+                    ExtInstruction::ForIter(jump)
+                    | ExtInstruction::JumpForward(jump)
+                    | ExtInstruction::SetupFinally(jump)
+                    | ExtInstruction::SetupWith(jump)
+                    | ExtInstruction::SetupAsyncWith(jump) => {
+                        let interval = Interval::new(
+                            std::ops::Bound::Excluded(index as u32),
+                            std::ops::Bound::Excluded(index as u32 + jump.index + 1),
+                        );
+
+                        if relative_clone.contains(&interval) {
+                            *relative_jump_indexes
+                                .query(&interval)
+                                .find(|e| *e.interval() == interval)
+                                .expect("The jump table should always contain all jump indexes")
+                                .value()
+                        } else {
+                            continue;
+                        }
+                    }
+                    _ => continue,
+                };
+
+                let extended_arg_count = if arg <= u16::MAX.into() {
+                    1
+                } else if arg <= 0xffffff {
+                    2
+                } else {
+                    3
+                };
+
+                for (original, new) in absolute_jump_indexes.range_mut((
+                    std::ops::Bound::Excluded(index as u32),
+                    std::ops::Bound::Unbounded,
+                )) {
+                    if *new <= u8::MAX.into() && *new + extended_arg_count > u8::MAX.into() {
+                        absolute_jumps_to_update.push(*original);
+                    }
+
+                    *new += extended_arg_count;
+                }
 
                 for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
                     *entry.value() += extended_arg_count
@@ -331,7 +425,7 @@ impl ExtInstructions {
 
         let mut instructions: Instructions = Instructions::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
-        for (idx, instruction) in self.0.iter().enumerate() {
+        for (index, instruction) in self.0.iter().enumerate() {
             let arg = match instruction {
                 ExtInstruction::JumpAbsolute(jump)
                 | ExtInstruction::PopJumpIfTrue(jump)
@@ -343,14 +437,17 @@ impl ExtInstructions {
                 | ExtInstruction::JumpForward(jump)
                 | ExtInstruction::SetupFinally(jump)
                 | ExtInstruction::SetupWith(jump)
-                | ExtInstruction::SetupAsyncWith(jump) => *relative_jump_indexes
-                    .query(&Interval::new(
-                        std::ops::Bound::Excluded(idx as u32),
-                        std::ops::Bound::Excluded(idx as u32 + jump.index + 1),
-                    ))
-                    .next()
-                    .expect("The jump table should always contain all jump indexes")
-                    .value(),
+                | ExtInstruction::SetupAsyncWith(jump) => {
+                    let interval = Interval::new(
+                        std::ops::Bound::Excluded(index as u32),
+                        std::ops::Bound::Excluded(index as u32 + jump.index + 1),
+                    );
+                    *relative_jump_indexes
+                        .query(&interval)
+                        .find(|e| *e.interval() == interval)
+                        .expect("The jump table should always contain all jump indexes")
+                        .value()
+                }
                 _ => instruction.get_raw_value(),
             };
 
@@ -491,17 +588,16 @@ impl From<&[Instruction]> for ExtInstructions {
                 | Instruction::SetupFinally(arg)
                 | Instruction::SetupWith(arg)
                 | Instruction::SetupAsyncWith(arg) => {
+                    let interval = Interval::new(
+                        std::ops::Bound::Excluded(index as u32),
+                        std::ops::Bound::Excluded(index as u32 + (*arg as u32 | extended_arg) + 1),
+                    );
                     ext_instructions.append_instruction(
                         (
                             instruction.get_opcode(),
                             *relative_jump_indexes
-                                .query(&Interval::new(
-                                    std::ops::Bound::Excluded(index as u32),
-                                    std::ops::Bound::Excluded(
-                                        index as u32 + (*arg as u32 | extended_arg) + 1,
-                                    ),
-                                ))
-                                .next()
+                                .query(&interval)
+                                .find(|e| *e.interval() == interval)
                                 .expect("The jump table should always contain all jump indexes")
                                 .value(),
                         )

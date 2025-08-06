@@ -5,16 +5,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pyc_editor::{dump_pyc, load_pyc};
+use pyc_editor::{dump_pyc, load_pyc, v310::code_objects::Constant};
 
 use crate::common::DATA_PATH;
 
 mod common;
 
+static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
+
 #[test]
 fn test_recompile_standard_lib() {
     common::setup();
-    env_logger::init();
+    LOGGER_INIT.call_once(|| {
+        env_logger::init();
+    });
 
     common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
@@ -52,13 +56,15 @@ fn test_recompile_standard_lib() {
 #[test]
 fn test_recompile_resolved_standard_lib() {
     common::setup();
-    env_logger::init();
+    LOGGER_INIT.call_once(|| {
+        env_logger::init();
+    });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
@@ -75,9 +81,19 @@ fn test_recompile_resolved_standard_lib() {
 
             let mut parsed_pyc = load_pyc(reader).unwrap();
 
+            fn rewrite_code_object(code: &mut pyc_editor::v310::code_objects::Code) {
+                code.code = code.code.to_resolved().to_instructions();
+
+                for constant in &mut code.consts {
+                    if let Constant::CodeObject(ref mut const_code) = constant {
+                        rewrite_code_object(const_code);
+                    }
+                }
+            }
+
             match parsed_pyc {
                 pyc_editor::PycFile::V310(ref mut pyc) => {
-                    pyc.code_object.code = pyc.code_object.code.to_resolved().to_instructions();
+                    rewrite_code_object(&mut pyc.code_object);
                 }
             }
 
@@ -97,7 +113,9 @@ fn test_recompile_resolved_standard_lib() {
 #[ignore = "This test will write the files to disk so we can run the Python tests on them. That way we're sure the files are correct."]
 fn test_write_standard_lib() {
     common::setup();
-    env_logger::init();
+    LOGGER_INIT.call_once(|| {
+        env_logger::init();
+    });
 
     common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);

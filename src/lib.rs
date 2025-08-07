@@ -278,4 +278,18 @@ mod tests {
             ])
         )
     }
+
+    #[test]
+    fn test_full_arg() {
+        let ext_instructions = ExtInstructions::new(vec![
+            ExtInstruction::Nop(300.into()), // This will need an extended arg, which will increase the offset above which also causes that to need an extended arg.
+        ]);
+
+        let instructions = ext_instructions.to_instructions();
+
+        assert_eq!(
+            ext_instructions.first().unwrap().get_raw_value(),
+            instructions.get_full_arg(1).unwrap()
+        );
+    }
 }

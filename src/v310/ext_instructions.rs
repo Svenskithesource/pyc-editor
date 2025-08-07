@@ -15,9 +15,6 @@ use crate::v310::{
     opcodes::Opcode,
 };
 
-/// This is the threshold for the instruction length to decide whether to use the small or big algorithm
-static ALGO_THRESHOLD: usize = 100;
-
 /// Used to represent opargs for opcodes that don't require arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct InvalidArgument(u32);
@@ -439,13 +436,7 @@ impl ExtInstructions {
 
             if arg > u8::MAX.into() {
                 // Calculate how many extended args an instruction will need
-                let extended_arg_count = if arg <= u16::MAX.into() {
-                    1
-                } else if arg <= 0xffffff {
-                    2
-                } else {
-                    3
-                };
+                let extended_arg_count = ExtInstruction::get_extended_args_count(arg) as u32;
 
                 for (original, new) in absolute_jump_indexes.range_mut((
                     std::ops::Bound::Excluded(index as u32),
@@ -575,18 +566,8 @@ impl ExtInstructions {
 
             // Emit EXTENDED_ARGs for arguments > 0xFF
             if arg > u8::MAX.into() {
-                // Python bytecode uses EXTENDED_ARG for each additional byte above the lowest.
-                // We need to emit them from most significant to least significant.
-                let mut ext_args = Vec::new();
-                let mut remaining = arg >> 8;
-                while remaining > 0 {
-                    ext_args.push((remaining & 0xff) as u8);
-                    remaining >>= 8;
-                }
-
-                // Emit EXTENDED_ARGs in reverse order (most significant first)
-                for &ext in ext_args.iter().rev() {
-                    instructions.append_instruction((Opcode::EXTENDED_ARG, ext).into());
+                for ext in ExtInstruction::get_extended_args(arg) {
+                    instructions.append_instruction(ext);
                 }
             }
 
@@ -936,6 +917,38 @@ impl ExtInstruction {
 
     pub fn is_relative_jump(&self) -> bool {
         self.get_opcode().is_relative_jump()
+    }
+
+    /// The amount of extended_args necessary to represent the arg.
+    /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.
+    pub fn get_extended_args_count(arg: u32) -> u8 {
+        if arg <= u16::MAX.into() {
+            1
+        } else if arg <= 0xffffff {
+            2
+        } else {
+            3
+        }
+    }
+
+    /// Get a list of the extended args necessary to represent the arg.
+    /// The final arg that has to be included with the actual opcode is (arg & 0xff)
+    pub fn get_extended_args(arg: u32) -> Vec<Instruction> {
+        if arg <= u8::MAX.into() {
+            // arg is small enough that we don't need extended args
+            vec![]
+        } else {
+            // Python bytecode uses EXTENDED_ARG for each additional byte above the lowest.
+            // We need to emit them from most significant to least significant.
+            let mut ext_args = Vec::new();
+            let mut remaining = arg >> 8;
+            while remaining > 0 {
+                ext_args.push(Instruction::ExtendedArg((remaining & 0xff) as u8));
+                remaining >>= 8;
+            }
+
+            ext_args.iter().rev().cloned().collect()
+        }
     }
 
     pub fn get_raw_value(&self) -> u32 {

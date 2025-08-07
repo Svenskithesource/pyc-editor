@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use pyc_editor::v310::{
-    ext_instructions::ExtInstructions,
+    ext_instructions::{ExtInstruction, ExtInstructions},
     instructions::{Instruction, Instructions},
     opcodes::Opcode,
 };
@@ -53,16 +53,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         if index <= u8::MAX.into() {
             instructions.append_instruction(Instruction::JumpAbsolute(index as u8));
         } else {
-            let mut ext_args = Vec::new();
-            let mut remaining = index >> 8;
-            while remaining > 0 {
-                ext_args.push((remaining & 0xff) as u8);
-                remaining >>= 8;
-            }
-
-            // Emit EXTENDED_ARGs in reverse order (most significant first)
-            for &ext in ext_args.iter().rev() {
-                instructions.append_instruction((Opcode::EXTENDED_ARG, ext).into());
+            for ext in ExtInstruction::get_extended_args(index) {
+                instructions.append_instruction(ext);
             }
 
             instructions.append_instruction(Instruction::JumpAbsolute((index & 0xff) as u8));

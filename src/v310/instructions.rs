@@ -152,6 +152,38 @@ impl Instructions {
         Instructions(instructions)
     }
 
+    /// Calculates the full argument for an index (keeping in mind extended args). None if the index is not within bounds.
+    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
+    pub fn get_full_arg(&self, index: usize) -> Option<u32> {
+        if self.len() > index {
+            let mut curr_index = index;
+            let mut extended_args = vec![];
+
+            while curr_index > 0 {
+                curr_index -= 1;
+
+                match &self[curr_index] {
+                    Instruction::ExtendedArg(arg) => {
+                        extended_args.push(arg);
+                    }
+                    _ => break,
+                }
+            }
+
+            let mut extended_arg = 0;
+
+            for arg in extended_args.iter().rev() {
+                // We collected them in the reverse order
+                let arg = **arg as u32 | extended_arg;
+                extended_arg = arg << 8;
+            }
+
+            Some(self[index].get_raw_value() as u32 | extended_arg)
+        } else {
+            None
+        }
+    }
+
     /// Returns the instructions but with the extended_args resolved
     pub fn to_resolved(&self) -> ExtInstructions {
         ExtInstructions::from(self.0.as_slice())

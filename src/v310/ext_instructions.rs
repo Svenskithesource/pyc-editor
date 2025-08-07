@@ -17,11 +17,11 @@ use crate::v310::{
 
 /// Used to represent opargs for opcodes that don't require arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct InvalidArgument(u32);
+pub struct UnusedArgument(u32);
 
-impl From<u32> for InvalidArgument {
+impl From<u32> for UnusedArgument {
     fn from(value: u32) -> Self {
-        InvalidArgument(value)
+        UnusedArgument(value)
     }
 }
 
@@ -29,72 +29,72 @@ impl From<u32> for InvalidArgument {
 /// We have arguments for every opcode, even if those aren't used. This is so we can have a full representation of the instructions, even if they're invalid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtInstruction {
-    PopTop(InvalidArgument),
+    PopTop(UnusedArgument),
     /// Python leaves the ROTN argument after optimizing. See https://github.com/python/cpython/blob/3.10/Python/compile.c#L7522
-    RotTwo(InvalidArgument),
-    RotThree(InvalidArgument),
-    DupTop(InvalidArgument),
-    DupTopTwo(InvalidArgument),
-    RotFour(InvalidArgument),
+    RotTwo(UnusedArgument),
+    RotThree(UnusedArgument),
+    DupTop(UnusedArgument),
+    DupTopTwo(UnusedArgument),
+    RotFour(UnusedArgument),
     /// Version 3.10 has an unique bug where some NOPs are left with an arg. See https://github.com/python/cpython/issues/89918#issuecomment-1093937041
-    Nop(InvalidArgument),
-    UnaryPositive(InvalidArgument),
-    UnaryNegative(InvalidArgument),
-    UnaryNot(InvalidArgument),
-    UnaryInvert(InvalidArgument),
-    BinaryMatrixMultiply(InvalidArgument),
-    InplaceMatrixMultiply(InvalidArgument),
-    BinaryPower(InvalidArgument),
-    BinaryMultiply(InvalidArgument),
-    BinaryModulo(InvalidArgument),
-    BinaryAdd(InvalidArgument),
-    BinarySubtract(InvalidArgument),
-    BinarySubscr(InvalidArgument),
-    BinaryFloorDivide(InvalidArgument),
-    BinaryTrueDivide(InvalidArgument),
-    InplaceFloorDivide(InvalidArgument),
-    InplaceTrueDivide(InvalidArgument),
-    GetLen(InvalidArgument),
-    MatchMapping(InvalidArgument),
-    MatchSequence(InvalidArgument),
-    MatchKeys(InvalidArgument),
-    CopyDictWithoutKeys(InvalidArgument),
-    WithExceptStart(InvalidArgument),
-    GetAiter(InvalidArgument),
-    GetAnext(InvalidArgument),
-    BeforeAsyncWith(InvalidArgument),
-    EndAsyncFor(InvalidArgument),
-    InplaceAdd(InvalidArgument),
-    InplaceSubtract(InvalidArgument),
-    InplaceMultiply(InvalidArgument),
-    InplaceModulo(InvalidArgument),
-    StoreSubscr(InvalidArgument),
-    DeleteSubscr(InvalidArgument),
-    BinaryLshift(InvalidArgument),
-    BinaryRshift(InvalidArgument),
-    BinaryAnd(InvalidArgument),
-    BinaryXor(InvalidArgument),
-    BinaryOr(InvalidArgument),
-    InplacePower(InvalidArgument),
-    GetIter(InvalidArgument),
-    GetYieldFromIter(InvalidArgument),
-    PrintExpr(InvalidArgument),
-    LoadBuildClass(InvalidArgument),
-    YieldFrom(InvalidArgument),
-    GetAwaitable(InvalidArgument),
-    LoadAssertionError(InvalidArgument),
-    InplaceLshift(InvalidArgument),
-    InplaceRshift(InvalidArgument),
-    InplaceAnd(InvalidArgument),
-    InplaceXor(InvalidArgument),
-    InplaceOr(InvalidArgument),
-    ListToTuple(InvalidArgument),
-    ReturnValue(InvalidArgument),
-    ImportStar(InvalidArgument),
-    SetupAnnotations(InvalidArgument),
-    YieldValue(InvalidArgument),
-    PopBlock(InvalidArgument),
-    PopExcept(InvalidArgument),
+    Nop(UnusedArgument),
+    UnaryPositive(UnusedArgument),
+    UnaryNegative(UnusedArgument),
+    UnaryNot(UnusedArgument),
+    UnaryInvert(UnusedArgument),
+    BinaryMatrixMultiply(UnusedArgument),
+    InplaceMatrixMultiply(UnusedArgument),
+    BinaryPower(UnusedArgument),
+    BinaryMultiply(UnusedArgument),
+    BinaryModulo(UnusedArgument),
+    BinaryAdd(UnusedArgument),
+    BinarySubtract(UnusedArgument),
+    BinarySubscr(UnusedArgument),
+    BinaryFloorDivide(UnusedArgument),
+    BinaryTrueDivide(UnusedArgument),
+    InplaceFloorDivide(UnusedArgument),
+    InplaceTrueDivide(UnusedArgument),
+    GetLen(UnusedArgument),
+    MatchMapping(UnusedArgument),
+    MatchSequence(UnusedArgument),
+    MatchKeys(UnusedArgument),
+    CopyDictWithoutKeys(UnusedArgument),
+    WithExceptStart(UnusedArgument),
+    GetAiter(UnusedArgument),
+    GetAnext(UnusedArgument),
+    BeforeAsyncWith(UnusedArgument),
+    EndAsyncFor(UnusedArgument),
+    InplaceAdd(UnusedArgument),
+    InplaceSubtract(UnusedArgument),
+    InplaceMultiply(UnusedArgument),
+    InplaceModulo(UnusedArgument),
+    StoreSubscr(UnusedArgument),
+    DeleteSubscr(UnusedArgument),
+    BinaryLshift(UnusedArgument),
+    BinaryRshift(UnusedArgument),
+    BinaryAnd(UnusedArgument),
+    BinaryXor(UnusedArgument),
+    BinaryOr(UnusedArgument),
+    InplacePower(UnusedArgument),
+    GetIter(UnusedArgument),
+    GetYieldFromIter(UnusedArgument),
+    PrintExpr(UnusedArgument),
+    LoadBuildClass(UnusedArgument),
+    YieldFrom(UnusedArgument),
+    GetAwaitable(UnusedArgument),
+    LoadAssertionError(UnusedArgument),
+    InplaceLshift(UnusedArgument),
+    InplaceRshift(UnusedArgument),
+    InplaceAnd(UnusedArgument),
+    InplaceXor(UnusedArgument),
+    InplaceOr(UnusedArgument),
+    ListToTuple(UnusedArgument),
+    ReturnValue(UnusedArgument),
+    ImportStar(UnusedArgument),
+    SetupAnnotations(UnusedArgument),
+    YieldValue(UnusedArgument),
+    PopBlock(UnusedArgument),
+    PopExcept(UnusedArgument),
     StoreName(NameIndex),
     DeleteName(NameIndex),
     UnpackSequence(u32),
@@ -511,13 +511,7 @@ impl ExtInstructions {
                     _ => continue,
                 };
 
-                let extended_arg_count = if arg <= u16::MAX.into() {
-                    1
-                } else if arg <= 0xffffff {
-                    2
-                } else {
-                    3
-                };
+                let extended_arg_count = ExtInstruction::get_extended_args_count(arg) as u32;
 
                 for (original, new) in absolute_jump_indexes.range_mut((
                     std::ops::Bound::Excluded(index as u32),

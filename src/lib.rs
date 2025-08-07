@@ -54,7 +54,7 @@ pub fn load_code(mut data: impl Read, python_version: PyVersion) -> Result<CodeO
             let code = python_marshal::load_bytes(&buf, python_version)?;
             Ok(CodeObject::V310(code.try_into()?))
         }
-        _ => Err(Error::WrongVersion),
+        _ => Err(Error::UnsupportedVersion(python_version)),
     }
 }
 

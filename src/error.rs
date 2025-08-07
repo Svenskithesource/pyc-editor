@@ -1,6 +1,7 @@
+use std::fmt;
+
 #[derive(Debug)]
 pub enum Error {
-    WrongVersion,
     UnkownOpcode(u8),
     InvalidBytecodeLength,
     InvalidConstant(python_marshal::Object),
@@ -8,6 +9,21 @@ pub enum Error {
     PythonMarshalError(python_marshal::error::Error),
     RecursiveReference(&'static str),
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::UnkownOpcode(op) => write!(f, "Unknown opcode: {}", op),
+            Error::InvalidBytecodeLength => write!(f, "Invalid bytecode length"),
+            Error::InvalidConstant(obj) => write!(f, "Invalid constant: {:?}", obj),
+            Error::UnsupportedVersion(ver) => write!(f, "Unsupported Python version: {:?}", ver),
+            Error::PythonMarshalError(err) => write!(f, "Python marshal error: {}", err),
+            Error::RecursiveReference(s) => write!(f, "Recursive reference: {}", s),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
 
 impl From<python_marshal::error::Error> for Error {
     fn from(err: python_marshal::error::Error) -> Self {

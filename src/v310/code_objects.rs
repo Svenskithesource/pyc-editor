@@ -132,7 +132,9 @@ impl TryFrom<python_marshal::Object> for Constant {
                     let code = Code::try_from(code)?;
                     Ok(Constant::CodeObject(code))
                 }
-                _ => Err(Error::WrongVersion),
+                python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
+                python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
+                python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
             },
             _ => {
                 let frozen_constant = FrozenConstant::try_from(value)?;
@@ -182,7 +184,9 @@ impl TryFrom<(python_marshal::Object, Vec<Object>)> for Code {
 
         match code_object {
             python_marshal::Code::V310(code) => Ok(Code::try_from(code)?),
-            _ => Err(Error::WrongVersion),
+            python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
+            python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
+            python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
         }
     }
 }
@@ -689,7 +693,9 @@ impl TryFrom<python_marshal::PycFile> for Pyc {
     fn try_from(pyc: python_marshal::PycFile) -> Result<Self, Self::Error> {
         Ok(Pyc {
             python_version: pyc.python_version,
-            timestamp: pyc.timestamp.ok_or(Error::WrongVersion)?,
+            timestamp: pyc
+                .timestamp
+                .ok_or(Error::UnsupportedVersion(pyc.python_version))?,
             hash: pyc.hash,
             code_object: (pyc.object, pyc.references).try_into()?,
         })

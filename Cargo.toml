@@ -4,7 +4,7 @@ license = "GPL-3.0-or-later"
 description = "A Rust library for reading, modifying, and writing Python .pyc files."
 repository = "https://github.com/Svenskithesource/pyc-editor"
 readme = "README.md"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 
 [dependencies]
@@ -23,8 +23,8 @@ env_logger = "0.11.8"
 num-traits = "0.2.19"
 pretty_assertions = "1.4.1"
 rayon = "1.10.0"
-reqwest = { version = "0.12.20", features = ["blocking"] }
-zip = "4.2.0"
+reqwest = { version = "0.12.22", features = ["blocking"] }
+zip = "4.3.0"
 criterion = { version = "0.7.0", features = ["html_reports"] }
 
 [[bench]]

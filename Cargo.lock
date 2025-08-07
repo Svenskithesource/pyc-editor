@@ -1533,7 +1533,7 @@ dependencies = [
 
 [[package]]
 name = "pyc_editor"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "bitflags 2.9.1",
  "cmd_lib",
@@ -1555,9 +1555,9 @@ dependencies = [
 
 [[package]]
 name = "python_marshal"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65c35b409bcaab37b597baf270f3d0d7106aa5ece2c0579e5db85d894fade728"
+checksum = "a6712e3dd0b183baace1638cf7cf09f939e386b353ead1e83ee65518ec70f622"
 dependencies = [
  "bitflags 2.9.1",
  "bstr",

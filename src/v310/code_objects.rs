@@ -144,7 +144,7 @@ impl TryFrom<python_marshal::Object> for Constant {
     }
 }
 
-// Low level representation of a Python code object
+/// Low level representation of a Python code object
 #[derive(Debug, Clone, PartialEq)]
 pub struct Code {
     pub argcount: u32,
@@ -163,7 +163,61 @@ pub struct Code {
     pub name: PyString,
     pub firstlineno: u32,
     /// NOTE: https://peps.python.org/pep-0626/
-    pub lnotab: Vec<u8>,
+    pub linetable: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LinetableEntry {
+    pub start: u32,
+    pub end: u32,
+    pub line_number: Option<u32>,
+}
+
+impl Code {
+    pub fn co_lines(&self) -> Result<Vec<LinetableEntry>, Error> {
+        // See https://github.com/python/cpython/blob/3.10/Objects/lnotab_notes.txt
+        // This library returns a slightly different list. When there is no line number (-128) it will use None to indicate so.
+
+        if self.linetable.len() % 2 != 0 {
+            // Invalid linetable
+            return Err(Error::InvalidLinetable);
+        }
+
+        let mut entries = vec![];
+
+        let mut line = self.firstlineno;
+        let mut end = 0 as u32;
+
+        for chunk in self.linetable.chunks_exact(2) {
+            let (sdelta, ldelta) = (chunk[0] as u8, chunk[1] as i8);
+
+            let start = end;
+            end = start + sdelta as u32;
+
+            if ldelta == -128 {
+                entries.push(LinetableEntry {
+                    start,
+                    end,
+                    line_number: None,
+                });
+                continue;
+            }
+
+            line += ldelta as u32;
+
+            if end == start {
+                continue;
+            }
+
+            entries.push(LinetableEntry {
+                start,
+                end,
+                line_number: Some(line),
+            });
+        }
+
+        Ok(entries)
+    }
 }
 
 impl TryFrom<(python_marshal::Object, Vec<Object>)> for Code {
@@ -236,7 +290,7 @@ impl From<Code> for python_marshal::Code {
             filename: python_marshal::Object::String(val.filename).into(),
             name: python_marshal::Object::String(val.name).into(),
             firstlineno: val.firstlineno,
-            lnotab: python_marshal::Object::Bytes(val.lnotab).into(),
+            linetable: python_marshal::Object::Bytes(val.linetable).into(),
         })
     }
 }
@@ -278,7 +332,7 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
 
         let co_filename = extract_object!(Some(*code.filename), python_marshal::Object::String(string) => string, python_marshal::error::Error::NullInTuple)?;
         let co_name = extract_object!(Some(*code.name), python_marshal::Object::String(string) => string, python_marshal::error::Error::NullInTuple)?;
-        let co_lnotab = extract_object!(Some(*code.lnotab), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
+        let co_linetable = extract_object!(Some(*code.linetable), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
 
         Ok(Code {
             argcount: code.argcount,
@@ -299,7 +353,7 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
             filename: co_filename.clone(),
             name: co_name.clone(),
             firstlineno: code.firstlineno,
-            lnotab: co_lnotab.to_vec(),
+            linetable: co_linetable.to_vec(),
         })
     }
 }

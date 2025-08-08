@@ -4,6 +4,7 @@ use std::fmt;
 pub enum Error {
     UnkownOpcode(u8),
     InvalidBytecodeLength,
+    InvalidLinetable,
     InvalidConstant(python_marshal::Object),
     UnsupportedVersion(python_marshal::magic::PyVersion),
     PythonMarshalError(python_marshal::error::Error),
@@ -15,6 +16,7 @@ impl fmt::Display for Error {
         match self {
             Error::UnkownOpcode(op) => write!(f, "Unknown opcode: {}", op),
             Error::InvalidBytecodeLength => write!(f, "Invalid bytecode length"),
+            Error::InvalidLinetable => write!(f, "Invalid linetable"),
             Error::InvalidConstant(obj) => write!(f, "Invalid constant: {:?}", obj),
             Error::UnsupportedVersion(ver) => write!(f, "Unsupported Python version: {:?}", ver),
             Error::PythonMarshalError(err) => write!(f, "Python marshal error: {}", err),

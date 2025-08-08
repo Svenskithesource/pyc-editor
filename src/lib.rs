@@ -81,10 +81,13 @@ pub fn dump_code(
 #[cfg(test)]
 mod tests {
 
+    use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
+    use python_marshal::{CodeFlags, PyString};
+
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::{AbsoluteJump, Jump};
+    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, Jump, LinetableEntry};
     use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
-    use crate::v310::instructions::{Instruction, Instructions};
+    use crate::v310::instructions::{get_line_number, starts_line_number, Instruction, Instructions};
     use crate::v310::opcodes::Opcode;
 
     use super::*;
@@ -291,5 +294,110 @@ mod tests {
             ext_instructions.first().unwrap().get_raw_value(),
             instructions.get_full_arg(1).unwrap()
         );
+    }
+
+    #[test]
+    fn test_line_number() {
+        // 1. print("line 1")
+        // 2. a = 2
+        // 3.
+        // 4. print(f"line 4, {a=}")
+
+        let code_object = v310::code_objects::Code {
+            argcount: 0,
+            posonlyargcount: 0,
+            kwonlyargcount: 0,
+            nlocals: 0,
+            stacksize: 3,
+            flags: CodeFlags::from_bits_truncate(CodeFlags::NOFREE.bits()),
+            code: Instructions::new(vec![
+                Instruction::LoadName(0),
+                Instruction::LoadConst(0),
+                Instruction::CallFunction(1),
+                Instruction::PopTop(0),
+                Instruction::LoadConst(1),
+                Instruction::StoreName(1),
+                Instruction::LoadName(0),
+                Instruction::LoadConst(2),
+                Instruction::LoadName(1),
+                Instruction::FormatValue(2),
+                Instruction::BuildString(2),
+                Instruction::CallFunction(1),
+                Instruction::PopTop(0),
+                Instruction::LoadConst(3),
+                Instruction::ReturnValue(0),
+            ]),
+            consts: vec![
+                Constant::FrozenConstant(FrozenConstant::String(PyString {
+                    value: "line 1".into(),
+                    kind: ShortAscii,
+                })),
+                Constant::FrozenConstant(FrozenConstant::Long(2.into())),
+                Constant::FrozenConstant(FrozenConstant::String(PyString {
+                    value: "line 4, a=".into(),
+                    kind: ShortAscii,
+                })),
+                Constant::FrozenConstant(FrozenConstant::None),
+            ],
+            names: vec![
+                PyString {
+                    value: "print".into(),
+                    kind: ShortAsciiInterned,
+                },
+                PyString {
+                    value: "a".into(),
+                    kind: ShortAsciiInterned,
+                },
+            ],
+            varnames: vec![],
+            freevars: vec![],
+            cellvars: vec![],
+            filename: PyString {
+                value: "test.py".into(),
+                kind: ShortAscii,
+            },
+            name: PyString {
+                value: "<module>".into(),
+                kind: ShortAsciiInterned,
+            },
+            firstlineno: 1,
+            linetable: vec![8, 0, 4, 1, 18, 2],
+        };
+
+        assert_eq!(
+            code_object.co_lines().unwrap(),
+            vec![
+                LinetableEntry {
+                    start: 0,
+                    end: 8,
+                    line_number: Some(1)
+                },
+                LinetableEntry {
+                    start: 8,
+                    end: 12,
+                    line_number: Some(2)
+                },
+                LinetableEntry {
+                    start: 12,
+                    end: 30,
+                    line_number: Some(4)
+                },
+            ]
+        );
+
+        assert_eq!(
+            starts_line_number(&code_object.co_lines().unwrap(), 0).unwrap(),
+            1
+        );
+
+        assert_eq!(
+            starts_line_number(&code_object.co_lines().unwrap(), 1),
+            None
+        );
+
+        assert_eq!(
+            get_line_number(&code_object.co_lines().unwrap(), 10).unwrap(),
+            4
+        )
     }
 }

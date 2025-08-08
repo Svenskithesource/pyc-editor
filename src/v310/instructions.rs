@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{
     error::Error,
-    v310::{ext_instructions::ExtInstructions, opcodes::Opcode},
+    v310::{code_objects::LinetableEntry, ext_instructions::ExtInstructions, opcodes::Opcode},
 };
 
 /// Low level representation of a Python bytecode instruction with their original u8 argument.
@@ -685,4 +685,24 @@ impl Instruction {
             | Instruction::ExtendedArg(arg) => *arg,
         }
     }
+}
+
+/// Returns the line number of an instruction at `index` if it starts this line.
+/// The index needs to be the instruction index, not the byte index.
+pub fn starts_line_number(lines: &[LinetableEntry], index: u32) -> Option<u32> {
+    for entry in lines {
+        if entry.start == index * 2 {
+            return entry.line_number;
+        }
+    }
+
+    None
+}
+
+/// Returns the line number of an instruction at `index`. None if the index is out of bounds or if there is no line number.
+pub fn get_line_number(lines: &[LinetableEntry], index: u32) -> Option<u32> {
+    lines
+        .iter()
+        .find(|entry| entry.start <= index * 2 && entry.end > index * 2)
+        .and_then(|entry| entry.line_number)
 }

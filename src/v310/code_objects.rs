@@ -8,6 +8,7 @@ use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
 use crate::{error::Error, v310::instructions::Instructions, PycFile};
+use std::fmt;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FrozenConstant {
@@ -29,6 +30,74 @@ pub enum FrozenConstant {
 pub enum Constant {
     FrozenConstant(FrozenConstant),
     CodeObject(Code),
+}
+
+impl fmt::Display for Constant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Constant::FrozenConstant(fc) => write!(f, "{fc}"),
+            Constant::CodeObject(code) => write!(
+                f,
+                "<code object {}, file \"{}\", line {}>",
+                code.name.value, code.filename.value, code.firstlineno
+            ),
+        }
+    }
+}
+
+impl fmt::Display for FrozenConstant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FrozenConstant::None => write!(f, "None"),
+            FrozenConstant::StopIteration => write!(f, "StopIteration"),
+            FrozenConstant::Ellipsis => write!(f, "Ellipsis"),
+            FrozenConstant::Bool(b) => write!(f, "{b}"),
+            FrozenConstant::Long(l) => write!(f, "{l}"),
+            FrozenConstant::Float(fl) => write!(f, "{fl}"),
+            FrozenConstant::Complex(c) => write!(f, "{}+{}j", c.re, c.im),
+            FrozenConstant::Bytes(b) => write!(f, "b{:?}", b),
+            FrozenConstant::String(s) => write!(f, "\"{}\"", s.value),
+            FrozenConstant::Tuple(t) => {
+                write!(f, "(")?;
+
+                let text = t
+                    .iter()
+                    .map(|c| format!("{c}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                write!(f, "{text}")?;
+
+                write!(f, ")")
+            }
+            FrozenConstant::List(l) => {
+                write!(f, "[")?;
+
+                let text = l
+                    .iter()
+                    .map(|c| format!("{c}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                write!(f, "{text}")?;
+
+                write!(f, "]")
+            }
+            FrozenConstant::FrozenSet(fs) => {
+                write!(f, "frozenset({{")?;
+
+                let text = fs
+                    .iter()
+                    .map(|c| format!("{c}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                write!(f, "{text}")?;
+
+                write!(f, "}})")
+            }
+        }
+    }
 }
 
 impl From<Constant> for python_marshal::Object {
@@ -186,10 +255,10 @@ impl Code {
         let mut entries = vec![];
 
         let mut line = self.firstlineno;
-        let mut end = 0 as u32;
+        let mut end = 0_u32;
 
         for chunk in self.linetable.chunks_exact(2) {
-            let (sdelta, ldelta) = (chunk[0] as u8, chunk[1] as i8);
+            let (sdelta, ldelta) = (chunk[0], chunk[1] as i8);
 
             let start = end;
             end = start + sdelta as u32;
@@ -502,6 +571,20 @@ pub enum CompareOperation {
     Invalid(u32),
 }
 
+impl fmt::Display for CompareOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompareOperation::Smaller => write!(f, "<"),
+            CompareOperation::SmallerOrEqual => write!(f, "<="),
+            CompareOperation::Equal => write!(f, "=="),
+            CompareOperation::NotEqual => write!(f, "!="),
+            CompareOperation::Bigger => write!(f, ">"),
+            CompareOperation::BiggerOrEqual => write!(f, ">="),
+            CompareOperation::Invalid(v) => write!(f, "Invalid({})", v),
+        }
+    }
+}
+
 impl From<u32> for CompareOperation {
     fn from(value: u32) -> Self {
         match value {
@@ -538,6 +621,16 @@ pub enum OpInversion {
     Invalid(u32),
 }
 
+impl fmt::Display for OpInversion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OpInversion::NoInvert => write!(f, ""),
+            OpInversion::Invert => write!(f, "not"),
+            OpInversion::Invalid(v) => write!(f, "Invalid({})", v),
+        }
+    }
+}
+
 impl From<u32> for OpInversion {
     fn from(value: u32) -> Self {
         match value {
@@ -567,6 +660,19 @@ pub enum RaiseForms {
     Invalid(u32),
 }
 
+impl fmt::Display for RaiseForms {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RaiseForms::ReraisePrev => write!(f, "reraise previous exception"),
+            RaiseForms::RaiseTOS => write!(f, "raise TOS"),
+            RaiseForms::RaiseTOS1FromTOS => {
+                write!(f, "raise exception at TOS1 with __cause__ set to TOS")
+            }
+            RaiseForms::Invalid(v) => write!(f, "Invalid({})", v),
+        }
+    }
+}
+
 impl From<u32> for RaiseForms {
     fn from(value: u32) -> Self {
         match value {
@@ -589,6 +695,40 @@ impl From<&RaiseForms> for u32 {
     }
 }
 
+/// The different types of reraising. See https://docs.python.org/3.10/library/dis.html#opcode-RERAISE
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reraise {
+    ReraiseTOS,
+    ReraiseTOSAndSetLasti(u32), // If oparg is non-zero, restores f_lasti of the current frame to its value when the exception was raised.
+}
+
+impl fmt::Display for Reraise {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Reraise::ReraiseTOS => write!(f, "reraise TOS"),
+            Reraise::ReraiseTOSAndSetLasti(_) => write!(f, "raise TOS and set the last_i of the current frame to its value when the exception was raised."),
+        }
+    }
+}
+
+impl From<u32> for Reraise {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::ReraiseTOS,
+            v => Self::ReraiseTOSAndSetLasti(v),
+        }
+    }
+}
+
+impl From<&Reraise> for u32 {
+    fn from(val: &Reraise) -> Self {
+        match val {
+            Reraise::ReraiseTOS => 0,
+            Reraise::ReraiseTOSAndSetLasti(v) => *v,
+        }
+    }
+}
+
 /// Describes the configuration for a CALL_FUNCTION_EX instruction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallExFlags {
@@ -605,6 +745,16 @@ pub enum CallExFlags {
     /// - Callable
     WithKeywords,
     Invalid(u32),
+}
+
+impl fmt::Display for CallExFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CallExFlags::PositionalOnly => write!(f, "positional args only"),
+            CallExFlags::WithKeywords => write!(f, "args with keywords"),
+            CallExFlags::Invalid(v) => write!(f, "Invalid({})", v),
+        }
+    }
 }
 
 impl From<u32> for CallExFlags {
@@ -639,6 +789,26 @@ bitflags! {
         const ANNOTATIONS  = 0x04;
         /// A tuple of cells for free variables (a closure).
         const CLOSURE      = 0x08;
+    }
+}
+
+impl fmt::Display for MakeFunctionFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut parts = Vec::new();
+        if self.contains(MakeFunctionFlags::POS_DEFAULTS) {
+            parts.push("POS_DEFAULTS");
+        }
+        if self.contains(MakeFunctionFlags::KW_DEFAULTS) {
+            parts.push("KW_DEFAULTS");
+        }
+        if self.contains(MakeFunctionFlags::ANNOTATIONS) {
+            parts.push("ANNOTATIONS");
+        }
+        if self.contains(MakeFunctionFlags::CLOSURE) {
+            parts.push("CLOSURE");
+        }
+
+        write!(f, "{}", parts.join(", "))
     }
 }
 
@@ -690,6 +860,24 @@ bitflags! {
     }
 }
 
+impl fmt::Display for FormatFlag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let conv = match self.bits() & 0x3 {
+            0x0 => "",
+            0x1 => "str",
+            0x2 => "repr",
+            0x3 => "ascii",
+            _ => "invalid",
+        };
+
+        if self.contains(FormatFlag::FVS_MASK) {
+            write!(f, "{} with format", conv)
+        } else {
+            write!(f, "{}", conv)
+        }
+    }
+}
+
 impl From<u32> for FormatFlag {
     fn from(value: u32) -> Self {
         FormatFlag::from_bits_retain(value as u8)
@@ -709,6 +897,17 @@ pub enum GenKind {
     Coroutine,
     AsyncGenerator,
     Invalid(u32),
+}
+
+impl fmt::Display for GenKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GenKind::Generator => write!(f, "generator"),
+            GenKind::Coroutine => write!(f, "coroutine"),
+            GenKind::AsyncGenerator => write!(f, "async generator"),
+            GenKind::Invalid(v) => write!(f, "Invalid({})", v),
+        }
+    }
 }
 
 impl From<u32> for GenKind {

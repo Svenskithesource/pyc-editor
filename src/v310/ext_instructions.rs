@@ -9,7 +9,7 @@ use crate::v310::{
     code_objects::{
         AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
         GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
-        VarNameIndex,
+        Reraise, VarNameIndex,
     },
     instructions::{Instruction, Instructions},
     opcodes::Opcode,
@@ -124,7 +124,7 @@ pub enum ExtInstruction {
     LoadGlobal(NameIndex),
     IsOp(OpInversion),
     ContainsOp(OpInversion),
-    Reraise(RaiseForms),
+    Reraise(Reraise),
     JumpIfNotExcMatch(AbsoluteJump),
     SetupFinally(RelativeJump),
     LoadFast(VarNameIndex),

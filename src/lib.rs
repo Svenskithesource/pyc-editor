@@ -138,7 +138,7 @@ mod tests {
         instructions.insert_instructions(3, &vec![(Opcode::NOP, 0).try_into().unwrap(); 300]);
 
         let og_target = instructions
-            .get_jump_target(Jump::Absolute(AbsoluteJump::new(304)))
+            .get_absolute_jump_target(AbsoluteJump::new(304))
             .expect("Must be to the load name after the jump");
 
         dbg!(og_target);
@@ -152,7 +152,7 @@ mod tests {
             ExtInstruction::PopJumpIfFalse(jump) => {
                 dbg!(jump);
                 let target = resolved
-                    .get_jump_target((*jump).into())
+                    .get_absolute_jump_target((*jump).into())
                     .expect("Should never fail");
 
                 dbg!(target);

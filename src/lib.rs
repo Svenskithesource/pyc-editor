@@ -85,7 +85,7 @@ mod tests {
     use python_marshal::{CodeFlags, PyString};
 
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, Jump, LinetableEntry};
+    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, LinetableEntry};
     use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v310::instructions::{
         get_line_number, starts_line_number, Instruction, Instructions,
@@ -152,7 +152,7 @@ mod tests {
             ExtInstruction::PopJumpIfFalse(jump) => {
                 dbg!(jump);
                 let target = resolved
-                    .get_absolute_jump_target((*jump).into())
+                    .get_absolute_jump_target(*jump)
                     .expect("Should never fail");
 
                 dbg!(target);

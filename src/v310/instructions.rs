@@ -1,8 +1,15 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{
     error::Error,
-    v310::{code_objects::LinetableEntry, ext_instructions::ExtInstructions, opcodes::Opcode},
+    v310::{
+        code_objects::{AbsoluteJump, Jump, LinetableEntry, RelativeJump},
+        ext_instructions::ExtInstructions,
+        opcodes::Opcode,
+    },
 };
 
 /// Low level representation of a Python bytecode instruction with their original u8 argument.
@@ -188,6 +195,88 @@ impl Instructions {
     /// Returns the instructions but with the extended_args resolved
     pub fn to_resolved(&self) -> ExtInstructions {
         ExtInstructions::from(self.0.as_slice())
+    }
+
+    /// Returns a hashmap of jump indexes and their jump target
+    pub fn get_jump_map(&self) -> HashMap<u32, u32> {
+        let mut jump_map: HashMap<u32, u32> = HashMap::new();
+
+        for (index, instruction) in self.iter().enumerate() {
+            let jump: Jump = match instruction {
+                Instruction::JumpAbsolute(_)
+                | Instruction::PopJumpIfTrue(_)
+                | Instruction::PopJumpIfFalse(_)
+                | Instruction::JumpIfNotExcMatch(_)
+                | Instruction::JumpIfTrueOrPop(_)
+                | Instruction::JumpIfFalseOrPop(_) => {
+                    let arg = self.get_full_arg(index);
+
+                    let arg = match arg {
+                        Some(arg) => arg,
+                        None => continue,
+                    };
+
+                    Jump::Absolute(AbsoluteJump { index: arg })
+                }
+                Instruction::ForIter(_)
+                | Instruction::JumpForward(_)
+                | Instruction::SetupFinally(_)
+                | Instruction::SetupWith(_)
+                | Instruction::SetupAsyncWith(_) => {
+                    let arg = self.get_full_arg(index);
+
+                    let arg = match arg {
+                        Some(arg) => arg,
+                        None => continue,
+                    };
+
+                    Jump::Relative(RelativeJump { index: arg })
+                }
+                _ => continue,
+            };
+
+            let jump_target = self.get_jump_target(index as u32, jump);
+
+            if let Some((jump_index, _)) = jump_target {
+                jump_map.insert(index as u32, jump_index);
+            }
+        }
+
+        jump_map
+    }
+
+    /// Returns the index and the instruction of the jump target. None if the index is invalid.
+    /// This exists so you don't have to supply the index of the jump instruction (only necessary for relative jumps)
+    pub fn get_absolute_jump_target(&self, jump: AbsoluteJump) -> Option<(u32, Instruction)> {
+        self.0
+            .get(jump.index as usize)
+            .cloned()
+            .map(|target| (jump.index, target))
+    }
+
+    /// Returns the index and the instruction of the jump target. None if the index is invalid.
+    pub fn get_jump_target(&self, index: u32, jump: Jump) -> Option<(u32, Instruction)> {
+        match jump {
+            Jump::Absolute(absolute_jump) => self.get_absolute_jump_target(absolute_jump),
+            Jump::Relative(RelativeJump { index: jump_index }) => {
+                let index = index + jump_index + 1;
+                self.0
+                    .get(index as usize)
+                    .cloned()
+                    .map(|target| (index, target))
+            }
+        }
+    }
+
+    /// Returns a list of all indexes that jump to the given index
+    pub fn get_jump_xrefs(&self, index: u32) -> Vec<u32> {
+        let jump_map = self.get_jump_map();
+
+        jump_map
+            .iter()
+            .filter(|(_, to)| **to == index)
+            .map(|(from, _)| *from)
+            .collect()
     }
 
     pub fn append_instructions(&mut self, instructions: &[Instruction]) {

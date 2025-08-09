@@ -85,7 +85,9 @@ mod tests {
     use python_marshal::{CodeFlags, PyString};
 
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, LinetableEntry};
+    use crate::v310::code_objects::{
+        AbsoluteJump, Constant, FrozenConstant, LinetableEntry, RelativeJump,
+    };
     use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v310::instructions::{
         get_line_number, starts_line_number, Instruction, Instructions,
@@ -202,11 +204,17 @@ mod tests {
 
         let resolved = instructions.to_resolved();
 
-        let jump = resolved.first().unwrap().get_raw_value();
+        let resolved_jump: AbsoluteJump = resolved.first().unwrap().get_raw_value().into();
+        let jump: AbsoluteJump = instructions.get_full_arg(1).unwrap().into();
 
         assert_eq!(
-            resolved.get(jump as usize).unwrap(),
-            &ExtInstruction::ReturnValue(0.into())
+            resolved.get_absolute_jump_target(resolved_jump).unwrap().1,
+            ExtInstruction::ReturnValue(0.into())
+        );
+
+        assert_eq!(
+            instructions.get_absolute_jump_target(jump).unwrap().1,
+            Instruction::ReturnValue(0.into())
         );
 
         assert_eq!(resolved.len(), 259);
@@ -252,13 +260,22 @@ mod tests {
 
         let resolved = instructions.to_resolved();
 
-        let jump = resolved.get(11).unwrap().get_raw_value();
+        let resolved_jump: RelativeJump = resolved.get(11).unwrap().get_raw_value().into();
+        let jump: RelativeJump = instructions.get_full_arg(11).unwrap().into();
 
         assert_eq!(resolved.len(), 17);
 
         assert_eq!(
-            resolved.get(jump as usize + 11 + 1).unwrap(),
-            &ExtInstruction::ReturnValue(0.into())
+            resolved
+                .get_jump_target(11, resolved_jump.into())
+                .unwrap()
+                .1,
+            ExtInstruction::ReturnValue(0.into())
+        );
+
+        assert_eq!(
+            instructions.get_jump_target(11, jump.into()).unwrap().1,
+            Instruction::ReturnValue(0.into())
         );
 
         assert_eq!(instructions, resolved.to_instructions());

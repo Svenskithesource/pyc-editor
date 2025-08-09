@@ -36,11 +36,7 @@ impl fmt::Display for Constant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Constant::FrozenConstant(fc) => write!(f, "{fc}"),
-            Constant::CodeObject(code) => write!(
-                f,
-                "<code object {}, file \"{}\", line {}>",
-                code.name.value, code.filename.value, code.firstlineno
-            ),
+            Constant::CodeObject(code) => write!(f, "{}", code),
         }
     }
 }
@@ -233,6 +229,16 @@ pub struct Code {
     pub firstlineno: u32,
     /// NOTE: https://peps.python.org/pep-0626/
     pub linetable: Vec<u8>,
+}
+
+impl fmt::Display for Code {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "<code object {}, file \"{}\", line {}>",
+            self.name.value, self.filename.value, self.firstlineno
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

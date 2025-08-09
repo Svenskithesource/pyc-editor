@@ -7,7 +7,7 @@ use std::{
 
 use pyc_editor::{
     dump_pyc, load_pyc,
-    v310::code_objects::Constant,
+    v310::{code_objects::Constant, instructions::get_line_number},
 };
 
 use crate::common::DATA_PATH;
@@ -108,6 +108,47 @@ fn test_recompile_resolved_standard_lib() {
                 "{:?} has not been recompiled succesfully",
                 &pyc_file
             );
+        });
+    });
+}
+
+#[test]
+fn test_line_number_standard_lib() {
+    common::setup();
+    LOGGER_INIT.call_once(|| {
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let mut parsed_pyc = load_pyc(reader).unwrap();
+
+            fn recursive_code_object(code: &mut pyc_editor::v310::code_objects::Code) {
+                let co_lines = code.co_lines().unwrap();
+                for index in 0..code.code.len() {
+                    get_line_number(&co_lines, index as u32);
+                }
+
+                for constant in &mut code.consts {
+                    if let Constant::CodeObject(ref mut const_code) = constant {
+                        recursive_code_object(const_code);
+                    }
+                }
+            }
+
+            match parsed_pyc {
+                pyc_editor::PycFile::V310(ref mut pyc) => {
+                    recursive_code_object(&mut pyc.code_object);
+                }
+            }
         });
     });
 }

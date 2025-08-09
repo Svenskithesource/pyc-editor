@@ -272,7 +272,7 @@ impl Code {
                 continue;
             }
 
-            line += ldelta as u32;
+            line = line.saturating_add_signed(ldelta.into());
 
             if end == start {
                 continue;

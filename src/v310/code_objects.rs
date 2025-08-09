@@ -543,16 +543,16 @@ pub enum ClosureRef {
 }
 
 impl ClosureRefIndex {
-    pub fn into_closure_ref(i: u32, cellvars: &[PyString], freevars: &[PyString]) -> ClosureRef {
+    pub fn into_closure_ref(&self, cellvars: &[PyString], freevars: &[PyString]) -> ClosureRef {
         let cell_len = cellvars.len() as u32;
-        if i < cell_len {
-            ClosureRef::Cell { index: i }
+        if self.index < cell_len {
+            ClosureRef::Cell { index: self.index }
         } else {
-            let free_index = i - cell_len;
+            let free_index = self.index - cell_len;
             if (free_index as usize) < freevars.len() {
                 ClosureRef::Free { index: free_index }
             } else {
-                ClosureRef::Invalid(i)
+                ClosureRef::Invalid(self.index)
             }
         }
     }

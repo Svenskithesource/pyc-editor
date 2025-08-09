@@ -5,14 +5,17 @@ use std::{
 
 use store_interval_tree::{Interval, IntervalTree};
 
-use crate::v310::{
-    code_objects::{
-        AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
-        GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
-        Reraise, VarNameIndex,
+use crate::{
+    error::Error,
+    v310::{
+        code_objects::{
+            AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
+            GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
+            Reraise, VarNameIndex,
+        },
+        instructions::{Instruction, Instructions},
+        opcodes::Opcode,
     },
-    instructions::{Instruction, Instructions},
-    opcodes::Opcode,
 };
 
 /// Used to represent opargs for opcodes that don't require arguments
@@ -252,7 +255,8 @@ impl ExtInstructions {
                                 .get(&(*arg as u32 | extended_arg))
                                 .expect("The jump table should always contain all jump indexes"),
                         )
-                            .into(),
+                            .try_into()
+                            .expect("This will never error, as we know it's not an EXTENDED_ARG"),
                     );
                 }
                 Instruction::ForIter(arg)
@@ -273,7 +277,8 @@ impl ExtInstructions {
                                 .expect("The jump table should always contain all jump indexes")
                                 .value(),
                         )
-                            .into(),
+                            .try_into()
+                            .expect("This will never error, as we know it's not an EXTENDED_ARG"),
                     );
                 }
                 _ => ext_instructions.append_instruction(
@@ -281,7 +286,8 @@ impl ExtInstructions {
                         instruction.get_opcode(),
                         instruction.get_raw_value() as u32 | extended_arg,
                     )
-                        .into(),
+                        .try_into()
+                        .expect("This will never error, as we know it's not an EXTENDED_ARG"),
                 ),
             }
 
@@ -615,9 +621,10 @@ impl From<&[ExtInstruction]> for ExtInstructions {
     }
 }
 
-impl From<(Opcode, u32)> for ExtInstruction {
-    fn from(value: (Opcode, u32)) -> Self {
-        match value.0 {
+impl TryFrom<(Opcode, u32)> for ExtInstruction {
+    type Error = Error;
+    fn try_from(value: (Opcode, u32)) -> Result<Self, Self::Error> {
+        Ok(match value.0 {
             Opcode::NOP => ExtInstruction::Nop(value.1.into()),
             Opcode::POP_TOP => ExtInstruction::PopTop(value.1.into()),
             Opcode::ROT_TWO => ExtInstruction::RotTwo(value.1.into()),
@@ -762,10 +769,8 @@ impl From<(Opcode, u32)> for ExtInstruction {
             Opcode::MATCH_CLASS => ExtInstruction::MatchClass(value.1),
             Opcode::GEN_START => ExtInstruction::GenStart(value.1.into()),
             Opcode::ROT_N => ExtInstruction::RotN(value.1),
-            Opcode::EXTENDED_ARG => panic!(
-                "Extended arg can never be turned into an instruction. This should never happen."
-            ), // ExtendedArg is handled separately
-        }
+            Opcode::EXTENDED_ARG => return Err(Error::InvalidConversion),
+        })
     }
 }
 

@@ -87,7 +87,9 @@ mod tests {
     use crate::v310::code_objects::CompareOperation::Equal;
     use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, Jump, LinetableEntry};
     use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
-    use crate::v310::instructions::{get_line_number, starts_line_number, Instruction, Instructions};
+    use crate::v310::instructions::{
+        get_line_number, starts_line_number, Instruction, Instructions,
+    };
     use crate::v310::opcodes::Opcode;
 
     use super::*;
@@ -117,23 +119,23 @@ mod tests {
     #[test]
     fn test_extended_arg() {
         let mut instructions: v310::ext_instructions::ExtInstructions = ([
-            (Opcode::LOAD_NAME, 0).into(),
-            (Opcode::LOAD_CONST, 0).into(),
+            (Opcode::LOAD_NAME, 0).try_into().unwrap(),
+            (Opcode::LOAD_CONST, 0).try_into().unwrap(),
             ExtInstruction::CompareOp(Equal),
-            (Opcode::POP_JUMP_IF_FALSE, 4).into(),
-            (Opcode::LOAD_NAME, 1).into(),
-            (Opcode::LOAD_NAME, 2).into(),
-            (Opcode::CALL_FUNCTION, 1).into(),
-            (Opcode::POP_TOP, 0).into(),
-            (Opcode::LOAD_CONST, 1).into(),
-            (Opcode::RETURN_VALUE, 0).into(),
-            (Opcode::LOAD_CONST, 1).into(),
-            (Opcode::RETURN_VALUE, 0).into(),
+            (Opcode::POP_JUMP_IF_FALSE, 4).try_into().unwrap(),
+            (Opcode::LOAD_NAME, 1).try_into().unwrap(),
+            (Opcode::LOAD_NAME, 2).try_into().unwrap(),
+            (Opcode::CALL_FUNCTION, 1).try_into().unwrap(),
+            (Opcode::POP_TOP, 0).try_into().unwrap(),
+            (Opcode::LOAD_CONST, 1).try_into().unwrap(),
+            (Opcode::RETURN_VALUE, 0).try_into().unwrap(),
+            (Opcode::LOAD_CONST, 1).try_into().unwrap(),
+            (Opcode::RETURN_VALUE, 0).try_into().unwrap(),
         ]
         .as_slice())
         .into();
 
-        instructions.insert_instructions(3, &vec![(Opcode::NOP, 0).into(); 300]);
+        instructions.insert_instructions(3, &vec![(Opcode::NOP, 0).try_into().unwrap(); 300]);
 
         let og_target = instructions
             .get_jump_target(Jump::Absolute(AbsoluteJump::new(304)))

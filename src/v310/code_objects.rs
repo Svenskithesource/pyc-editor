@@ -56,7 +56,7 @@ impl fmt::Display for FrozenConstant {
             FrozenConstant::Float(fl) => write!(f, "{fl}"),
             FrozenConstant::Complex(c) => write!(f, "{}+{}j", c.re, c.im),
             FrozenConstant::Bytes(b) => write!(f, "b{:?}", b),
-            FrozenConstant::String(s) => write!(f, "\"{}\"", s.value),
+            FrozenConstant::String(s) => write!(f, "\'{}\'", s.value),
             FrozenConstant::Tuple(t) => {
                 write!(f, "(")?;
 

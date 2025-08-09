@@ -130,6 +130,7 @@ pub enum Opcode {
     SET_UPDATE = 163,
     DICT_MERGE = 164,
     DICT_UPDATE = 165,
+    INVALID_OPCODE
 }
 
 impl Opcode {

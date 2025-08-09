@@ -137,6 +137,7 @@ pub enum Instruction {
     SetUpdate(u8),
     DictMerge(u8),
     DictUpdate(u8),
+    InvalidOpcode(u8),
 }
 
 /// A list of instructions
@@ -405,6 +406,7 @@ impl From<(Opcode, u8)> for Instruction {
             Opcode::GEN_START => Instruction::GenStart(value.1),
             Opcode::ROT_N => Instruction::RotN(value.1),
             Opcode::EXTENDED_ARG => Instruction::ExtendedArg(value.1),
+            Opcode::INVALID_OPCODE => Instruction::InvalidOpcode(value.1),
         }
     }
 }
@@ -539,6 +541,7 @@ impl Instruction {
             Instruction::GenStart(_) => Opcode::GEN_START,
             Instruction::RotN(_) => Opcode::ROT_N,
             Instruction::ExtendedArg(_) => Opcode::EXTENDED_ARG,
+            Instruction::InvalidOpcode(_) => Opcode::INVALID_OPCODE,
         }
     }
 
@@ -682,7 +685,8 @@ impl Instruction {
             | Instruction::LoadClassderef(arg)
             | Instruction::CallFunctionEx(arg)
             | Instruction::FormatValue(arg)
-            | Instruction::ExtendedArg(arg) => *arg,
+            | Instruction::ExtendedArg(arg)
+            | Instruction::InvalidOpcode(arg) => *arg,
         }
     }
 }

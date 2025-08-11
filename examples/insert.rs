@@ -1,5 +1,6 @@
 use pyc_editor::{
     dump_pyc, load_pyc,
+    prelude::*,
     v310::{ext_instructions::ExtInstruction, opcodes::Opcode},
     PycFile,
 };

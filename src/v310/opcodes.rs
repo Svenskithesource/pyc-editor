@@ -1,3 +1,5 @@
+use crate::traits::GenericOpcode;
+
 #[repr(u8)]
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
@@ -130,12 +132,12 @@ pub enum Opcode {
     SET_UPDATE = 163,
     DICT_MERGE = 164,
     DICT_UPDATE = 165,
-    INVALID_OPCODE
+    INVALID_OPCODE,
 }
 
-impl Opcode {
+impl GenericOpcode for Opcode {
     /// From (by removing relative jumps): https://github.com/python/cpython/blob/fdc9d214c01cb4588f540cfa03726bbf2a33fc15/Include/opcode.h#L149-L158
-    pub fn is_absolute_jump(&self) -> bool {
+    fn is_absolute_jump(&self) -> bool {
         matches!(
             self,
             Opcode::JUMP_IF_FALSE_OR_POP
@@ -148,7 +150,7 @@ impl Opcode {
     }
 
     /// From: https://github.com/python/cpython/blob/fdc9d214c01cb4588f540cfa03726bbf2a33fc15/Include/opcode.h#L139-L148
-    pub fn is_relative_jump(&self) -> bool {
+    fn is_relative_jump(&self) -> bool {
         matches!(
             self,
             Opcode::FOR_ITER
@@ -160,7 +162,7 @@ impl Opcode {
     }
 
     /// Relative or absolute jump
-    pub fn is_jump(&self) -> bool {
+    fn is_jump(&self) -> bool {
         self.is_absolute_jump() | self.is_relative_jump()
     }
 }

@@ -7,6 +7,8 @@ use store_interval_tree::{Interval, IntervalTree};
 
 use crate::{
     error::Error,
+    traits::{GenericInstruction, InstructionAccess},
+    utils::get_extended_args_count,
     v310::{
         code_objects::{
             AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
@@ -167,6 +169,15 @@ pub enum ExtInstruction {
 /// A list of resolved instructions (extended_arg is resolved)
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtInstructions(Vec<ExtInstruction>);
+
+impl InstructionAccess for ExtInstructions {
+    type Instruction = ExtInstruction;
+
+    /// Convert the resolved instructions into bytes. (converts to normal instructions first)
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_instructions().to_bytes()
+    }
+}
 
 impl ExtInstructions {
     pub fn with_capacity(capacity: usize) -> Self {
@@ -386,14 +397,6 @@ impl ExtInstructions {
         self.0.insert(index, instruction);
     }
 
-    pub fn get_instructions(&self) -> &[ExtInstruction] {
-        self.deref()
-    }
-
-    pub fn get_instructions_mut(&mut self) -> &mut [ExtInstruction] {
-        self.deref_mut()
-    }
-
     /// Returns a hashmap of jump indexes and their jump target
     pub fn get_jump_map(&self) -> HashMap<u32, u32> {
         let mut jump_map: HashMap<u32, u32> = HashMap::new();
@@ -499,7 +502,7 @@ impl ExtInstructions {
 
             if arg > u8::MAX.into() {
                 // Calculate how many extended args an instruction will need
-                let extended_arg_count = ExtInstruction::get_extended_args_count(arg) as u32;
+                let extended_arg_count = get_extended_args_count(arg) as u32;
 
                 for (original, new) in absolute_jump_indexes.range_mut((
                     std::ops::Bound::Excluded(index as u32),
@@ -574,7 +577,7 @@ impl ExtInstructions {
                     _ => continue,
                 };
 
-                let extended_arg_count = ExtInstruction::get_extended_args_count(arg) as u32;
+                let extended_arg_count = get_extended_args_count(arg) as u32;
 
                 for (original, new) in absolute_jump_indexes.range_mut((
                     std::ops::Bound::Excluded(index as u32),
@@ -632,11 +635,6 @@ impl ExtInstructions {
         }
 
         instructions
-    }
-
-    /// Convert the resolved instructions into bytes. (converts to normal instructions first)
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.to_instructions().to_bytes()
     }
 }
 
@@ -832,8 +830,11 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
     }
 }
 
-impl ExtInstruction {
-    pub fn get_opcode(&self) -> Opcode {
+impl GenericInstruction for ExtInstruction {
+    type Opcode = Opcode;
+    type Arg = u32;
+
+    fn get_opcode(&self) -> Self::Opcode {
         match self {
             ExtInstruction::Nop(_) => Opcode::NOP,
             ExtInstruction::PopTop(_) => Opcode::POP_TOP,
@@ -965,51 +966,7 @@ impl ExtInstruction {
         }
     }
 
-    pub fn is_jump(&self) -> bool {
-        self.get_opcode().is_jump()
-    }
-
-    pub fn is_absolute_jump(&self) -> bool {
-        self.get_opcode().is_absolute_jump()
-    }
-
-    pub fn is_relative_jump(&self) -> bool {
-        self.get_opcode().is_relative_jump()
-    }
-
-    /// The amount of extended_args necessary to represent the arg.
-    /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.
-    pub fn get_extended_args_count(arg: u32) -> u8 {
-        if arg <= u16::MAX.into() {
-            1
-        } else if arg <= 0xffffff {
-            2
-        } else {
-            3
-        }
-    }
-
-    /// Get a list of the extended args necessary to represent the arg.
-    /// The final arg that has to be included with the actual opcode is (arg & 0xff)
-    pub fn get_extended_args(arg: u32) -> Vec<Instruction> {
-        if arg <= u8::MAX.into() {
-            // arg is small enough that we don't need extended args
-            vec![]
-        } else {
-            // Python bytecode uses EXTENDED_ARG for each additional byte above the lowest.
-            // We need to emit them from most significant to least significant.
-            let mut ext_args = Vec::new();
-            let mut remaining = arg >> 8;
-            while remaining > 0 {
-                ext_args.push(Instruction::ExtendedArg((remaining & 0xff) as u8));
-                remaining >>= 8;
-            }
-
-            ext_args.iter().rev().cloned().collect()
-        }
-    }
-
-    pub fn get_raw_value(&self) -> u32 {
+    fn get_raw_value(&self) -> Self::Arg {
         match &self {
             ExtInstruction::PopTop(unused_arg)
             | ExtInstruction::RotTwo(unused_arg)
@@ -1139,6 +1096,28 @@ impl ExtInstruction {
             | ExtInstruction::LoadClassderef(closure_ref_index) => closure_ref_index.index,
             ExtInstruction::CallFunctionEx(flags) => Into::<u32>::into(flags),
             ExtInstruction::FormatValue(format_flag) => Into::<u32>::into(format_flag),
+        }
+    }
+}
+
+impl ExtInstruction {
+    /// Get a list of the extended args necessary to represent the arg.
+    /// The final arg that has to be included with the actual opcode is (arg & 0xff)
+    pub fn get_extended_args(arg: u32) -> Vec<Instruction> {
+        if arg <= u8::MAX.into() {
+            // arg is small enough that we don't need extended args
+            vec![]
+        } else {
+            // Python bytecode uses EXTENDED_ARG for each additional byte above the lowest.
+            // We need to emit them from most significant to least significant.
+            let mut ext_args = Vec::new();
+            let mut remaining = arg >> 8;
+            while remaining > 0 {
+                ext_args.push(Instruction::ExtendedArg((remaining & 0xff) as u8));
+                remaining >>= 8;
+            }
+
+            ext_args.iter().rev().cloned().collect()
         }
     }
 }

@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     error::Error,
+    traits::{GenericInstruction, InstructionAccess},
     v310::{
         code_objects::{AbsoluteJump, Jump, LinetableEntry, RelativeJump},
         ext_instructions::ExtInstructions,
@@ -147,9 +148,295 @@ pub enum Instruction {
     InvalidOpcode(u8),
 }
 
+impl GenericInstruction for Instruction {
+    type Opcode = Opcode;
+    type Arg = u8;
+
+    fn get_opcode(&self) -> Self::Opcode {
+        match self {
+            Instruction::Nop(_) => Opcode::NOP,
+            Instruction::PopTop(_) => Opcode::POP_TOP,
+            Instruction::RotTwo(_) => Opcode::ROT_TWO,
+            Instruction::RotThree(_) => Opcode::ROT_THREE,
+            Instruction::RotFour(_) => Opcode::ROT_FOUR,
+            Instruction::DupTop(_) => Opcode::DUP_TOP,
+            Instruction::DupTopTwo(_) => Opcode::DUP_TOP_TWO,
+            Instruction::UnaryPositive(_) => Opcode::UNARY_POSITIVE,
+            Instruction::UnaryNegative(_) => Opcode::UNARY_NEGATIVE,
+            Instruction::UnaryNot(_) => Opcode::UNARY_NOT,
+            Instruction::UnaryInvert(_) => Opcode::UNARY_INVERT,
+            Instruction::GetIter(_) => Opcode::GET_ITER,
+            Instruction::GetYieldFromIter(_) => Opcode::GET_YIELD_FROM_ITER,
+            Instruction::BinaryPower(_) => Opcode::BINARY_POWER,
+            Instruction::BinaryMultiply(_) => Opcode::BINARY_MULTIPLY,
+            Instruction::BinaryMatrixMultiply(_) => Opcode::BINARY_MATRIX_MULTIPLY,
+            Instruction::BinaryFloorDivide(_) => Opcode::BINARY_FLOOR_DIVIDE,
+            Instruction::BinaryTrueDivide(_) => Opcode::BINARY_TRUE_DIVIDE,
+            Instruction::BinaryModulo(_) => Opcode::BINARY_MODULO,
+            Instruction::BinaryAdd(_) => Opcode::BINARY_ADD,
+            Instruction::BinarySubtract(_) => Opcode::BINARY_SUBTRACT,
+            Instruction::BinarySubscr(_) => Opcode::BINARY_SUBSCR,
+            Instruction::BinaryLshift(_) => Opcode::BINARY_LSHIFT,
+            Instruction::BinaryRshift(_) => Opcode::BINARY_RSHIFT,
+            Instruction::BinaryAnd(_) => Opcode::BINARY_AND,
+            Instruction::BinaryXor(_) => Opcode::BINARY_XOR,
+            Instruction::BinaryOr(_) => Opcode::BINARY_OR,
+            Instruction::InplacePower(_) => Opcode::INPLACE_POWER,
+            Instruction::InplaceMultiply(_) => Opcode::INPLACE_MULTIPLY,
+            Instruction::InplaceMatrixMultiply(_) => Opcode::INPLACE_MATRIX_MULTIPLY,
+            Instruction::InplaceFloorDivide(_) => Opcode::INPLACE_FLOOR_DIVIDE,
+            Instruction::InplaceTrueDivide(_) => Opcode::INPLACE_TRUE_DIVIDE,
+            Instruction::InplaceModulo(_) => Opcode::INPLACE_MODULO,
+            Instruction::InplaceAdd(_) => Opcode::INPLACE_ADD,
+            Instruction::InplaceSubtract(_) => Opcode::INPLACE_SUBTRACT,
+            Instruction::InplaceLshift(_) => Opcode::INPLACE_LSHIFT,
+            Instruction::InplaceRshift(_) => Opcode::INPLACE_RSHIFT,
+            Instruction::InplaceAnd(_) => Opcode::INPLACE_AND,
+            Instruction::InplaceXor(_) => Opcode::INPLACE_XOR,
+            Instruction::InplaceOr(_) => Opcode::INPLACE_OR,
+            Instruction::StoreSubscr(_) => Opcode::STORE_SUBSCR,
+            Instruction::DeleteSubscr(_) => Opcode::DELETE_SUBSCR,
+            Instruction::GetAwaitable(_) => Opcode::GET_AWAITABLE,
+            Instruction::GetAiter(_) => Opcode::GET_AITER,
+            Instruction::GetAnext(_) => Opcode::GET_ANEXT,
+            Instruction::EndAsyncFor(_) => Opcode::END_ASYNC_FOR,
+            Instruction::BeforeAsyncWith(_) => Opcode::BEFORE_ASYNC_WITH,
+            Instruction::SetupAsyncWith(_) => Opcode::SETUP_ASYNC_WITH,
+            Instruction::PrintExpr(_) => Opcode::PRINT_EXPR,
+            Instruction::SetAdd(_) => Opcode::SET_ADD,
+            Instruction::ListAppend(_) => Opcode::LIST_APPEND,
+            Instruction::MapAdd(_) => Opcode::MAP_ADD,
+            Instruction::ReturnValue(_) => Opcode::RETURN_VALUE,
+            Instruction::YieldValue(_) => Opcode::YIELD_VALUE,
+            Instruction::YieldFrom(_) => Opcode::YIELD_FROM,
+            Instruction::SetupAnnotations(_) => Opcode::SETUP_ANNOTATIONS,
+            Instruction::ImportStar(_) => Opcode::IMPORT_STAR,
+            Instruction::PopBlock(_) => Opcode::POP_BLOCK,
+            Instruction::PopExcept(_) => Opcode::POP_EXCEPT,
+            Instruction::Reraise(_) => Opcode::RERAISE,
+            Instruction::WithExceptStart(_) => Opcode::WITH_EXCEPT_START,
+            Instruction::LoadAssertionError(_) => Opcode::LOAD_ASSERTION_ERROR,
+            Instruction::LoadBuildClass(_) => Opcode::LOAD_BUILD_CLASS,
+            Instruction::SetupWith(_) => Opcode::SETUP_WITH,
+            Instruction::CopyDictWithoutKeys(_) => Opcode::COPY_DICT_WITHOUT_KEYS,
+            Instruction::GetLen(_) => Opcode::GET_LEN,
+            Instruction::MatchMapping(_) => Opcode::MATCH_MAPPING,
+            Instruction::MatchSequence(_) => Opcode::MATCH_SEQUENCE,
+            Instruction::MatchKeys(_) => Opcode::MATCH_KEYS,
+            Instruction::StoreName(_) => Opcode::STORE_NAME,
+            Instruction::DeleteName(_) => Opcode::DELETE_NAME,
+            Instruction::UnpackSequence(_) => Opcode::UNPACK_SEQUENCE,
+            Instruction::UnpackEx(_) => Opcode::UNPACK_EX,
+            Instruction::StoreAttr(_) => Opcode::STORE_ATTR,
+            Instruction::DeleteAttr(_) => Opcode::DELETE_ATTR,
+            Instruction::StoreGlobal(_) => Opcode::STORE_GLOBAL,
+            Instruction::DeleteGlobal(_) => Opcode::DELETE_GLOBAL,
+            Instruction::LoadConst(_) => Opcode::LOAD_CONST,
+            Instruction::LoadName(_) => Opcode::LOAD_NAME,
+            Instruction::BuildTuple(_) => Opcode::BUILD_TUPLE,
+            Instruction::BuildList(_) => Opcode::BUILD_LIST,
+            Instruction::BuildSet(_) => Opcode::BUILD_SET,
+            Instruction::BuildMap(_) => Opcode::BUILD_MAP,
+            Instruction::BuildConstKeyMap(_) => Opcode::BUILD_CONST_KEY_MAP,
+            Instruction::BuildString(_) => Opcode::BUILD_STRING,
+            Instruction::ListToTuple(_) => Opcode::LIST_TO_TUPLE,
+            Instruction::ListExtend(_) => Opcode::LIST_EXTEND,
+            Instruction::SetUpdate(_) => Opcode::SET_UPDATE,
+            Instruction::DictUpdate(_) => Opcode::DICT_UPDATE,
+            Instruction::DictMerge(_) => Opcode::DICT_MERGE,
+            Instruction::LoadAttr(_) => Opcode::LOAD_ATTR,
+            Instruction::CompareOp(_) => Opcode::COMPARE_OP,
+            Instruction::ImportName(_) => Opcode::IMPORT_NAME,
+            Instruction::ImportFrom(_) => Opcode::IMPORT_FROM,
+            Instruction::JumpForward(_) => Opcode::JUMP_FORWARD,
+            Instruction::PopJumpIfTrue(_) => Opcode::POP_JUMP_IF_TRUE,
+            Instruction::PopJumpIfFalse(_) => Opcode::POP_JUMP_IF_FALSE,
+            Instruction::JumpIfNotExcMatch(_) => Opcode::JUMP_IF_NOT_EXC_MATCH,
+            Instruction::JumpIfTrueOrPop(_) => Opcode::JUMP_IF_TRUE_OR_POP,
+            Instruction::JumpIfFalseOrPop(_) => Opcode::JUMP_IF_FALSE_OR_POP,
+            Instruction::JumpAbsolute(_) => Opcode::JUMP_ABSOLUTE,
+            Instruction::ForIter(_) => Opcode::FOR_ITER,
+            Instruction::LoadGlobal(_) => Opcode::LOAD_GLOBAL,
+            Instruction::IsOp(_) => Opcode::IS_OP,
+            Instruction::ContainsOp(_) => Opcode::CONTAINS_OP,
+            Instruction::SetupFinally(_) => Opcode::SETUP_FINALLY,
+            Instruction::LoadFast(_) => Opcode::LOAD_FAST,
+            Instruction::StoreFast(_) => Opcode::STORE_FAST,
+            Instruction::DeleteFast(_) => Opcode::DELETE_FAST,
+            Instruction::LoadClosure(_) => Opcode::LOAD_CLOSURE,
+            Instruction::LoadDeref(_) => Opcode::LOAD_DEREF,
+            Instruction::LoadClassderef(_) => Opcode::LOAD_CLASSDEREF,
+            Instruction::StoreDeref(_) => Opcode::STORE_DEREF,
+            Instruction::DeleteDeref(_) => Opcode::DELETE_DEREF,
+            Instruction::RaiseVarargs(_) => Opcode::RAISE_VARARGS,
+            Instruction::CallFunction(_) => Opcode::CALL_FUNCTION,
+            Instruction::CallFunctionKW(_) => Opcode::CALL_FUNCTION_KW,
+            Instruction::CallFunctionEx(_) => Opcode::CALL_FUNCTION_EX,
+            Instruction::LoadMethod(_) => Opcode::LOAD_METHOD,
+            Instruction::CallMethod(_) => Opcode::CALL_METHOD,
+            Instruction::MakeFunction(_) => Opcode::MAKE_FUNCTION,
+            Instruction::BuildSlice(_) => Opcode::BUILD_SLICE,
+            Instruction::FormatValue(_) => Opcode::FORMAT_VALUE,
+            Instruction::MatchClass(_) => Opcode::MATCH_CLASS,
+            Instruction::GenStart(_) => Opcode::GEN_START,
+            Instruction::RotN(_) => Opcode::ROT_N,
+            Instruction::ExtendedArg(_) => Opcode::EXTENDED_ARG,
+            Instruction::InvalidOpcode(_) => Opcode::INVALID_OPCODE,
+        }
+    }
+
+    fn get_raw_value(&self) -> Self::Arg {
+        match &self {
+            Instruction::PopTop(arg)
+            | Instruction::RotTwo(arg)
+            | Instruction::RotThree(arg)
+            | Instruction::DupTop(arg)
+            | Instruction::DupTopTwo(arg)
+            | Instruction::RotFour(arg)
+            | Instruction::Nop(arg)
+            | Instruction::UnaryPositive(arg)
+            | Instruction::UnaryNegative(arg)
+            | Instruction::UnaryNot(arg)
+            | Instruction::UnaryInvert(arg)
+            | Instruction::BinaryMatrixMultiply(arg)
+            | Instruction::InplaceMatrixMultiply(arg)
+            | Instruction::BinaryPower(arg)
+            | Instruction::BinaryMultiply(arg)
+            | Instruction::BinaryModulo(arg)
+            | Instruction::BinaryAdd(arg)
+            | Instruction::BinarySubtract(arg)
+            | Instruction::BinarySubscr(arg)
+            | Instruction::BinaryFloorDivide(arg)
+            | Instruction::BinaryTrueDivide(arg)
+            | Instruction::InplaceFloorDivide(arg)
+            | Instruction::InplaceTrueDivide(arg)
+            | Instruction::GetLen(arg)
+            | Instruction::MatchMapping(arg)
+            | Instruction::MatchSequence(arg)
+            | Instruction::MatchKeys(arg)
+            | Instruction::CopyDictWithoutKeys(arg)
+            | Instruction::WithExceptStart(arg)
+            | Instruction::GetAiter(arg)
+            | Instruction::GetAnext(arg)
+            | Instruction::BeforeAsyncWith(arg)
+            | Instruction::EndAsyncFor(arg)
+            | Instruction::InplaceAdd(arg)
+            | Instruction::InplaceSubtract(arg)
+            | Instruction::InplaceMultiply(arg)
+            | Instruction::InplaceModulo(arg)
+            | Instruction::StoreSubscr(arg)
+            | Instruction::DeleteSubscr(arg)
+            | Instruction::BinaryLshift(arg)
+            | Instruction::BinaryRshift(arg)
+            | Instruction::BinaryAnd(arg)
+            | Instruction::BinaryXor(arg)
+            | Instruction::BinaryOr(arg)
+            | Instruction::InplacePower(arg)
+            | Instruction::GetIter(arg)
+            | Instruction::GetYieldFromIter(arg)
+            | Instruction::PrintExpr(arg)
+            | Instruction::LoadBuildClass(arg)
+            | Instruction::YieldFrom(arg)
+            | Instruction::GetAwaitable(arg)
+            | Instruction::LoadAssertionError(arg)
+            | Instruction::InplaceLshift(arg)
+            | Instruction::InplaceRshift(arg)
+            | Instruction::InplaceAnd(arg)
+            | Instruction::InplaceXor(arg)
+            | Instruction::InplaceOr(arg)
+            | Instruction::ListToTuple(arg)
+            | Instruction::ReturnValue(arg)
+            | Instruction::ImportStar(arg)
+            | Instruction::SetupAnnotations(arg)
+            | Instruction::YieldValue(arg)
+            | Instruction::PopBlock(arg)
+            | Instruction::PopExcept(arg)
+            | Instruction::StoreName(arg)
+            | Instruction::DeleteName(arg)
+            | Instruction::StoreAttr(arg)
+            | Instruction::DeleteAttr(arg)
+            | Instruction::StoreGlobal(arg)
+            | Instruction::DeleteGlobal(arg)
+            | Instruction::LoadName(arg)
+            | Instruction::LoadAttr(arg)
+            | Instruction::ImportName(arg)
+            | Instruction::ImportFrom(arg)
+            | Instruction::LoadGlobal(arg)
+            | Instruction::LoadMethod(arg)
+            | Instruction::UnpackSequence(arg)
+            | Instruction::UnpackEx(arg)
+            | Instruction::RotN(arg)
+            | Instruction::BuildTuple(arg)
+            | Instruction::BuildList(arg)
+            | Instruction::BuildSet(arg)
+            | Instruction::BuildMap(arg)
+            | Instruction::CallFunction(arg)
+            | Instruction::BuildSlice(arg)
+            | Instruction::CallFunctionKW(arg)
+            | Instruction::ListAppend(arg)
+            | Instruction::SetAdd(arg)
+            | Instruction::MapAdd(arg)
+            | Instruction::MatchClass(arg)
+            | Instruction::BuildConstKeyMap(arg)
+            | Instruction::BuildString(arg)
+            | Instruction::CallMethod(arg)
+            | Instruction::ListExtend(arg)
+            | Instruction::SetUpdate(arg)
+            | Instruction::DictUpdate(arg)
+            | Instruction::DictMerge(arg)
+            | Instruction::ForIter(arg)
+            | Instruction::JumpForward(arg)
+            | Instruction::SetupFinally(arg)
+            | Instruction::SetupWith(arg)
+            | Instruction::SetupAsyncWith(arg)
+            | Instruction::LoadConst(arg)
+            | Instruction::CompareOp(arg)
+            | Instruction::JumpIfFalseOrPop(arg)
+            | Instruction::JumpIfTrueOrPop(arg)
+            | Instruction::JumpAbsolute(arg)
+            | Instruction::PopJumpIfFalse(arg)
+            | Instruction::PopJumpIfTrue(arg)
+            | Instruction::JumpIfNotExcMatch(arg)
+            | Instruction::Reraise(arg)
+            | Instruction::IsOp(arg)
+            | Instruction::ContainsOp(arg)
+            | Instruction::LoadFast(arg)
+            | Instruction::StoreFast(arg)
+            | Instruction::DeleteFast(arg)
+            | Instruction::GenStart(arg)
+            | Instruction::RaiseVarargs(arg)
+            | Instruction::MakeFunction(arg)
+            | Instruction::LoadClosure(arg)
+            | Instruction::LoadDeref(arg)
+            | Instruction::StoreDeref(arg)
+            | Instruction::DeleteDeref(arg)
+            | Instruction::LoadClassderef(arg)
+            | Instruction::CallFunctionEx(arg)
+            | Instruction::FormatValue(arg)
+            | Instruction::ExtendedArg(arg)
+            | Instruction::InvalidOpcode(arg) => *arg,
+        }
+    }
+}
+
 /// A list of instructions
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instructions(Vec<Instruction>);
+
+impl InstructionAccess for Instructions {
+    type Instruction = Instruction;
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytearray = Vec::with_capacity(self.0.len() * 2);
+
+        for instruction in self.0.iter() {
+            bytearray.push(instruction.get_opcode() as u8);
+            bytearray.push(instruction.get_raw_value())
+        }
+
+        bytearray
+    }
+}
 
 impl Instructions {
     pub fn with_capacity(capacity: usize) -> Self {
@@ -288,25 +575,6 @@ impl Instructions {
     /// Append an instruction at the end
     pub fn append_instruction(&mut self, instruction: Instruction) {
         self.0.push(instruction);
-    }
-
-    pub fn get_instructions(&self) -> &[Instruction] {
-        self.deref()
-    }
-
-    pub fn get_instructions_mut(&mut self) -> &mut [Instruction] {
-        self.deref_mut()
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytearray = Vec::with_capacity(self.0.len() * 2);
-
-        for instruction in self.0.iter() {
-            bytearray.push(instruction.get_opcode() as u8);
-            bytearray.push(instruction.get_raw_value())
-        }
-
-        bytearray
     }
 }
 
@@ -496,286 +764,6 @@ impl From<(Opcode, u8)> for Instruction {
             Opcode::ROT_N => Instruction::RotN(value.1),
             Opcode::EXTENDED_ARG => Instruction::ExtendedArg(value.1),
             Opcode::INVALID_OPCODE => Instruction::InvalidOpcode(value.1),
-        }
-    }
-}
-
-impl Instruction {
-    pub fn get_opcode(&self) -> Opcode {
-        match self {
-            Instruction::Nop(_) => Opcode::NOP,
-            Instruction::PopTop(_) => Opcode::POP_TOP,
-            Instruction::RotTwo(_) => Opcode::ROT_TWO,
-            Instruction::RotThree(_) => Opcode::ROT_THREE,
-            Instruction::RotFour(_) => Opcode::ROT_FOUR,
-            Instruction::DupTop(_) => Opcode::DUP_TOP,
-            Instruction::DupTopTwo(_) => Opcode::DUP_TOP_TWO,
-            Instruction::UnaryPositive(_) => Opcode::UNARY_POSITIVE,
-            Instruction::UnaryNegative(_) => Opcode::UNARY_NEGATIVE,
-            Instruction::UnaryNot(_) => Opcode::UNARY_NOT,
-            Instruction::UnaryInvert(_) => Opcode::UNARY_INVERT,
-            Instruction::GetIter(_) => Opcode::GET_ITER,
-            Instruction::GetYieldFromIter(_) => Opcode::GET_YIELD_FROM_ITER,
-            Instruction::BinaryPower(_) => Opcode::BINARY_POWER,
-            Instruction::BinaryMultiply(_) => Opcode::BINARY_MULTIPLY,
-            Instruction::BinaryMatrixMultiply(_) => Opcode::BINARY_MATRIX_MULTIPLY,
-            Instruction::BinaryFloorDivide(_) => Opcode::BINARY_FLOOR_DIVIDE,
-            Instruction::BinaryTrueDivide(_) => Opcode::BINARY_TRUE_DIVIDE,
-            Instruction::BinaryModulo(_) => Opcode::BINARY_MODULO,
-            Instruction::BinaryAdd(_) => Opcode::BINARY_ADD,
-            Instruction::BinarySubtract(_) => Opcode::BINARY_SUBTRACT,
-            Instruction::BinarySubscr(_) => Opcode::BINARY_SUBSCR,
-            Instruction::BinaryLshift(_) => Opcode::BINARY_LSHIFT,
-            Instruction::BinaryRshift(_) => Opcode::BINARY_RSHIFT,
-            Instruction::BinaryAnd(_) => Opcode::BINARY_AND,
-            Instruction::BinaryXor(_) => Opcode::BINARY_XOR,
-            Instruction::BinaryOr(_) => Opcode::BINARY_OR,
-            Instruction::InplacePower(_) => Opcode::INPLACE_POWER,
-            Instruction::InplaceMultiply(_) => Opcode::INPLACE_MULTIPLY,
-            Instruction::InplaceMatrixMultiply(_) => Opcode::INPLACE_MATRIX_MULTIPLY,
-            Instruction::InplaceFloorDivide(_) => Opcode::INPLACE_FLOOR_DIVIDE,
-            Instruction::InplaceTrueDivide(_) => Opcode::INPLACE_TRUE_DIVIDE,
-            Instruction::InplaceModulo(_) => Opcode::INPLACE_MODULO,
-            Instruction::InplaceAdd(_) => Opcode::INPLACE_ADD,
-            Instruction::InplaceSubtract(_) => Opcode::INPLACE_SUBTRACT,
-            Instruction::InplaceLshift(_) => Opcode::INPLACE_LSHIFT,
-            Instruction::InplaceRshift(_) => Opcode::INPLACE_RSHIFT,
-            Instruction::InplaceAnd(_) => Opcode::INPLACE_AND,
-            Instruction::InplaceXor(_) => Opcode::INPLACE_XOR,
-            Instruction::InplaceOr(_) => Opcode::INPLACE_OR,
-            Instruction::StoreSubscr(_) => Opcode::STORE_SUBSCR,
-            Instruction::DeleteSubscr(_) => Opcode::DELETE_SUBSCR,
-            Instruction::GetAwaitable(_) => Opcode::GET_AWAITABLE,
-            Instruction::GetAiter(_) => Opcode::GET_AITER,
-            Instruction::GetAnext(_) => Opcode::GET_ANEXT,
-            Instruction::EndAsyncFor(_) => Opcode::END_ASYNC_FOR,
-            Instruction::BeforeAsyncWith(_) => Opcode::BEFORE_ASYNC_WITH,
-            Instruction::SetupAsyncWith(_) => Opcode::SETUP_ASYNC_WITH,
-            Instruction::PrintExpr(_) => Opcode::PRINT_EXPR,
-            Instruction::SetAdd(_) => Opcode::SET_ADD,
-            Instruction::ListAppend(_) => Opcode::LIST_APPEND,
-            Instruction::MapAdd(_) => Opcode::MAP_ADD,
-            Instruction::ReturnValue(_) => Opcode::RETURN_VALUE,
-            Instruction::YieldValue(_) => Opcode::YIELD_VALUE,
-            Instruction::YieldFrom(_) => Opcode::YIELD_FROM,
-            Instruction::SetupAnnotations(_) => Opcode::SETUP_ANNOTATIONS,
-            Instruction::ImportStar(_) => Opcode::IMPORT_STAR,
-            Instruction::PopBlock(_) => Opcode::POP_BLOCK,
-            Instruction::PopExcept(_) => Opcode::POP_EXCEPT,
-            Instruction::Reraise(_) => Opcode::RERAISE,
-            Instruction::WithExceptStart(_) => Opcode::WITH_EXCEPT_START,
-            Instruction::LoadAssertionError(_) => Opcode::LOAD_ASSERTION_ERROR,
-            Instruction::LoadBuildClass(_) => Opcode::LOAD_BUILD_CLASS,
-            Instruction::SetupWith(_) => Opcode::SETUP_WITH,
-            Instruction::CopyDictWithoutKeys(_) => Opcode::COPY_DICT_WITHOUT_KEYS,
-            Instruction::GetLen(_) => Opcode::GET_LEN,
-            Instruction::MatchMapping(_) => Opcode::MATCH_MAPPING,
-            Instruction::MatchSequence(_) => Opcode::MATCH_SEQUENCE,
-            Instruction::MatchKeys(_) => Opcode::MATCH_KEYS,
-            Instruction::StoreName(_) => Opcode::STORE_NAME,
-            Instruction::DeleteName(_) => Opcode::DELETE_NAME,
-            Instruction::UnpackSequence(_) => Opcode::UNPACK_SEQUENCE,
-            Instruction::UnpackEx(_) => Opcode::UNPACK_EX,
-            Instruction::StoreAttr(_) => Opcode::STORE_ATTR,
-            Instruction::DeleteAttr(_) => Opcode::DELETE_ATTR,
-            Instruction::StoreGlobal(_) => Opcode::STORE_GLOBAL,
-            Instruction::DeleteGlobal(_) => Opcode::DELETE_GLOBAL,
-            Instruction::LoadConst(_) => Opcode::LOAD_CONST,
-            Instruction::LoadName(_) => Opcode::LOAD_NAME,
-            Instruction::BuildTuple(_) => Opcode::BUILD_TUPLE,
-            Instruction::BuildList(_) => Opcode::BUILD_LIST,
-            Instruction::BuildSet(_) => Opcode::BUILD_SET,
-            Instruction::BuildMap(_) => Opcode::BUILD_MAP,
-            Instruction::BuildConstKeyMap(_) => Opcode::BUILD_CONST_KEY_MAP,
-            Instruction::BuildString(_) => Opcode::BUILD_STRING,
-            Instruction::ListToTuple(_) => Opcode::LIST_TO_TUPLE,
-            Instruction::ListExtend(_) => Opcode::LIST_EXTEND,
-            Instruction::SetUpdate(_) => Opcode::SET_UPDATE,
-            Instruction::DictUpdate(_) => Opcode::DICT_UPDATE,
-            Instruction::DictMerge(_) => Opcode::DICT_MERGE,
-            Instruction::LoadAttr(_) => Opcode::LOAD_ATTR,
-            Instruction::CompareOp(_) => Opcode::COMPARE_OP,
-            Instruction::ImportName(_) => Opcode::IMPORT_NAME,
-            Instruction::ImportFrom(_) => Opcode::IMPORT_FROM,
-            Instruction::JumpForward(_) => Opcode::JUMP_FORWARD,
-            Instruction::PopJumpIfTrue(_) => Opcode::POP_JUMP_IF_TRUE,
-            Instruction::PopJumpIfFalse(_) => Opcode::POP_JUMP_IF_FALSE,
-            Instruction::JumpIfNotExcMatch(_) => Opcode::JUMP_IF_NOT_EXC_MATCH,
-            Instruction::JumpIfTrueOrPop(_) => Opcode::JUMP_IF_TRUE_OR_POP,
-            Instruction::JumpIfFalseOrPop(_) => Opcode::JUMP_IF_FALSE_OR_POP,
-            Instruction::JumpAbsolute(_) => Opcode::JUMP_ABSOLUTE,
-            Instruction::ForIter(_) => Opcode::FOR_ITER,
-            Instruction::LoadGlobal(_) => Opcode::LOAD_GLOBAL,
-            Instruction::IsOp(_) => Opcode::IS_OP,
-            Instruction::ContainsOp(_) => Opcode::CONTAINS_OP,
-            Instruction::SetupFinally(_) => Opcode::SETUP_FINALLY,
-            Instruction::LoadFast(_) => Opcode::LOAD_FAST,
-            Instruction::StoreFast(_) => Opcode::STORE_FAST,
-            Instruction::DeleteFast(_) => Opcode::DELETE_FAST,
-            Instruction::LoadClosure(_) => Opcode::LOAD_CLOSURE,
-            Instruction::LoadDeref(_) => Opcode::LOAD_DEREF,
-            Instruction::LoadClassderef(_) => Opcode::LOAD_CLASSDEREF,
-            Instruction::StoreDeref(_) => Opcode::STORE_DEREF,
-            Instruction::DeleteDeref(_) => Opcode::DELETE_DEREF,
-            Instruction::RaiseVarargs(_) => Opcode::RAISE_VARARGS,
-            Instruction::CallFunction(_) => Opcode::CALL_FUNCTION,
-            Instruction::CallFunctionKW(_) => Opcode::CALL_FUNCTION_KW,
-            Instruction::CallFunctionEx(_) => Opcode::CALL_FUNCTION_EX,
-            Instruction::LoadMethod(_) => Opcode::LOAD_METHOD,
-            Instruction::CallMethod(_) => Opcode::CALL_METHOD,
-            Instruction::MakeFunction(_) => Opcode::MAKE_FUNCTION,
-            Instruction::BuildSlice(_) => Opcode::BUILD_SLICE,
-            Instruction::FormatValue(_) => Opcode::FORMAT_VALUE,
-            Instruction::MatchClass(_) => Opcode::MATCH_CLASS,
-            Instruction::GenStart(_) => Opcode::GEN_START,
-            Instruction::RotN(_) => Opcode::ROT_N,
-            Instruction::ExtendedArg(_) => Opcode::EXTENDED_ARG,
-            Instruction::InvalidOpcode(_) => Opcode::INVALID_OPCODE,
-        }
-    }
-
-    pub fn is_jump(&self) -> bool {
-        self.get_opcode().is_jump()
-    }
-
-    pub fn is_absolute_jump(&self) -> bool {
-        self.get_opcode().is_absolute_jump()
-    }
-
-    pub fn is_relative_jump(&self) -> bool {
-        self.get_opcode().is_relative_jump()
-    }
-
-    pub fn get_raw_value(&self) -> u8 {
-        match &self {
-            Instruction::PopTop(arg)
-            | Instruction::RotTwo(arg)
-            | Instruction::RotThree(arg)
-            | Instruction::DupTop(arg)
-            | Instruction::DupTopTwo(arg)
-            | Instruction::RotFour(arg)
-            | Instruction::Nop(arg)
-            | Instruction::UnaryPositive(arg)
-            | Instruction::UnaryNegative(arg)
-            | Instruction::UnaryNot(arg)
-            | Instruction::UnaryInvert(arg)
-            | Instruction::BinaryMatrixMultiply(arg)
-            | Instruction::InplaceMatrixMultiply(arg)
-            | Instruction::BinaryPower(arg)
-            | Instruction::BinaryMultiply(arg)
-            | Instruction::BinaryModulo(arg)
-            | Instruction::BinaryAdd(arg)
-            | Instruction::BinarySubtract(arg)
-            | Instruction::BinarySubscr(arg)
-            | Instruction::BinaryFloorDivide(arg)
-            | Instruction::BinaryTrueDivide(arg)
-            | Instruction::InplaceFloorDivide(arg)
-            | Instruction::InplaceTrueDivide(arg)
-            | Instruction::GetLen(arg)
-            | Instruction::MatchMapping(arg)
-            | Instruction::MatchSequence(arg)
-            | Instruction::MatchKeys(arg)
-            | Instruction::CopyDictWithoutKeys(arg)
-            | Instruction::WithExceptStart(arg)
-            | Instruction::GetAiter(arg)
-            | Instruction::GetAnext(arg)
-            | Instruction::BeforeAsyncWith(arg)
-            | Instruction::EndAsyncFor(arg)
-            | Instruction::InplaceAdd(arg)
-            | Instruction::InplaceSubtract(arg)
-            | Instruction::InplaceMultiply(arg)
-            | Instruction::InplaceModulo(arg)
-            | Instruction::StoreSubscr(arg)
-            | Instruction::DeleteSubscr(arg)
-            | Instruction::BinaryLshift(arg)
-            | Instruction::BinaryRshift(arg)
-            | Instruction::BinaryAnd(arg)
-            | Instruction::BinaryXor(arg)
-            | Instruction::BinaryOr(arg)
-            | Instruction::InplacePower(arg)
-            | Instruction::GetIter(arg)
-            | Instruction::GetYieldFromIter(arg)
-            | Instruction::PrintExpr(arg)
-            | Instruction::LoadBuildClass(arg)
-            | Instruction::YieldFrom(arg)
-            | Instruction::GetAwaitable(arg)
-            | Instruction::LoadAssertionError(arg)
-            | Instruction::InplaceLshift(arg)
-            | Instruction::InplaceRshift(arg)
-            | Instruction::InplaceAnd(arg)
-            | Instruction::InplaceXor(arg)
-            | Instruction::InplaceOr(arg)
-            | Instruction::ListToTuple(arg)
-            | Instruction::ReturnValue(arg)
-            | Instruction::ImportStar(arg)
-            | Instruction::SetupAnnotations(arg)
-            | Instruction::YieldValue(arg)
-            | Instruction::PopBlock(arg)
-            | Instruction::PopExcept(arg)
-            | Instruction::StoreName(arg)
-            | Instruction::DeleteName(arg)
-            | Instruction::StoreAttr(arg)
-            | Instruction::DeleteAttr(arg)
-            | Instruction::StoreGlobal(arg)
-            | Instruction::DeleteGlobal(arg)
-            | Instruction::LoadName(arg)
-            | Instruction::LoadAttr(arg)
-            | Instruction::ImportName(arg)
-            | Instruction::ImportFrom(arg)
-            | Instruction::LoadGlobal(arg)
-            | Instruction::LoadMethod(arg)
-            | Instruction::UnpackSequence(arg)
-            | Instruction::UnpackEx(arg)
-            | Instruction::RotN(arg)
-            | Instruction::BuildTuple(arg)
-            | Instruction::BuildList(arg)
-            | Instruction::BuildSet(arg)
-            | Instruction::BuildMap(arg)
-            | Instruction::CallFunction(arg)
-            | Instruction::BuildSlice(arg)
-            | Instruction::CallFunctionKW(arg)
-            | Instruction::ListAppend(arg)
-            | Instruction::SetAdd(arg)
-            | Instruction::MapAdd(arg)
-            | Instruction::MatchClass(arg)
-            | Instruction::BuildConstKeyMap(arg)
-            | Instruction::BuildString(arg)
-            | Instruction::CallMethod(arg)
-            | Instruction::ListExtend(arg)
-            | Instruction::SetUpdate(arg)
-            | Instruction::DictUpdate(arg)
-            | Instruction::DictMerge(arg)
-            | Instruction::ForIter(arg)
-            | Instruction::JumpForward(arg)
-            | Instruction::SetupFinally(arg)
-            | Instruction::SetupWith(arg)
-            | Instruction::SetupAsyncWith(arg)
-            | Instruction::LoadConst(arg)
-            | Instruction::CompareOp(arg)
-            | Instruction::JumpIfFalseOrPop(arg)
-            | Instruction::JumpIfTrueOrPop(arg)
-            | Instruction::JumpAbsolute(arg)
-            | Instruction::PopJumpIfFalse(arg)
-            | Instruction::PopJumpIfTrue(arg)
-            | Instruction::JumpIfNotExcMatch(arg)
-            | Instruction::Reraise(arg)
-            | Instruction::IsOp(arg)
-            | Instruction::ContainsOp(arg)
-            | Instruction::LoadFast(arg)
-            | Instruction::StoreFast(arg)
-            | Instruction::DeleteFast(arg)
-            | Instruction::GenStart(arg)
-            | Instruction::RaiseVarargs(arg)
-            | Instruction::MakeFunction(arg)
-            | Instruction::LoadClosure(arg)
-            | Instruction::LoadDeref(arg)
-            | Instruction::StoreDeref(arg)
-            | Instruction::DeleteDeref(arg)
-            | Instruction::LoadClassderef(arg)
-            | Instruction::CallFunctionEx(arg)
-            | Instruction::FormatValue(arg)
-            | Instruction::ExtendedArg(arg)
-            | Instruction::InvalidOpcode(arg) => *arg,
         }
     }
 }

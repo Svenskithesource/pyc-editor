@@ -1,5 +1,8 @@
 pub mod error;
+pub mod prelude;
+pub mod traits;
 pub mod v310;
+mod utils;
 
 use error::Error;
 use python_marshal::{self, magic::PyVersion, minimize_references};
@@ -84,6 +87,7 @@ mod tests {
     use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
     use python_marshal::{CodeFlags, PyString};
 
+    use crate::prelude::*;
     use crate::v310::code_objects::CompareOperation::Equal;
     use crate::v310::code_objects::{
         AbsoluteJump, Constant, FrozenConstant, LinetableEntry, RelativeJump,
@@ -418,5 +422,22 @@ mod tests {
             get_line_number(&code_object.co_lines().unwrap(), 10).unwrap(),
             4
         )
+    }
+
+    #[test]
+    fn test_trait_api() {
+        let ext_instructions = ExtInstructions::new(vec![
+            ExtInstruction::JumpAbsolute(255.into()),
+            ExtInstruction::JumpAbsolute(300.into()), // This will need an extended arg, which will increase the offset above which also causes that to need an extended arg.
+        ]);
+
+        ext_instructions.get_instructions();
+
+        let instructions = Instructions::new(vec![
+            Instruction::ExtendedArg(1),
+            Instruction::JumpAbsolute(4), // This is a jump to 260 (256 + 4) in reality (via extended arg).
+        ]);
+
+        instructions.get_instructions();
     }
 }

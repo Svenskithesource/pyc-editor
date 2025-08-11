@@ -74,12 +74,4 @@ macro_rules! define_opcodes {
     (@instruction $variant:ident) => {
         paste! { Instruction::[<$variant:camel>](_) }
     };
-
-    // Special cases that don't follow the automatic camel case conversion
-    (@ext_instruction CALL_FUNCTION_KW) => { ExtInstruction::CallFunctionKW(_) };
-    (@ext_instruction CALL_FUNCTION_EX) => { ExtInstruction::CallFunctionEx(_) };
-
-    (@ext_instruction $variant:ident) => {
-        paste! { ExtInstruction::[<$variant:camel>](_) }
-    };
 }

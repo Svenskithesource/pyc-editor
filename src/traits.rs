@@ -45,4 +45,3 @@ pub trait GenericInstruction {
         self.get_opcode().is_relative_jump()
     }
 }
-

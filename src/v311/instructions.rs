@@ -7,7 +7,7 @@ use crate::{
     error::Error,
     traits::{GenericInstruction, InstructionAccess},
     v311::{
-        code_objects::{AbsoluteJump, Jump, JumpDirection, LinetableEntry, RelativeJump},
+        code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},
         ext_instructions::ExtInstructions,
         opcodes::Opcode,
     },

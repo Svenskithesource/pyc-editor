@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     ops::{Deref, DerefMut},
 };
 
@@ -12,7 +12,7 @@ use crate::{
     v311::{
         code_objects::{
             AbsoluteJump, AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex,
-            CompareOperation, ConstIndex, FormatFlag, GenKind, Jump, JumpDirection,
+            CompareOperation, ConstIndex, FormatFlag, Jump, JumpDirection,
             MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump, Reraise,
             ResumeWhere, SliceCount, VarNameIndex,
         },
@@ -817,7 +817,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::DELETE_ATTR => ExtInstruction::DeleteAttr(NameIndex { index: value.1 }),
             Opcode::STORE_GLOBAL => ExtInstruction::StoreGlobal(NameIndex { index: value.1 }),
             Opcode::DELETE_GLOBAL => ExtInstruction::DeleteGlobal(NameIndex { index: value.1 }),
-            Opcode::SWAP => ExtInstruction::Swap(value.1.into()),
+            Opcode::SWAP => ExtInstruction::Swap(value.1),
             Opcode::LOAD_CONST => ExtInstruction::LoadConst(ConstIndex { index: value.1 }),
             Opcode::LOAD_NAME => ExtInstruction::LoadName(NameIndex { index: value.1 }),
             Opcode::BUILD_TUPLE => ExtInstruction::BuildTuple(value.1),
@@ -856,7 +856,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::IS_OP => ExtInstruction::IsOp(value.1.into()),
             Opcode::CONTAINS_OP => ExtInstruction::ContainsOp(value.1.into()),
             Opcode::RERAISE => ExtInstruction::Reraise(value.1.into()),
-            Opcode::COPY => ExtInstruction::Copy(value.1.into()),
+            Opcode::COPY => ExtInstruction::Copy(value.1),
             Opcode::BINARY_OP => ExtInstruction::BinaryOp(value.1.into()),
             Opcode::SEND => ExtInstruction::Send(RelativeJump {
                 index: value.1,
@@ -906,7 +906,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::LOAD_CLASSDEREF => {
                 ExtInstruction::LoadClassderef(ClosureRefIndex { index: value.1 })
             }
-            Opcode::COPY_FREE_VARS => ExtInstruction::CopyFreeVars(value.1.into()),
+            Opcode::COPY_FREE_VARS => ExtInstruction::CopyFreeVars(value.1),
             Opcode::RESUME => ExtInstruction::Resume(value.1.into()),
             Opcode::MATCH_CLASS => ExtInstruction::MatchClass(value.1),
             Opcode::FORMAT_VALUE => ExtInstruction::FormatValue(value.1.into()),
@@ -917,8 +917,8 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::SET_UPDATE => ExtInstruction::SetUpdate(value.1),
             Opcode::DICT_MERGE => ExtInstruction::DictMerge(value.1),
             Opcode::DICT_UPDATE => ExtInstruction::DictUpdate(value.1),
-            Opcode::PRECALL => ExtInstruction::Precall(value.1.into()),
-            Opcode::CALL => ExtInstruction::Call(value.1.into()),
+            Opcode::PRECALL => ExtInstruction::Precall(value.1),
+            Opcode::CALL => ExtInstruction::Call(value.1),
             Opcode::KW_NAMES => ExtInstruction::KwNames(ConstIndex { index: value.1 }),
             Opcode::POP_JUMP_BACKWARD_IF_NOT_NONE => {
                 ExtInstruction::PopJumpBackwardIfNotNone(RelativeJump {
@@ -944,113 +944,113 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
                     direction: JumpDirection::Backward,
                 })
             }
-            Opcode::BINARY_OP_ADAPTIVE => ExtInstruction::BinaryOpAdaptive(value.1.into()),
-            Opcode::BINARY_OP_ADD_FLOAT => ExtInstruction::BinaryOpAddFloat(value.1.into()),
-            Opcode::BINARY_OP_ADD_INT => ExtInstruction::BinaryOpAddInt(value.1.into()),
-            Opcode::BINARY_OP_ADD_UNICODE => ExtInstruction::BinaryOpAddUnicode(value.1.into()),
+            Opcode::BINARY_OP_ADAPTIVE => ExtInstruction::BinaryOpAdaptive(value.1),
+            Opcode::BINARY_OP_ADD_FLOAT => ExtInstruction::BinaryOpAddFloat(value.1),
+            Opcode::BINARY_OP_ADD_INT => ExtInstruction::BinaryOpAddInt(value.1),
+            Opcode::BINARY_OP_ADD_UNICODE => ExtInstruction::BinaryOpAddUnicode(value.1),
             Opcode::BINARY_OP_INPLACE_ADD_UNICODE => {
-                ExtInstruction::BinaryOpInplaceAddUnicode(value.1.into())
+                ExtInstruction::BinaryOpInplaceAddUnicode(value.1)
             }
             Opcode::BINARY_OP_MULTIPLY_FLOAT => {
-                ExtInstruction::BinaryOpMultiplyFloat(value.1.into())
+                ExtInstruction::BinaryOpMultiplyFloat(value.1)
             }
-            Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1.into()),
+            Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1),
             Opcode::BINARY_OP_SUBTRACT_FLOAT => {
-                ExtInstruction::BinaryOpSubtractFloat(value.1.into())
+                ExtInstruction::BinaryOpSubtractFloat(value.1)
             }
-            Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1.into()),
-            Opcode::BINARY_SUBSCR_ADAPTIVE => ExtInstruction::BinarySubscrAdaptive(value.1.into()),
-            Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1.into()),
-            Opcode::BINARY_SUBSCR_GETITEM => ExtInstruction::BinarySubscrGetitem(value.1.into()),
-            Opcode::BINARY_SUBSCR_LIST_INT => ExtInstruction::BinarySubscrListInt(value.1.into()),
-            Opcode::BINARY_SUBSCR_TUPLE_INT => ExtInstruction::BinarySubscrTupleInt(value.1.into()),
-            Opcode::CALL_ADAPTIVE => ExtInstruction::CallAdaptive(value.1.into()),
-            Opcode::CALL_PY_EXACT_ARGS => ExtInstruction::CallPyExactArgs(value.1.into()),
-            Opcode::CALL_PY_WITH_DEFAULTS => ExtInstruction::CallPyWithDefaults(value.1.into()),
-            Opcode::COMPARE_OP_ADAPTIVE => ExtInstruction::CompareOpAdaptive(value.1.into()),
-            Opcode::COMPARE_OP_FLOAT_JUMP => ExtInstruction::CompareOpFloatJump(value.1.into()),
-            Opcode::COMPARE_OP_INT_JUMP => ExtInstruction::CompareOpIntJump(value.1.into()),
-            Opcode::COMPARE_OP_STR_JUMP => ExtInstruction::CompareOpStrJump(value.1.into()),
+            Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1),
+            Opcode::BINARY_SUBSCR_ADAPTIVE => ExtInstruction::BinarySubscrAdaptive(value.1),
+            Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1),
+            Opcode::BINARY_SUBSCR_GETITEM => ExtInstruction::BinarySubscrGetitem(value.1),
+            Opcode::BINARY_SUBSCR_LIST_INT => ExtInstruction::BinarySubscrListInt(value.1),
+            Opcode::BINARY_SUBSCR_TUPLE_INT => ExtInstruction::BinarySubscrTupleInt(value.1),
+            Opcode::CALL_ADAPTIVE => ExtInstruction::CallAdaptive(value.1),
+            Opcode::CALL_PY_EXACT_ARGS => ExtInstruction::CallPyExactArgs(value.1),
+            Opcode::CALL_PY_WITH_DEFAULTS => ExtInstruction::CallPyWithDefaults(value.1),
+            Opcode::COMPARE_OP_ADAPTIVE => ExtInstruction::CompareOpAdaptive(value.1),
+            Opcode::COMPARE_OP_FLOAT_JUMP => ExtInstruction::CompareOpFloatJump(value.1),
+            Opcode::COMPARE_OP_INT_JUMP => ExtInstruction::CompareOpIntJump(value.1),
+            Opcode::COMPARE_OP_STR_JUMP => ExtInstruction::CompareOpStrJump(value.1),
             Opcode::EXTENDED_ARG_QUICK => return Err(Error::InvalidConversion),
             Opcode::JUMP_BACKWARD_QUICK => ExtInstruction::JumpBackwardQuick(RelativeJump {
                 index: value.1,
                 direction: JumpDirection::Backward,
             }),
-            Opcode::LOAD_ATTR_ADAPTIVE => ExtInstruction::LoadAttrAdaptive(value.1.into()),
+            Opcode::LOAD_ATTR_ADAPTIVE => ExtInstruction::LoadAttrAdaptive(value.1),
             Opcode::LOAD_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::LoadAttrInstanceValue(value.1.into())
+                ExtInstruction::LoadAttrInstanceValue(value.1)
             }
-            Opcode::LOAD_ATTR_MODULE => ExtInstruction::LoadAttrModule(value.1.into()),
-            Opcode::LOAD_ATTR_SLOT => ExtInstruction::LoadAttrSlot(value.1.into()),
-            Opcode::LOAD_ATTR_WITH_HINT => ExtInstruction::LoadAttrWithHint(value.1.into()),
-            Opcode::LOAD_CONST__LOAD_FAST => ExtInstruction::LoadConstLoadFast(value.1.into()),
-            Opcode::LOAD_FAST__LOAD_CONST => ExtInstruction::LoadFastLoadConst(value.1.into()),
-            Opcode::LOAD_FAST__LOAD_FAST => ExtInstruction::LoadFastLoadFast(value.1.into()),
-            Opcode::LOAD_GLOBAL_ADAPTIVE => ExtInstruction::LoadGlobalAdaptive(value.1.into()),
-            Opcode::LOAD_GLOBAL_BUILTIN => ExtInstruction::LoadGlobalBuiltin(value.1.into()),
-            Opcode::LOAD_GLOBAL_MODULE => ExtInstruction::LoadGlobalModule(value.1.into()),
-            Opcode::LOAD_METHOD_ADAPTIVE => ExtInstruction::LoadMethodAdaptive(value.1.into()),
-            Opcode::LOAD_METHOD_CLASS => ExtInstruction::LoadMethodClass(value.1.into()),
-            Opcode::LOAD_METHOD_MODULE => ExtInstruction::LoadMethodModule(value.1.into()),
-            Opcode::LOAD_METHOD_NO_DICT => ExtInstruction::LoadMethodNoDict(value.1.into()),
-            Opcode::LOAD_METHOD_WITH_DICT => ExtInstruction::LoadMethodWithDict(value.1.into()),
-            Opcode::LOAD_METHOD_WITH_VALUES => ExtInstruction::LoadMethodWithValues(value.1.into()),
-            Opcode::PRECALL_ADAPTIVE => ExtInstruction::PrecallAdaptive(value.1.into()),
-            Opcode::PRECALL_BOUND_METHOD => ExtInstruction::PrecallBoundMethod(value.1.into()),
-            Opcode::PRECALL_BUILTIN_CLASS => ExtInstruction::PrecallBuiltinClass(value.1.into()),
+            Opcode::LOAD_ATTR_MODULE => ExtInstruction::LoadAttrModule(value.1),
+            Opcode::LOAD_ATTR_SLOT => ExtInstruction::LoadAttrSlot(value.1),
+            Opcode::LOAD_ATTR_WITH_HINT => ExtInstruction::LoadAttrWithHint(value.1),
+            Opcode::LOAD_CONST__LOAD_FAST => ExtInstruction::LoadConstLoadFast(value.1),
+            Opcode::LOAD_FAST__LOAD_CONST => ExtInstruction::LoadFastLoadConst(value.1),
+            Opcode::LOAD_FAST__LOAD_FAST => ExtInstruction::LoadFastLoadFast(value.1),
+            Opcode::LOAD_GLOBAL_ADAPTIVE => ExtInstruction::LoadGlobalAdaptive(value.1),
+            Opcode::LOAD_GLOBAL_BUILTIN => ExtInstruction::LoadGlobalBuiltin(value.1),
+            Opcode::LOAD_GLOBAL_MODULE => ExtInstruction::LoadGlobalModule(value.1),
+            Opcode::LOAD_METHOD_ADAPTIVE => ExtInstruction::LoadMethodAdaptive(value.1),
+            Opcode::LOAD_METHOD_CLASS => ExtInstruction::LoadMethodClass(value.1),
+            Opcode::LOAD_METHOD_MODULE => ExtInstruction::LoadMethodModule(value.1),
+            Opcode::LOAD_METHOD_NO_DICT => ExtInstruction::LoadMethodNoDict(value.1),
+            Opcode::LOAD_METHOD_WITH_DICT => ExtInstruction::LoadMethodWithDict(value.1),
+            Opcode::LOAD_METHOD_WITH_VALUES => ExtInstruction::LoadMethodWithValues(value.1),
+            Opcode::PRECALL_ADAPTIVE => ExtInstruction::PrecallAdaptive(value.1),
+            Opcode::PRECALL_BOUND_METHOD => ExtInstruction::PrecallBoundMethod(value.1),
+            Opcode::PRECALL_BUILTIN_CLASS => ExtInstruction::PrecallBuiltinClass(value.1),
             Opcode::PRECALL_BUILTIN_FAST_WITH_KEYWORDS => {
-                ExtInstruction::PrecallBuiltinFastWithKeywords(value.1.into())
+                ExtInstruction::PrecallBuiltinFastWithKeywords(value.1)
             }
             Opcode::PRECALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS => {
-                ExtInstruction::PrecallMethodDescriptorFastWithKeywords(value.1.into())
+                ExtInstruction::PrecallMethodDescriptorFastWithKeywords(value.1)
             }
             Opcode::PRECALL_NO_KW_BUILTIN_FAST => {
-                ExtInstruction::PrecallNoKwBuiltinFast(value.1.into())
+                ExtInstruction::PrecallNoKwBuiltinFast(value.1)
             }
-            Opcode::PRECALL_NO_KW_BUILTIN_O => ExtInstruction::PrecallNoKwBuiltinO(value.1.into()),
+            Opcode::PRECALL_NO_KW_BUILTIN_O => ExtInstruction::PrecallNoKwBuiltinO(value.1),
             Opcode::PRECALL_NO_KW_ISINSTANCE => {
-                ExtInstruction::PrecallNoKwIsinstance(value.1.into())
+                ExtInstruction::PrecallNoKwIsinstance(value.1)
             }
-            Opcode::PRECALL_NO_KW_LEN => ExtInstruction::PrecallNoKwLen(value.1.into()),
+            Opcode::PRECALL_NO_KW_LEN => ExtInstruction::PrecallNoKwLen(value.1),
             Opcode::PRECALL_NO_KW_LIST_APPEND => {
-                ExtInstruction::PrecallNoKwListAppend(value.1.into())
+                ExtInstruction::PrecallNoKwListAppend(value.1)
             }
             Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_FAST => {
-                ExtInstruction::PrecallNoKwMethodDescriptorFast(value.1.into())
+                ExtInstruction::PrecallNoKwMethodDescriptorFast(value.1)
             }
             Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_NOARGS => {
-                ExtInstruction::PrecallNoKwMethodDescriptorNoargs(value.1.into())
+                ExtInstruction::PrecallNoKwMethodDescriptorNoargs(value.1)
             }
             Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_O => {
-                ExtInstruction::PrecallNoKwMethodDescriptorO(value.1.into())
+                ExtInstruction::PrecallNoKwMethodDescriptorO(value.1)
             }
-            Opcode::PRECALL_NO_KW_STR_1 => ExtInstruction::PrecallNoKwStr1(value.1.into()),
-            Opcode::PRECALL_NO_KW_TUPLE_1 => ExtInstruction::PrecallNoKwTuple1(value.1.into()),
-            Opcode::PRECALL_NO_KW_TYPE_1 => ExtInstruction::PrecallNoKwType1(value.1.into()),
-            Opcode::PRECALL_PYFUNC => ExtInstruction::PrecallPyfunc(value.1.into()),
+            Opcode::PRECALL_NO_KW_STR_1 => ExtInstruction::PrecallNoKwStr1(value.1),
+            Opcode::PRECALL_NO_KW_TUPLE_1 => ExtInstruction::PrecallNoKwTuple1(value.1),
+            Opcode::PRECALL_NO_KW_TYPE_1 => ExtInstruction::PrecallNoKwType1(value.1),
+            Opcode::PRECALL_PYFUNC => ExtInstruction::PrecallPyfunc(value.1),
             Opcode::RESUME_QUICK => ExtInstruction::ResumeQuick(value.1.into()),
-            Opcode::STORE_ATTR_ADAPTIVE => ExtInstruction::StoreAttrAdaptive(value.1.into()),
+            Opcode::STORE_ATTR_ADAPTIVE => ExtInstruction::StoreAttrAdaptive(value.1),
             Opcode::STORE_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::StoreAttrInstanceValue(value.1.into())
+                ExtInstruction::StoreAttrInstanceValue(value.1)
             }
-            Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1.into()),
-            Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1.into()),
-            Opcode::STORE_FAST__LOAD_FAST => ExtInstruction::StoreFastLoadFast(value.1.into()),
-            Opcode::STORE_FAST__STORE_FAST => ExtInstruction::StoreFastStoreFast(value.1.into()),
-            Opcode::STORE_SUBSCR_ADAPTIVE => ExtInstruction::StoreSubscrAdaptive(value.1.into()),
-            Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1.into()),
-            Opcode::STORE_SUBSCR_LIST_INT => ExtInstruction::StoreSubscrListInt(value.1.into()),
+            Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1),
+            Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1),
+            Opcode::STORE_FAST__LOAD_FAST => ExtInstruction::StoreFastLoadFast(value.1),
+            Opcode::STORE_FAST__STORE_FAST => ExtInstruction::StoreFastStoreFast(value.1),
+            Opcode::STORE_SUBSCR_ADAPTIVE => ExtInstruction::StoreSubscrAdaptive(value.1),
+            Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1),
+            Opcode::STORE_SUBSCR_LIST_INT => ExtInstruction::StoreSubscrListInt(value.1),
             Opcode::UNPACK_SEQUENCE_ADAPTIVE => {
-                ExtInstruction::UnpackSequenceAdaptive(value.1.into())
+                ExtInstruction::UnpackSequenceAdaptive(value.1)
             }
-            Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1.into()),
-            Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1.into()),
+            Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1),
+            Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1),
             Opcode::UNPACK_SEQUENCE_TWO_TUPLE => {
-                ExtInstruction::UnpackSequenceTwoTuple(value.1.into())
+                ExtInstruction::UnpackSequenceTwoTuple(value.1)
             }
-            Opcode::DO_TRACING => ExtInstruction::DoTracing(value.1.into()),
+            Opcode::DO_TRACING => ExtInstruction::DoTracing(value.1),
             Opcode::INVALID_OPCODE(opcode) => {
-                ExtInstruction::InvalidOpcode((opcode, value.1.into()))
+                ExtInstruction::InvalidOpcode((opcode, value.1))
             }
         })
     }

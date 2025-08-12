@@ -275,6 +275,7 @@ impl ExtInstructions {
                 }
                 Instruction::JumpBackwardNoInterrupt(arg)
                 | Instruction::JumpBackward(arg)
+                | Instruction::JumpBackwardQuick(arg)
                 | Instruction::PopJumpBackwardIfNotNone(arg)
                 | Instruction::PopJumpBackwardIfNone(arg)
                 | Instruction::PopJumpBackwardIfFalse(arg)
@@ -337,6 +338,7 @@ impl ExtInstructions {
                 }
                 Instruction::JumpBackwardNoInterrupt(arg)
                 | Instruction::JumpBackward(arg)
+                | Instruction::JumpBackwardQuick(arg)
                 | Instruction::PopJumpBackwardIfNotNone(arg)
                 | Instruction::PopJumpBackwardIfNone(arg)
                 | Instruction::PopJumpBackwardIfFalse(arg)
@@ -405,6 +407,7 @@ impl ExtInstructions {
                 }
                 ExtInstruction::JumpBackwardNoInterrupt(jump)
                 | ExtInstruction::JumpBackward(jump)
+                | ExtInstruction::JumpBackwardQuick(jump)
                 | ExtInstruction::PopJumpBackwardIfNotNone(jump)
                 | ExtInstruction::PopJumpBackwardIfNone(jump)
                 | ExtInstruction::PopJumpBackwardIfFalse(jump)
@@ -448,6 +451,7 @@ impl ExtInstructions {
                 }
                 ExtInstruction::JumpBackwardNoInterrupt(jump)
                 | ExtInstruction::JumpBackward(jump)
+                | ExtInstruction::JumpBackwardQuick(jump)
                 | ExtInstruction::PopJumpBackwardIfNotNone(jump)
                 | ExtInstruction::PopJumpBackwardIfNone(jump)
                 | ExtInstruction::PopJumpBackwardIfFalse(jump)
@@ -480,6 +484,7 @@ impl ExtInstructions {
                 | ExtInstruction::PopJumpForwardIfNone(jump)
                 | ExtInstruction::JumpBackwardNoInterrupt(jump)
                 | ExtInstruction::JumpBackward(jump)
+                | ExtInstruction::JumpBackwardQuick(jump)
                 | ExtInstruction::PopJumpBackwardIfNotNone(jump)
                 | ExtInstruction::PopJumpBackwardIfNone(jump)
                 | ExtInstruction::PopJumpBackwardIfFalse(jump)
@@ -1248,7 +1253,6 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::UnpackSequenceTwoTuple(_) => Opcode::UNPACK_SEQUENCE_TWO_TUPLE,
             ExtInstruction::DoTracing(_) => Opcode::DO_TRACING,
             ExtInstruction::InvalidOpcode((opcode, _)) => Opcode::INVALID_OPCODE(*opcode),
-            ExtInstruction::InvalidOpcode((opcode, _)) => Opcode::INVALID_OPCODE(*opcode),
         }
     }
 
@@ -1398,9 +1402,7 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::LoadConst(const_index) | ExtInstruction::KwNames(const_index) => {
                 const_index.index
             }
-
             ExtInstruction::CompareOp(cmp_op) => cmp_op.into(),
-
             ExtInstruction::JumpForward(jump)
             | ExtInstruction::JumpIfFalseOrPop(jump)
             | ExtInstruction::JumpIfTrueOrPop(jump)
@@ -1416,36 +1418,28 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::PopJumpBackwardIfNone(jump)
             | ExtInstruction::PopJumpBackwardIfFalse(jump)
             | ExtInstruction::PopJumpBackwardIfTrue(jump) => jump.index,
-
             ExtInstruction::IsOp(invert) | ExtInstruction::ContainsOp(invert) => invert.into(),
-
             ExtInstruction::Reraise(reraise) => reraise.into(),
-
             ExtInstruction::BinaryOp(binary_op) => binary_op.into(),
             ExtInstruction::LoadFast(varname_index)
             | ExtInstruction::StoreFast(varname_index)
             | ExtInstruction::DeleteFast(varname_index) => varname_index.index,
-
             ExtInstruction::RaiseVarargs(raise_var_args) => raise_var_args.into(),
             ExtInstruction::GetAwaitable(awaitable_where) => awaitable_where.into(),
             ExtInstruction::MakeFunction(flags) => flags.bits(),
             ExtInstruction::BuildSlice(slice) => slice.into(),
-
             ExtInstruction::MakeCell(closure_index)
             | ExtInstruction::LoadClosure(closure_index)
             | ExtInstruction::LoadDeref(closure_index)
             | ExtInstruction::StoreDeref(closure_index)
             | ExtInstruction::DeleteDeref(closure_index)
             | ExtInstruction::LoadClassderef(closure_index) => closure_index.index,
-
             ExtInstruction::CallFunctionEx(flags) => flags.into(),
             ExtInstruction::Resume(resume_where) | ExtInstruction::ResumeQuick(resume_where) => {
                 resume_where.into()
             }
-
             ExtInstruction::FormatValue(format) => format.bits().into(),
-
-            ExtInstruction::InvalidOpcode((opcode, arg)) => *arg,
+            ExtInstruction::InvalidOpcode((_, arg)) => *arg,
         }
     }
 }

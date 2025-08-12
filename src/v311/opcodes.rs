@@ -212,6 +212,7 @@ impl GenericOpcode for Opcode {
                 | Opcode::POP_JUMP_FORWARD_IF_NONE
                 | Opcode::JUMP_BACKWARD_NO_INTERRUPT
                 | Opcode::JUMP_BACKWARD
+                | Opcode::JUMP_BACKWARD_QUICK
                 | Opcode::POP_JUMP_BACKWARD_IF_NOT_NONE
                 | Opcode::POP_JUMP_BACKWARD_IF_NONE
                 | Opcode::POP_JUMP_BACKWARD_IF_FALSE

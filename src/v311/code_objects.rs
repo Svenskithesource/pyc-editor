@@ -246,52 +246,150 @@ pub struct LinetableEntry {
     pub start: u32,
     pub end: u32,
     pub line_number: Option<u32>,
+    pub column_start: Option<u32>,
+    pub column_end: Option<u32>,
 }
 
 impl Code {
     pub fn co_lines(&self) -> Result<Vec<LinetableEntry>, Error> {
-        // See https://github.com/python/cpython/blob/3.11/Objects/lnotab_notes.txt
-        // This library returns a slightly different list. When there is no line number (-128) it will use None to indicate so.
+        // See https://github.com/python/cpython/blob/3.11/Objects/locations.md
 
-        if self.linetable.len() % 2 != 0 {
-            // Invalid linetable
-            return Err(Error::InvalidLinetable);
-        }
+        let mut entries = Vec::new();
+        let mut offset = 0u32; // Byte offset in code
+        let mut line = self.firstlineno; // Current line number
+        let mut i = 0; // Index in linetable
 
-        let mut entries = vec![];
+        while i < self.linetable.len() {
+            let first_byte = self.linetable[i];
 
-        let mut line = self.firstlineno;
-        let mut end = 0_u32;
-
-        for chunk in self.linetable.chunks_exact(2) {
-            let (sdelta, ldelta) = (chunk[0], chunk[1] as i8);
-
-            let start = end;
-            end = start + sdelta as u32;
-
-            if ldelta == -128 {
-                entries.push(LinetableEntry {
-                    start,
-                    end,
-                    line_number: None,
-                });
-                continue;
+            // Check if most significant bit is set (location entry)
+            if first_byte & 0x80 == 0 {
+                return Err(Error::InvalidLinetable);
             }
 
-            line = line.saturating_add_signed(ldelta.into());
+            // Extract code and length from first byte
+            let code = (first_byte >> 3) & 0x0F; // Bits 3-6
+            let length = (first_byte & 0x07) + 1; // Bits 0-2, plus 1
 
-            if end == start {
-                continue;
+            i += 1;
+
+            let (delta_line, start_col, end_col) = match code {
+                // Short forms (0-9)
+                0..=9 => {
+                    if i >= self.linetable.len() {
+                        return Err(Error::InvalidLinetable);
+                    }
+                    let second_byte = self.linetable[i];
+                    i += 1;
+
+                    let start_column = (code * 8) + ((second_byte >> 4) & 7);
+                    let end_column = start_column + (second_byte & 15);
+                    (0i32, Some(start_column as u32), Some(end_column as u32))
+                }
+
+                // One line forms (10-12)
+                10..=12 => {
+                    if i + 1 >= self.linetable.len() {
+                        return Err(Error::InvalidLinetable);
+                    }
+                    let start_col = self.linetable[i] as u32;
+                    let end_col = self.linetable[i + 1] as u32;
+                    i += 2;
+
+                    let delta = (code - 10) as i32;
+                    (delta, Some(start_col), Some(end_col))
+                }
+
+                // No column info (13)
+                13 => {
+                    let (delta, bytes_read) = Self::read_svarint(&self.linetable[i..])?;
+                    i += bytes_read;
+                    (delta, None, None)
+                }
+
+                // Long form (14)
+                14 => {
+                    let (delta_line, bytes_read1) = Self::read_svarint(&self.linetable[i..])?;
+                    i += bytes_read1;
+
+                    let (_delta_end_line, bytes_read2) = Self::read_varint(&self.linetable[i..])?;
+                    i += bytes_read2;
+
+                    let (start_col, bytes_read3) = Self::read_varint(&self.linetable[i..])?;
+                    i += bytes_read3;
+
+                    let (end_col, bytes_read4) = Self::read_varint(&self.linetable[i..])?;
+                    i += bytes_read4;
+
+                    // For now, we ignore delta_end_line and just use delta_line
+                    // TODO: Handle end line properly
+                    (delta_line, Some(start_col), Some(end_col))
+                }
+
+                // No location (15)
+                15 => (0i32, None, None),
+
+                _ => return Err(Error::InvalidLinetable),
+            };
+
+            // Update line number
+            if delta_line != 0 {
+                line = (line as i32 + delta_line) as u32;
             }
 
-            entries.push(LinetableEntry {
-                start,
-                end,
-                line_number: Some(line),
-            });
+            // Create entry
+            let entry = LinetableEntry {
+                start: offset,
+                end: offset + length as u32 * 2, // length is in code units (2 bytes each)
+                line_number: if code == 15 { None } else { Some(line) },
+                column_start: start_col,
+                column_end: end_col,
+            };
+
+            entries.push(entry);
+            offset += length as u32 * 2;
         }
 
         Ok(entries)
+    }
+
+    // Helper function to read variable-length unsigned integer (varint)
+    fn read_varint(data: &[u8]) -> Result<(u32, usize), Error> {
+        let mut result = 0u32;
+        let mut shift = 0;
+        let mut i = 0;
+
+        while i < data.len() {
+            let byte = data[i];
+            result |= ((byte & 0x3F) as u32) << shift;
+            i += 1;
+
+            if byte & 0x40 == 0 {
+                // Last chunk
+                break;
+            }
+
+            shift += 6;
+            if shift >= 32 {
+                return Err(Error::InvalidLinetable);
+            }
+        }
+
+        Ok((result, i))
+    }
+
+    // Helper function to read variable-length signed integer (svarint)
+    fn read_svarint(data: &[u8]) -> Result<(i32, usize), Error> {
+        let (unsigned_val, bytes_read) = Self::read_varint(data)?;
+
+        // Convert unsigned to signed according to CPython spec
+        let signed_val = if unsigned_val & 1 != 0 {
+            -((unsigned_val >> 1) as i32)
+        } else {
+            (unsigned_val >> 1) as i32
+        };
+
+        Ok((signed_val, bytes_read))
     }
 }
 

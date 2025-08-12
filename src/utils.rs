@@ -49,7 +49,13 @@ macro_rules! define_opcodes {
                     $(
                         Opcode::$name => define_opcodes!(@instruction $name, value.1),
                     )*
-                    Opcode::INVALID_OPCODE(opcode) => Instruction::InvalidOpcode((opcode, value.1)),
+                    Opcode::INVALID_OPCODE(opcode) => {
+                        if !cfg!(test) {
+                            Instruction::InvalidOpcode((opcode, value.1))
+                        } else {
+                            panic!("Testing environment should not come across invalid opcodes")
+                        }
+                    },
                 }
             }
         }

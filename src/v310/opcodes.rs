@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 
+use crate::define_opcodes;
 use crate::traits::GenericOpcode;
 use crate::v310::instructions::Instruction;
-use crate::define_opcodes;
 use paste::paste;
 
 define_opcodes!(

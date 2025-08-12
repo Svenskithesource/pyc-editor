@@ -1,8 +1,8 @@
 use pyc_editor::{
     dump_pyc, load_pyc,
+    prelude::*,
     v310::{instructions::Instruction, opcodes::Opcode},
     PycFile,
-    prelude::*
 };
 
 fn main() {

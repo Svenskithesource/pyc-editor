@@ -629,9 +629,24 @@ impl From<&[Instruction]> for Instructions {
 /// Returns the line number of an instruction at `index` if it starts this line.
 /// The index needs to be the instruction index, not the byte index.
 pub fn starts_line_number(lines: &[LinetableEntry], index: u32) -> Option<u32> {
+    let mut current_line = None;
+
     for entry in lines {
-        if entry.start == index * 2 {
-            return entry.line_number;
+        match current_line {
+            None => {
+                if entry.start == index * 2 {
+                    return entry.line_number;
+                } else {
+                    current_line = Some(entry.line_number);
+                }
+            }
+            Some(line_number) => {
+                if entry.start == index * 2 && entry.line_number != line_number {
+                    return entry.line_number;
+                } else {
+                    current_line = Some(entry.line_number);
+                }
+            }
         }
     }
 

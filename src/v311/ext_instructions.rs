@@ -11,10 +11,9 @@ use crate::{
     utils::get_extended_args_count,
     v311::{
         code_objects::{
-            AbsoluteJump, AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex,
-            CompareOperation, ConstIndex, FormatFlag, Jump, JumpDirection,
-            MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump, Reraise,
-            ResumeWhere, SliceCount, VarNameIndex,
+            AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex, CompareOperation,
+            ConstIndex, FormatFlag, Jump, JumpDirection, MakeFunctionFlags, NameIndex, OpInversion,
+            RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount, VarNameIndex,
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,
@@ -503,15 +502,6 @@ impl ExtInstructions {
     }
 
     /// Returns the index and the instruction of the jump target. None if the index is invalid.
-    /// This exists so you don't have to supply the index of the jump instruction (only necessary for relative jumps)
-    pub fn get_absolute_jump_target(&self, jump: AbsoluteJump) -> Option<(u32, ExtInstruction)> {
-        self.0
-            .get(jump.index as usize)
-            .cloned()
-            .map(|target| (jump.index, target))
-    }
-
-    /// Returns the index and the instruction of the jump target. None if the index is invalid.
     pub fn get_jump_target(&self, index: u32, jump: Jump) -> Option<(u32, ExtInstruction)> {
         match jump {
             Jump::Relative(RelativeJump {
@@ -951,13 +941,9 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::BINARY_OP_INPLACE_ADD_UNICODE => {
                 ExtInstruction::BinaryOpInplaceAddUnicode(value.1)
             }
-            Opcode::BINARY_OP_MULTIPLY_FLOAT => {
-                ExtInstruction::BinaryOpMultiplyFloat(value.1)
-            }
+            Opcode::BINARY_OP_MULTIPLY_FLOAT => ExtInstruction::BinaryOpMultiplyFloat(value.1),
             Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1),
-            Opcode::BINARY_OP_SUBTRACT_FLOAT => {
-                ExtInstruction::BinaryOpSubtractFloat(value.1)
-            }
+            Opcode::BINARY_OP_SUBTRACT_FLOAT => ExtInstruction::BinaryOpSubtractFloat(value.1),
             Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1),
             Opcode::BINARY_SUBSCR_ADAPTIVE => ExtInstruction::BinarySubscrAdaptive(value.1),
             Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1),
@@ -977,9 +963,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
                 direction: JumpDirection::Backward,
             }),
             Opcode::LOAD_ATTR_ADAPTIVE => ExtInstruction::LoadAttrAdaptive(value.1),
-            Opcode::LOAD_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::LoadAttrInstanceValue(value.1)
-            }
+            Opcode::LOAD_ATTR_INSTANCE_VALUE => ExtInstruction::LoadAttrInstanceValue(value.1),
             Opcode::LOAD_ATTR_MODULE => ExtInstruction::LoadAttrModule(value.1),
             Opcode::LOAD_ATTR_SLOT => ExtInstruction::LoadAttrSlot(value.1),
             Opcode::LOAD_ATTR_WITH_HINT => ExtInstruction::LoadAttrWithHint(value.1),
@@ -1004,17 +988,11 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::PRECALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS => {
                 ExtInstruction::PrecallMethodDescriptorFastWithKeywords(value.1)
             }
-            Opcode::PRECALL_NO_KW_BUILTIN_FAST => {
-                ExtInstruction::PrecallNoKwBuiltinFast(value.1)
-            }
+            Opcode::PRECALL_NO_KW_BUILTIN_FAST => ExtInstruction::PrecallNoKwBuiltinFast(value.1),
             Opcode::PRECALL_NO_KW_BUILTIN_O => ExtInstruction::PrecallNoKwBuiltinO(value.1),
-            Opcode::PRECALL_NO_KW_ISINSTANCE => {
-                ExtInstruction::PrecallNoKwIsinstance(value.1)
-            }
+            Opcode::PRECALL_NO_KW_ISINSTANCE => ExtInstruction::PrecallNoKwIsinstance(value.1),
             Opcode::PRECALL_NO_KW_LEN => ExtInstruction::PrecallNoKwLen(value.1),
-            Opcode::PRECALL_NO_KW_LIST_APPEND => {
-                ExtInstruction::PrecallNoKwListAppend(value.1)
-            }
+            Opcode::PRECALL_NO_KW_LIST_APPEND => ExtInstruction::PrecallNoKwListAppend(value.1),
             Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_FAST => {
                 ExtInstruction::PrecallNoKwMethodDescriptorFast(value.1)
             }
@@ -1030,9 +1008,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::PRECALL_PYFUNC => ExtInstruction::PrecallPyfunc(value.1),
             Opcode::RESUME_QUICK => ExtInstruction::ResumeQuick(value.1.into()),
             Opcode::STORE_ATTR_ADAPTIVE => ExtInstruction::StoreAttrAdaptive(value.1),
-            Opcode::STORE_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::StoreAttrInstanceValue(value.1)
-            }
+            Opcode::STORE_ATTR_INSTANCE_VALUE => ExtInstruction::StoreAttrInstanceValue(value.1),
             Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1),
             Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1),
             Opcode::STORE_FAST__LOAD_FAST => ExtInstruction::StoreFastLoadFast(value.1),
@@ -1040,18 +1016,12 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::STORE_SUBSCR_ADAPTIVE => ExtInstruction::StoreSubscrAdaptive(value.1),
             Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1),
             Opcode::STORE_SUBSCR_LIST_INT => ExtInstruction::StoreSubscrListInt(value.1),
-            Opcode::UNPACK_SEQUENCE_ADAPTIVE => {
-                ExtInstruction::UnpackSequenceAdaptive(value.1)
-            }
+            Opcode::UNPACK_SEQUENCE_ADAPTIVE => ExtInstruction::UnpackSequenceAdaptive(value.1),
             Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1),
             Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1),
-            Opcode::UNPACK_SEQUENCE_TWO_TUPLE => {
-                ExtInstruction::UnpackSequenceTwoTuple(value.1)
-            }
+            Opcode::UNPACK_SEQUENCE_TWO_TUPLE => ExtInstruction::UnpackSequenceTwoTuple(value.1),
             Opcode::DO_TRACING => ExtInstruction::DoTracing(value.1),
-            Opcode::INVALID_OPCODE(opcode) => {
-                ExtInstruction::InvalidOpcode((opcode, value.1))
-            }
+            Opcode::INVALID_OPCODE(opcode) => ExtInstruction::InvalidOpcode((opcode, value.1)),
         })
     }
 }

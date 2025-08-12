@@ -22,6 +22,7 @@ fn main() {
 
             *add = Instruction::BinarySubtract(0);
         }
+        _ => {}
     }
 
     dbg!(&pyc_file); // Addition is changed to subtraction

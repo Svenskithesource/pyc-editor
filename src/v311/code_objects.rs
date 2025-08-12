@@ -7,7 +7,7 @@ use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
-use crate::{error::Error, v310::instructions::Instructions, PycFile};
+use crate::{error::Error, v311::instructions::Instructions};
 use std::fmt;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -193,11 +193,11 @@ impl TryFrom<python_marshal::Object> for Constant {
     fn try_from(value: python_marshal::Object) -> Result<Self, Self::Error> {
         match value {
             python_marshal::Object::Code(code) => match code {
-                python_marshal::Code::V310(code) => {
+                python_marshal::Code::V310(_) => Err(Error::UnsupportedVersion((3, 10).into())),
+                python_marshal::Code::V311(code) => {
                     let code = Code::try_from(code)?;
                     Ok(Constant::CodeObject(code))
                 }
-                python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
                 python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
                 python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
             },
@@ -215,20 +215,20 @@ pub struct Code {
     pub argcount: u32,
     pub posonlyargcount: u32,
     pub kwonlyargcount: u32,
-    pub nlocals: u32,
     pub stacksize: u32,
     pub flags: CodeFlags,
     pub code: Instructions,
     pub consts: Vec<Constant>,
     pub names: Vec<PyString>,
-    pub varnames: Vec<PyString>,
-    pub freevars: Vec<PyString>,
-    pub cellvars: Vec<PyString>,
+    pub localsplusnames: Vec<PyString>,
+    pub localspluskinds: Vec<u8>,
     pub filename: PyString,
     pub name: PyString,
+    pub qualname: PyString,
     pub firstlineno: u32,
     /// NOTE: https://peps.python.org/pep-0626/
     pub linetable: Vec<u8>,
+    pub exceptiontable: Vec<u8>,
 }
 
 impl fmt::Display for Code {
@@ -250,7 +250,7 @@ pub struct LinetableEntry {
 
 impl Code {
     pub fn co_lines(&self) -> Result<Vec<LinetableEntry>, Error> {
-        // See https://github.com/python/cpython/blob/3.10/Objects/lnotab_notes.txt
+        // See https://github.com/python/cpython/blob/3.11/Objects/lnotab_notes.txt
         // This library returns a slightly different list. When there is no line number (-128) it will use None to indicate so.
 
         if self.linetable.len() % 2 != 0 {
@@ -312,8 +312,8 @@ impl TryFrom<(python_marshal::Object, Vec<Object>)> for Code {
         let code_object = extract_object!(Some(code_object), python_marshal::Object::Code(code) => code, python_marshal::error::Error::UnexpectedObject)?;
 
         match code_object {
-            python_marshal::Code::V310(code) => Ok(Code::try_from(code)?),
-            python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
+            python_marshal::Code::V310(_) => Err(Error::UnsupportedVersion((3, 10).into())),
+            python_marshal::Code::V311(code) => Ok(Code::try_from(code)?),
             python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
             python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
         }
@@ -322,11 +322,10 @@ impl TryFrom<(python_marshal::Object, Vec<Object>)> for Code {
 
 impl From<Code> for python_marshal::Code {
     fn from(val: Code) -> Self {
-        python_marshal::Code::V310(python_marshal::code_objects::Code310 {
+        python_marshal::Code::V311(python_marshal::code_objects::Code311 {
             argcount: val.argcount,
             posonlyargcount: val.posonlyargcount,
             kwonlyargcount: val.kwonlyargcount,
-            nlocals: val.nlocals,
             stacksize: val.stacksize,
             flags: val.flags,
             code: python_marshal::Object::Bytes(val.code.into()).into(),
@@ -341,31 +340,20 @@ impl From<Code> for python_marshal::Code {
                     .collect(),
             )
             .into(),
-            varnames: python_marshal::Object::Tuple(
-                val.varnames
+            localsplusnames: python_marshal::Object::Tuple(
+                val.localsplusnames
                     .into_iter()
                     .map(python_marshal::Object::String)
                     .collect(),
             )
             .into(),
-            freevars: python_marshal::Object::Tuple(
-                val.freevars
-                    .into_iter()
-                    .map(python_marshal::Object::String)
-                    .collect(),
-            )
-            .into(),
-            cellvars: python_marshal::Object::Tuple(
-                val.cellvars
-                    .into_iter()
-                    .map(python_marshal::Object::String)
-                    .collect(),
-            )
-            .into(),
+            localspluskinds: python_marshal::Object::Bytes(val.localspluskinds).into(),
             filename: python_marshal::Object::String(val.filename).into(),
             name: python_marshal::Object::String(val.name).into(),
+            qualname: python_marshal::Object::String(val.qualname).into(),
             firstlineno: val.firstlineno,
             linetable: python_marshal::Object::Bytes(val.linetable).into(),
+            exceptiontable: python_marshal::Object::Bytes(val.exceptiontable).into(),
         })
     }
 }
@@ -382,38 +370,32 @@ macro_rules! extract_strings_tuple {
     };
 }
 
-impl TryFrom<python_marshal::code_objects::Code310> for Code {
+impl TryFrom<python_marshal::code_objects::Code311> for Code {
     type Error = crate::error::Error;
 
-    fn try_from(code: python_marshal::code_objects::Code310) -> Result<Self, Self::Error> {
+    fn try_from(code: python_marshal::code_objects::Code311) -> Result<Self, Self::Error> {
         let co_code = extract_object!(Some(*code.code), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
         let co_consts = extract_object!(Some(*code.consts), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?;
         let co_names = extract_strings_tuple!(
             extract_object!(Some(*code.names), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?,
             self.references
         )?;
-        let co_varnames = extract_strings_tuple!(
-            extract_object!(Some(*code.varnames), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?,
+        let co_localsplusnames = extract_strings_tuple!(
+            extract_object!(Some(*code.localsplusnames), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?,
             self.references
         )?;
-        let co_freevars = extract_strings_tuple!(
-            extract_object!(Some(*code.freevars), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?,
-            self.references
-        )?;
-        let co_cellvars = extract_strings_tuple!(
-            extract_object!(Some(*code.cellvars), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?,
-            self.references
-        )?;
+        let co_localspluskinds = extract_object!(Some(*code.localspluskinds), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
 
         let co_filename = extract_object!(Some(*code.filename), python_marshal::Object::String(string) => string, python_marshal::error::Error::NullInTuple)?;
         let co_name = extract_object!(Some(*code.name), python_marshal::Object::String(string) => string, python_marshal::error::Error::NullInTuple)?;
+        let co_qualname = extract_object!(Some(*code.qualname), python_marshal::Object::String(string) => string, python_marshal::error::Error::NullInTuple)?;
         let co_linetable = extract_object!(Some(*code.linetable), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
+        let co_exceptiontable = extract_object!(Some(*code.exceptiontable), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
 
         Ok(Code {
             argcount: code.argcount,
             posonlyargcount: code.posonlyargcount,
             kwonlyargcount: code.kwonlyargcount,
-            nlocals: code.nlocals,
             stacksize: code.stacksize,
             flags: code.flags,
             code: Instructions::try_from(co_code.as_slice())?,
@@ -422,13 +404,14 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
                 .map(|obj| Constant::try_from(obj.clone()))
                 .collect::<Result<Vec<_>, _>>()?,
             names: co_names.to_vec(),
-            varnames: co_varnames.to_vec(),
-            freevars: co_freevars.to_vec(),
-            cellvars: co_cellvars.to_vec(),
+            localsplusnames: co_localsplusnames,
+            localspluskinds: co_localspluskinds,
             filename: co_filename.clone(),
             name: co_name.clone(),
+            qualname: co_qualname.clone(),
             firstlineno: code.firstlineno,
             linetable: co_linetable.to_vec(),
+            exceptiontable: co_exceptiontable.to_vec(),
         })
     }
 }
@@ -436,7 +419,6 @@ impl TryFrom<python_marshal::code_objects::Code310> for Code {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Jump {
     Relative(RelativeJump),
-    Absolute(AbsoluteJump),
 }
 
 impl From<RelativeJump> for Jump {
@@ -445,27 +427,23 @@ impl From<RelativeJump> for Jump {
     }
 }
 
-impl From<AbsoluteJump> for Jump {
-    fn from(value: AbsoluteJump) -> Self {
-        Self::Absolute(value)
-    }
+/// Indicates jump direction for a relative jump
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JumpDirection {
+    Forward,
+    Backward,
 }
 
 /// Represents a relative jump offset from the current instruction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RelativeJump {
     pub index: u32,
+    pub direction: JumpDirection,
 }
 
 impl RelativeJump {
-    pub fn new(index: u32) -> Self {
-        RelativeJump { index }
-    }
-}
-
-impl From<u32> for RelativeJump {
-    fn from(value: u32) -> Self {
-        RelativeJump { index: value }
+    pub fn new(index: u32, direction: JumpDirection) -> Self {
+        RelativeJump { index, direction }
     }
 }
 
@@ -520,6 +498,175 @@ pub struct ConstIndex {
 impl ConstIndex {
     pub fn get<'a>(&self, co_consts: &'a [Constant]) -> Option<&'a Constant> {
         co_consts.get(self.index as usize)
+    }
+}
+
+/// All binary operations that can be passed as an argument
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinaryOperation {
+    Add = 0,
+    And = 1,
+    FloorDivide = 2,
+    Lshift = 3,
+    MatrixMultiply = 4,
+    Multiply = 5,
+    Remainder = 6,
+    Or = 7,
+    Power = 8,
+    Rshift = 9,
+    Subtract = 10,
+    TrueDivide = 11,
+    Xor = 12,
+    InplaceAdd = 13,
+    InplaceAnd = 14,
+    InplaceFloorDivide = 15,
+    InplaceLshift = 16,
+    InplaceMatrixMultiply = 17,
+    InplaceMultiply = 18,
+    InplaceRemainder = 19,
+    InplaceOr = 20,
+    InplacePower = 21,
+    InplaceRshift = 22,
+    InplaceSubtract = 23,
+    InplaceTrueDivide = 24,
+    InplaceXor = 25,
+    Subscr = 26,
+    Invalid(u32),
+}
+
+impl From<u32> for BinaryOperation {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::Add,
+            1 => Self::And,
+            2 => Self::FloorDivide,
+            3 => Self::Lshift,
+            4 => Self::MatrixMultiply,
+            5 => Self::Multiply,
+            6 => Self::Remainder,
+            7 => Self::Or,
+            8 => Self::Power,
+            9 => Self::Rshift,
+            10 => Self::Subtract,
+            11 => Self::TrueDivide,
+            12 => Self::Xor,
+            13 => Self::InplaceAdd,
+            14 => Self::InplaceAnd,
+            15 => Self::InplaceFloorDivide,
+            16 => Self::InplaceLshift,
+            17 => Self::InplaceMatrixMultiply,
+            18 => Self::InplaceMultiply,
+            19 => Self::InplaceRemainder,
+            20 => Self::InplaceOr,
+            21 => Self::InplacePower,
+            22 => Self::InplaceRshift,
+            23 => Self::InplaceSubtract,
+            24 => Self::InplaceTrueDivide,
+            25 => Self::InplaceXor,
+            26 => Self::Subscr,
+            v => Self::Invalid(v),
+        }
+    }
+}
+
+impl From<&BinaryOperation> for u32 {
+    fn from(val: &BinaryOperation) -> Self {
+        match val {
+            BinaryOperation::Add => 0,
+            BinaryOperation::And => 1,
+            BinaryOperation::FloorDivide => 2,
+            BinaryOperation::Lshift => 3,
+            BinaryOperation::MatrixMultiply => 4,
+            BinaryOperation::Multiply => 5,
+            BinaryOperation::Remainder => 6,
+            BinaryOperation::Or => 7,
+            BinaryOperation::Power => 8,
+            BinaryOperation::Rshift => 9,
+            BinaryOperation::Subtract => 10,
+            BinaryOperation::TrueDivide => 11,
+            BinaryOperation::Xor => 12,
+            BinaryOperation::InplaceAdd => 13,
+            BinaryOperation::InplaceAnd => 14,
+            BinaryOperation::InplaceFloorDivide => 15,
+            BinaryOperation::InplaceLshift => 16,
+            BinaryOperation::InplaceMatrixMultiply => 17,
+            BinaryOperation::InplaceMultiply => 18,
+            BinaryOperation::InplaceRemainder => 19,
+            BinaryOperation::InplaceOr => 20,
+            BinaryOperation::InplacePower => 21,
+            BinaryOperation::InplaceRshift => 22,
+            BinaryOperation::InplaceSubtract => 23,
+            BinaryOperation::InplaceTrueDivide => 24,
+            BinaryOperation::InplaceXor => 25,
+            BinaryOperation::Subscr => 26,
+            BinaryOperation::Invalid(v) => *v,
+        }
+    }
+}
+
+/// awaitable locations
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AwaitableWhere {
+    NoLocation,
+    AfterAenter,
+    AfterAexit,
+    Invalid(u32),
+}
+
+impl From<u32> for AwaitableWhere {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::NoLocation,
+            1 => Self::AfterAenter,
+            2 => Self::AfterAexit,
+            v => Self::Invalid(v),
+        }
+    }
+}
+
+impl From<&AwaitableWhere> for u32 {
+    fn from(val: &AwaitableWhere) -> Self {
+        match val {
+            AwaitableWhere::NoLocation => 0,
+            AwaitableWhere::AfterAenter => 1,
+            AwaitableWhere::AfterAexit => 2,
+            AwaitableWhere::Invalid(v) => *v,
+        }
+    }
+}
+
+/// resume locations. Used purely for internal tracing, debugging and optimization checks in the python runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResumeWhere {
+    StartFunction,
+    AfterYield,
+    AfterYieldFrom,
+    AfterAwait,
+    Invalid(u32),
+}
+
+impl From<u32> for ResumeWhere {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::StartFunction,
+            1 => Self::AfterYield,
+            2 => Self::AfterYieldFrom,
+            3 => Self::AfterAwait,
+            _ => Self::Invalid(value),
+        }
+    }
+}
+
+impl From<&ResumeWhere> for u32 {
+    fn from(val: &ResumeWhere) -> Self {
+        match val {
+            ResumeWhere::StartFunction => 0,
+            ResumeWhere::AfterYield => 1,
+            ResumeWhere::AfterYieldFrom => 2,
+            ResumeWhere::AfterAwait => 3,
+            ResumeWhere::Invalid(v) => *v,
+        }
     }
 }
 
@@ -837,11 +984,11 @@ impl From<u32> for SliceCount {
 }
 
 impl From<&SliceCount> for u32 {
-    fn from(value: &SliceCount) -> Self {
-        match value {
+    fn from(val: &SliceCount) -> Self {
+        match val {
             SliceCount::Two => 2,
             SliceCount::Three => 3,
-            SliceCount::Invalid(value) => *value,
+            SliceCount::Invalid(v) => *v,
         }
     }
 }

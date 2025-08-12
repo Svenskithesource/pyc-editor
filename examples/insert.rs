@@ -30,6 +30,7 @@ fn main() {
 
             pyc.code_object.code = resolved.to_instructions();
         }
+        _ => {}
     }
 
     dbg!(&pyc_file); // Addition is changed to subtraction

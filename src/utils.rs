@@ -17,21 +17,28 @@ macro_rules! define_opcodes {
             $name:ident = $value:expr
         ),* $(,)?
     ) => {
-        #[repr(u8)]
         #[allow(non_camel_case_types)]
         #[allow(clippy::upper_case_acronyms)]
         #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum Opcode {
-            $( $name = $value ),*,
-            INVALID_OPCODE,
+            $( $name ),*,
+            INVALID_OPCODE(u8),
         }
 
-        impl TryFrom<u8> for Opcode {
-            type Error = $crate::error::Error;
-            fn try_from(value: u8) -> Result<Self, Self::Error> {
+        impl From<u8> for Opcode {
+            fn from(value: u8) -> Self {
                 match value {
-                    $( $value => Ok(Opcode::$name), )*
-                    _ => Err(Self::Error::UnkownOpcode(value)),
+                    $( $value => Opcode::$name, )*
+                    _ => Opcode::INVALID_OPCODE(value),
+                }
+            }
+        }
+
+        impl From<Opcode> for u8 {
+            fn from(value: Opcode) -> Self {
+                match value {
+                    $( Opcode::$name => $value , )*
+                    Opcode::INVALID_OPCODE(value) => value,
                 }
             }
         }
@@ -42,7 +49,7 @@ macro_rules! define_opcodes {
                     $(
                         Opcode::$name => define_opcodes!(@instruction $name, value.1),
                     )*
-                    Opcode::INVALID_OPCODE => Instruction::InvalidOpcode(value.1),
+                    Opcode::INVALID_OPCODE(opcode) => Instruction::InvalidOpcode((opcode, value.1)),
                 }
             }
         }
@@ -53,23 +60,15 @@ macro_rules! define_opcodes {
                     $(
                         define_opcodes!(@instruction $name) => Opcode::$name ,
                     )*
-                    Instruction::InvalidOpcode(_) => Opcode::INVALID_OPCODE,
+                    Instruction::InvalidOpcode((opcode, _)) => Opcode::INVALID_OPCODE(*opcode),
                 }
             }
         }
     };
 
-    // Special cases that don't follow the automatic camel case conversion
-    (@instruction CALL_FUNCTION_KW, $val:expr) => { Instruction::CallFunctionKW($val) };
-    (@instruction CALL_FUNCTION_EX, $val:expr) => { Instruction::CallFunctionEx($val) };
-
     (@instruction $variant:ident, $val:expr) => {
         paste! { Instruction::[<$variant:camel>]($val) }
     };
-
-    // Special cases that don't follow the automatic camel case conversion
-    (@instruction CALL_FUNCTION_KW) => { Instruction::CallFunctionKW(_) };
-    (@instruction CALL_FUNCTION_EX) => { Instruction::CallFunctionEx(_) };
 
     (@instruction $variant:ident) => {
         paste! { Instruction::[<$variant:camel>](_) }

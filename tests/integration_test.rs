@@ -5,14 +5,50 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pyc_editor::{
-    dump_pyc, load_pyc,
-    v310::{code_objects::Constant, instructions::get_line_number},
-};
+use pyc_editor::{dump_pyc, load_pyc, v310, v311};
 
 use crate::common::DATA_PATH;
 
 mod common;
+
+/// Macro to generate version-specific code object handling
+macro_rules! handle_code_object_versions {
+    ($code:expr, $handler:ident) => {
+        match $code {
+            pyc_editor::CodeObject::V310(code) => {
+                $handler!(V310, v310, code)
+            }
+            pyc_editor::CodeObject::V311(code) => {
+                $handler!(V311, v311, code)
+            }
+        }
+    };
+}
+
+/// Macro to generate version-specific PYC file handling
+macro_rules! handle_pyc_versions {
+    ($pyc:expr, $handler:ident) => {
+        match $pyc {
+            pyc_editor::PycFile::V310(ref mut pyc) => {
+                $handler!(V310, v310, pyc)
+            }
+            pyc_editor::PycFile::V311(ref mut pyc) => {
+                $handler!(V311, v311, pyc)
+            }
+        }
+    };
+    // Variant for immutable references
+    ($pyc:expr, $handler:ident, immutable) => {
+        match $pyc {
+            pyc_editor::PycFile::V310(ref pyc) => {
+                $handler!(V310, v310, pyc)
+            }
+            pyc_editor::PycFile::V311(ref pyc) => {
+                $handler!(V311, v311, pyc)
+            }
+        }
+    };
+}
 
 static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
 
@@ -23,11 +59,11 @@ fn test_recompile_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.par_iter().for_each(|pyc_file| {
+        pyc_files.iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
@@ -63,11 +99,11 @@ fn test_recompile_resolved_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.par_iter().for_each(|pyc_file| {
+        pyc_files.iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
@@ -84,21 +120,48 @@ fn test_recompile_resolved_standard_lib() {
 
             let mut parsed_pyc = load_pyc(reader).unwrap();
 
-            fn rewrite_code_object(code: &mut pyc_editor::v310::code_objects::Code) {
-                code.code = code.code.to_resolved().to_instructions();
+            fn rewrite_code_object(code: &pyc_editor::CodeObject) -> pyc_editor::CodeObject {
+                macro_rules! rewrite_version {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        let mut code = $code.clone();
+                        code.code = code.code.to_resolved().to_instructions();
 
-                for constant in &mut code.consts {
-                    if let Constant::CodeObject(ref mut const_code) = constant {
-                        rewrite_code_object(const_code);
+                        for constant in &mut code.consts {
+                            if let $module::code_objects::Constant::CodeObject(ref mut const_code) =
+                                constant
+                            {
+                                let new_const_code = rewrite_code_object(
+                                    &pyc_editor::CodeObject::$variant(const_code.clone()),
+                                );
+
+                                if let pyc_editor::CodeObject::$variant(inner_const_code) =
+                                    new_const_code
+                                {
+                                    *const_code = inner_const_code;
+                                }
+                            }
+                        }
+
+                        pyc_editor::CodeObject::$variant(code)
+                    }};
+                }
+
+                handle_code_object_versions!(code, rewrite_version)
+            }
+
+            macro_rules! rewrite_pyc {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    let new_code = rewrite_code_object(&pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    ));
+
+                    if let pyc_editor::CodeObject::$variant(inner_code) = new_code {
+                        $pyc.code_object = inner_code;
                     }
-                }
+                }};
             }
 
-            match parsed_pyc {
-                pyc_editor::PycFile::V310(ref mut pyc) => {
-                    rewrite_code_object(&mut pyc.code_object);
-                }
-            }
+            handle_pyc_versions!(parsed_pyc, rewrite_pyc);
 
             let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
 
@@ -129,26 +192,40 @@ fn test_line_number_standard_lib() {
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
 
-            let mut parsed_pyc = load_pyc(reader).unwrap();
+            let parsed_pyc = load_pyc(reader).unwrap();
 
-            fn recursive_code_object(code: &mut pyc_editor::v310::code_objects::Code) {
-                let co_lines = code.co_lines().unwrap();
-                for index in 0..code.code.len() {
-                    get_line_number(&co_lines, index as u32);
+            fn recursive_code_object(code: &pyc_editor::CodeObject) {
+                macro_rules! recursive_version {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        let co_lines = $code.co_lines().unwrap();
+                        for index in 0..$code.code.len() {
+                            $module::instructions::get_line_number(&co_lines, index as u32);
+                        }
+
+                        for constant in &$code.consts {
+                            if let $module::code_objects::Constant::CodeObject(ref const_code) =
+                                constant
+                            {
+                                recursive_code_object(&pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ));
+                            }
+                        }
+                    }};
                 }
 
-                for constant in &mut code.consts {
-                    if let Constant::CodeObject(ref mut const_code) = constant {
-                        recursive_code_object(const_code);
-                    }
-                }
+                handle_code_object_versions!(code, recursive_version);
             }
 
-            match parsed_pyc {
-                pyc_editor::PycFile::V310(ref mut pyc) => {
-                    recursive_code_object(&mut pyc.code_object);
-                }
+            macro_rules! call_recursive {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    recursive_code_object(&pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    ));
+                }};
             }
+
+            handle_pyc_versions!(parsed_pyc, call_recursive, immutable);
         });
     });
 }

@@ -13,7 +13,7 @@ use crate::{
         code_objects::{
             AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
             GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
-            Reraise, VarNameIndex,
+            Reraise, SliceCount, VarNameIndex,
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,
@@ -139,7 +139,7 @@ pub enum ExtInstruction {
     RaiseVarargs(RaiseForms),
     CallFunction(u32),
     MakeFunction(MakeFunctionFlags),
-    BuildSlice(u32),
+    BuildSlice(SliceCount),
     LoadClosure(ClosureRefIndex),
     LoadDeref(ClosureRefIndex),
     StoreDeref(ClosureRefIndex),
@@ -163,7 +163,7 @@ pub enum ExtInstruction {
     SetUpdate(u32),
     DictMerge(u32),
     DictUpdate(u32),
-    InvalidOpcode(UnusedArgument),
+    InvalidOpcode((u8, UnusedArgument)), // u8 is the opcode number
 }
 
 /// A list of resolved instructions (extended_arg is resolved)
@@ -819,13 +819,15 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::MAKE_FUNCTION => {
                 ExtInstruction::MakeFunction(MakeFunctionFlags::from_bits_retain(value.1))
             }
-            Opcode::BUILD_SLICE => ExtInstruction::BuildSlice(value.1),
+            Opcode::BUILD_SLICE => ExtInstruction::BuildSlice(value.1.into()),
             Opcode::FORMAT_VALUE => ExtInstruction::FormatValue(value.1.into()),
             Opcode::MATCH_CLASS => ExtInstruction::MatchClass(value.1),
             Opcode::GEN_START => ExtInstruction::GenStart(value.1.into()),
             Opcode::ROT_N => ExtInstruction::RotN(value.1),
             Opcode::EXTENDED_ARG => return Err(Error::InvalidConversion),
-            Opcode::INVALID_OPCODE => ExtInstruction::InvalidOpcode(value.1.into()),
+            Opcode::INVALID_OPCODE(opcode) => {
+                ExtInstruction::InvalidOpcode((opcode, value.1.into()))
+            }
         })
     }
 }
@@ -962,7 +964,7 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::MatchClass(_) => Opcode::MATCH_CLASS,
             ExtInstruction::GenStart(_) => Opcode::GEN_START,
             ExtInstruction::RotN(_) => Opcode::ROT_N,
-            ExtInstruction::InvalidOpcode(_) => Opcode::INVALID_OPCODE,
+            ExtInstruction::InvalidOpcode((opcode, _)) => Opcode::INVALID_OPCODE(*opcode),
         }
     }
 
@@ -1032,7 +1034,7 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::YieldValue(unused_arg)
             | ExtInstruction::PopBlock(unused_arg)
             | ExtInstruction::PopExcept(unused_arg)
-            | ExtInstruction::InvalidOpcode(unused_arg) => unused_arg.0,
+            | ExtInstruction::InvalidOpcode((_, unused_arg)) => unused_arg.0,
             ExtInstruction::StoreName(name_index)
             | ExtInstruction::DeleteName(name_index)
             | ExtInstruction::StoreAttr(name_index)
@@ -1053,7 +1055,6 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::BuildSet(n)
             | ExtInstruction::BuildMap(n)
             | ExtInstruction::CallFunction(n)
-            | ExtInstruction::BuildSlice(n)
             | ExtInstruction::CallFunctionKW(n)
             | ExtInstruction::ListAppend(n)
             | ExtInstruction::SetAdd(n)
@@ -1066,6 +1067,7 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::SetUpdate(n)
             | ExtInstruction::DictUpdate(n)
             | ExtInstruction::DictMerge(n) => *n,
+            ExtInstruction::BuildSlice(slice) => Into::<u32>::into(slice),
             ExtInstruction::ForIter(jump)
             | ExtInstruction::JumpForward(jump)
             | ExtInstruction::SetupFinally(jump)

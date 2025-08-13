@@ -633,6 +633,41 @@ pub enum BinaryOperation {
     Invalid(u32),
 }
 
+impl std::fmt::Display for BinaryOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOperation::Add => write!(f, "+"),
+            BinaryOperation::And => write!(f, "&"),
+            BinaryOperation::FloorDivide => write!(f, "//"),
+            BinaryOperation::Lshift => write!(f, "<<"),
+            BinaryOperation::MatrixMultiply => write!(f, "@"),
+            BinaryOperation::Multiply => write!(f, "*"),
+            BinaryOperation::Remainder => write!(f, "%"),
+            BinaryOperation::Or => write!(f, "|"),
+            BinaryOperation::Power => write!(f, "**"),
+            BinaryOperation::Rshift => write!(f, ">>"),
+            BinaryOperation::Subtract => write!(f, "-"),
+            BinaryOperation::TrueDivide => write!(f, "/"),
+            BinaryOperation::Xor => write!(f, "^"),
+            BinaryOperation::InplaceAdd => write!(f, "+="),
+            BinaryOperation::InplaceAnd => write!(f, "&="),
+            BinaryOperation::InplaceFloorDivide => write!(f, "//="),
+            BinaryOperation::InplaceLshift => write!(f, "<<="),
+            BinaryOperation::InplaceMatrixMultiply => write!(f, "@="),
+            BinaryOperation::InplaceMultiply => write!(f, "*="),
+            BinaryOperation::InplaceRemainder => write!(f, "%="),
+            BinaryOperation::InplaceOr => write!(f, "|="),
+            BinaryOperation::InplacePower => write!(f, "**="),
+            BinaryOperation::InplaceRshift => write!(f, ">>="),
+            BinaryOperation::InplaceSubtract => write!(f, "-="),
+            BinaryOperation::InplaceTrueDivide => write!(f, "/="),
+            BinaryOperation::InplaceXor => write!(f, "^="),
+            BinaryOperation::Subscr => write!(f, "[]"),
+            BinaryOperation::Invalid(v) => write!(f, "Invalid({})", v),
+        }
+    }
+}
+
 impl From<u32> for BinaryOperation {
     fn from(value: u32) -> Self {
         match value {

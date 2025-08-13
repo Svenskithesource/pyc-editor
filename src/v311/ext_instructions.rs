@@ -12,8 +12,9 @@ use crate::{
     v311::{
         code_objects::{
             AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex, CompareOperation,
-            ConstIndex, FormatFlag, Jump, JumpDirection, MakeFunctionFlags, NameIndex, OpInversion,
-            RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount, VarNameIndex,
+            ConstIndex, FormatFlag, GlobalNameIndex, Jump, JumpDirection, MakeFunctionFlags,
+            NameIndex, OpInversion, RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount,
+            VarNameIndex,
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,
@@ -97,7 +98,7 @@ pub enum ExtInstruction {
     JumpIfTrueOrPop(RelativeJump),
     PopJumpForwardIfFalse(RelativeJump),
     PopJumpForwardIfTrue(RelativeJump),
-    LoadGlobal(NameIndex),
+    LoadGlobal(GlobalNameIndex),
     IsOp(OpInversion),
     ContainsOp(OpInversion),
     Reraise(Reraise),
@@ -842,7 +843,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
                     direction: JumpDirection::Forward,
                 })
             }
-            Opcode::LOAD_GLOBAL => ExtInstruction::LoadGlobal(NameIndex { index: value.1 }),
+            Opcode::LOAD_GLOBAL => ExtInstruction::LoadGlobal(GlobalNameIndex { index: value.1 }),
             Opcode::IS_OP => ExtInstruction::IsOp(value.1.into()),
             Opcode::CONTAINS_OP => ExtInstruction::ContainsOp(value.1.into()),
             Opcode::RERAISE => ExtInstruction::Reraise(value.1.into()),
@@ -1276,8 +1277,8 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::StoreGlobal(name_index)
             | ExtInstruction::DeleteGlobal(name_index)
             | ExtInstruction::LoadAttr(name_index)
-            | ExtInstruction::LoadGlobal(name_index)
             | ExtInstruction::LoadMethod(name_index) => name_index.index,
+            ExtInstruction::LoadGlobal(global_name_index) => global_name_index.index,
             ExtInstruction::UnpackSequence(n)
             | ExtInstruction::UnpackEx(n)
             | ExtInstruction::Swap(n)

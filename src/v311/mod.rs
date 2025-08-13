@@ -8,17 +8,16 @@ mod tests {
     use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
     use python_marshal::{CodeFlags, PyString};
 
+    use crate::v311;
     use crate::v311::code_objects::CompareOperation::Equal;
     use crate::v311::code_objects::{
-        AbsoluteJump, Constant, FrozenConstant, JumpDirection, LinetableEntry, NameIndex,
-        RelativeJump,
+        Constant, FrozenConstant, JumpDirection, LinetableEntry, NameIndex, RelativeJump,
     };
     use crate::v311::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v311::instructions::{
         get_line_number, starts_line_number, Instruction, Instructions,
     };
     use crate::v311::opcodes::Opcode;
-    use crate::{load_code, v311};
     use crate::{load_pyc, prelude::*};
 
     use std::fs::File;

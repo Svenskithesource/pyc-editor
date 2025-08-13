@@ -569,10 +569,10 @@ pub struct NameIndex {
     pub index: u32,
 }
 
-impl NameIndex {
-    pub fn get<'a>(&self, co_names: &'a [PyString]) -> Option<&'a PyString> {
-        co_names.get(self.index as usize)
-    }
+/// Holds an index into co_names. LOAD_GLOBAL is a special case where it will look for (index >> 1). Has helper functions to get the actual PyString of the name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GlobalNameIndex {
+    pub index: u32,
 }
 
 /// Holds an index into co_varnames. Has helper functions to get the actual PyString of the name.

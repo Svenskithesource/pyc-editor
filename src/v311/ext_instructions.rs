@@ -283,7 +283,7 @@ impl ExtInstructions {
                     let arg = *arg as u32 | extended_arg;
                     relative_jump_indexes.insert(
                         Interval::new(
-                            std::ops::Bound::Excluded(index as u32 - arg - 1),
+                            std::ops::Bound::Excluded(index as u32 - arg + 1),
                             std::ops::Bound::Excluded(index as u32),
                         ),
                         arg,
@@ -344,7 +344,7 @@ impl ExtInstructions {
                 | Instruction::PopJumpBackwardIfFalse(arg)
                 | Instruction::PopJumpBackwardIfTrue(arg) => {
                     let interval = Interval::new(
-                        std::ops::Bound::Excluded(index as u32 - (*arg as u32 | extended_arg) - 1),
+                        std::ops::Bound::Excluded(index as u32 - (*arg as u32 | extended_arg) + 1),
                         std::ops::Bound::Excluded(index as u32),
                     );
 
@@ -519,7 +519,7 @@ impl ExtInstructions {
                 index: jump_index,
                 direction: JumpDirection::Backward,
             }) => {
-                let index = index - jump_index - 1;
+                let index = index - jump_index + 1;
                 self.0
                     .get(index as usize)
                     .cloned()
@@ -553,29 +553,36 @@ impl ExtInstructions {
             | ExtInstruction::PopJumpForwardIfTrue(jump)
             | ExtInstruction::Send(jump)
             | ExtInstruction::PopJumpForwardIfNotNone(jump)
-            | ExtInstruction::PopJumpForwardIfNone(jump) => match jump {
+            | ExtInstruction::PopJumpForwardIfNone(jump)
+            | ExtInstruction::JumpBackwardNoInterrupt(jump)
+            | ExtInstruction::JumpBackward(jump)
+            | ExtInstruction::JumpBackwardQuick(jump)
+            | ExtInstruction::PopJumpBackwardIfNotNone(jump)
+            | ExtInstruction::PopJumpBackwardIfNone(jump)
+            | ExtInstruction::PopJumpBackwardIfFalse(jump)
+            | ExtInstruction::PopJumpBackwardIfTrue(jump) => match jump {
                 RelativeJump {
-                    index: _,
+                    index,
                     direction: JumpDirection::Forward,
                 } => {
                     relative_jump_indexes.insert(
                         Interval::new(
                             std::ops::Bound::Excluded(idx as u32),
-                            std::ops::Bound::Excluded(idx as u32 + jump.index + 1),
+                            std::ops::Bound::Excluded(idx as u32 + index + 1),
                         ),
-                        jump.index,
+                        *index,
                     );
                 }
                 RelativeJump {
-                    index: _,
+                    index,
                     direction: JumpDirection::Backward,
                 } => {
                     relative_jump_indexes.insert(
                         Interval::new(
-                            std::ops::Bound::Excluded(idx as u32 - jump.index - 1),
+                            std::ops::Bound::Excluded(idx as u32 - index + 1),
                             std::ops::Bound::Excluded(idx as u32),
                         ),
-                        jump.index,
+                        *index,
                     );
                 }
             },
@@ -624,7 +631,14 @@ impl ExtInstructions {
                     | ExtInstruction::PopJumpForwardIfTrue(jump)
                     | ExtInstruction::Send(jump)
                     | ExtInstruction::PopJumpForwardIfNotNone(jump)
-                    | ExtInstruction::PopJumpForwardIfNone(jump) => {
+                    | ExtInstruction::PopJumpForwardIfNone(jump)
+                    | ExtInstruction::JumpBackwardNoInterrupt(jump)
+                    | ExtInstruction::JumpBackward(jump)
+                    | ExtInstruction::JumpBackwardQuick(jump)
+                    | ExtInstruction::PopJumpBackwardIfNotNone(jump)
+                    | ExtInstruction::PopJumpBackwardIfNone(jump)
+                    | ExtInstruction::PopJumpBackwardIfFalse(jump)
+                    | ExtInstruction::PopJumpBackwardIfTrue(jump) => {
                         let interval = match jump {
                             RelativeJump {
                                 index: _,
@@ -637,7 +651,7 @@ impl ExtInstructions {
                                 index: _,
                                 direction: JumpDirection::Backward,
                             } => Interval::new(
-                                std::ops::Bound::Excluded(index as u32 - jump.index - 1),
+                                std::ops::Bound::Excluded(index as u32 - jump.index + 1),
                                 std::ops::Bound::Excluded(index as u32),
                             ),
                         };
@@ -675,7 +689,14 @@ impl ExtInstructions {
                 | ExtInstruction::PopJumpForwardIfTrue(jump)
                 | ExtInstruction::Send(jump)
                 | ExtInstruction::PopJumpForwardIfNotNone(jump)
-                | ExtInstruction::PopJumpForwardIfNone(jump) => {
+                | ExtInstruction::PopJumpForwardIfNone(jump)
+                | ExtInstruction::JumpBackwardNoInterrupt(jump)
+                | ExtInstruction::JumpBackward(jump)
+                | ExtInstruction::JumpBackwardQuick(jump)
+                | ExtInstruction::PopJumpBackwardIfNotNone(jump)
+                | ExtInstruction::PopJumpBackwardIfNone(jump)
+                | ExtInstruction::PopJumpBackwardIfFalse(jump)
+                | ExtInstruction::PopJumpBackwardIfTrue(jump) => {
                     let interval = match jump {
                         RelativeJump {
                             index: _,
@@ -688,7 +709,7 @@ impl ExtInstructions {
                             index: _,
                             direction: JumpDirection::Backward,
                         } => Interval::new(
-                            std::ops::Bound::Excluded(index as u32 - jump.index - 1),
+                            std::ops::Bound::Excluded(index as u32 - jump.index + 1),
                             std::ops::Bound::Excluded(index as u32),
                         ),
                     };

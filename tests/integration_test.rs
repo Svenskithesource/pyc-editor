@@ -59,11 +59,11 @@ fn test_recompile_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
@@ -99,11 +99,11 @@ fn test_recompile_resolved_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
@@ -182,11 +182,11 @@ fn test_line_number_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
 
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");

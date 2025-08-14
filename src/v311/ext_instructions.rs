@@ -283,7 +283,7 @@ impl ExtInstructions {
                     let arg = *arg as u32 | extended_arg;
                     relative_jump_indexes.insert(
                         Interval::new(
-                            std::ops::Bound::Excluded(index as u32 - arg + 1),
+                            std::ops::Bound::Included(index as u32 - arg + 1),
                             std::ops::Bound::Excluded(index as u32),
                         ),
                         arg,
@@ -344,7 +344,7 @@ impl ExtInstructions {
                 | Instruction::PopJumpBackwardIfFalse(arg)
                 | Instruction::PopJumpBackwardIfTrue(arg) => {
                     let interval = Interval::new(
-                        std::ops::Bound::Excluded(index as u32 - (*arg as u32 | extended_arg) + 1),
+                        std::ops::Bound::Included(index as u32 - (*arg as u32 | extended_arg) + 1),
                         std::ops::Bound::Excluded(index as u32),
                     );
 
@@ -579,8 +579,8 @@ impl ExtInstructions {
                 } => {
                     relative_jump_indexes.insert(
                         Interval::new(
-                            std::ops::Bound::Excluded(idx as u32 - index + 1),
-                            std::ops::Bound::Excluded(idx as u32),
+                            std::ops::Bound::Included(idx as u32 - index + 1),
+                            std::ops::Bound::Included(idx as u32),
                         ),
                         *index,
                     );
@@ -651,8 +651,8 @@ impl ExtInstructions {
                                 index: _,
                                 direction: JumpDirection::Backward,
                             } => Interval::new(
-                                std::ops::Bound::Excluded(index as u32 - jump.index + 1),
-                                std::ops::Bound::Excluded(index as u32),
+                                std::ops::Bound::Included(index as u32 - jump.index + 1),
+                                std::ops::Bound::Included(index as u32),
                             ),
                         };
 
@@ -709,8 +709,8 @@ impl ExtInstructions {
                             index: _,
                             direction: JumpDirection::Backward,
                         } => Interval::new(
-                            std::ops::Bound::Excluded(index as u32 - jump.index + 1),
-                            std::ops::Bound::Excluded(index as u32),
+                            std::ops::Bound::Included(index as u32 - jump.index + 1),
+                            std::ops::Bound::Included(index as u32),
                         ),
                     };
 

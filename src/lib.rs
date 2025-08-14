@@ -4,6 +4,7 @@ pub mod traits;
 mod utils;
 pub mod v310;
 pub mod v311;
+pub mod v312;
 
 use error::Error;
 use python_marshal::{self, magic::PyVersion, minimize_references};

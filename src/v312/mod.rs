@@ -49,7 +49,7 @@ mod tests {
             (Opcode::LOAD_NAME, 0).try_into().unwrap(),
             (Opcode::LOAD_CONST, 0).try_into().unwrap(),
             ExtInstruction::CompareOp(Equal),
-            (Opcode::POP_JUMP_FORWARD_IF_TRUE, 0).try_into().unwrap(), // Jump to load_name
+            (Opcode::POP_JUMP_IF_TRUE, 0).try_into().unwrap(), // Jump to load_name
             (Opcode::LOAD_NAME, 1).try_into().unwrap(),
             (Opcode::LOAD_NAME, 2).try_into().unwrap(),
             (Opcode::CALL, 1).try_into().unwrap(),

@@ -20,12 +20,17 @@ pub enum Instruction {
     Cache(u8),
     PopTop(u8),
     PushNull(u8),
+    InterpreterExit(u8),
+    EndFor(u8),
+    EndSend(u8),
     Nop(u8),
-    UnaryPositive(u8),
     UnaryNegative(u8),
     UnaryNot(u8),
     UnaryInvert(u8),
+    Reserved(u8),
     BinarySubscr(u8),
+    BinarySlice(u8),
+    StoreSlice(u8),
     GetLen(u8),
     MatchMapping(u8),
     MatchSequence(u8),
@@ -39,22 +44,19 @@ pub enum Instruction {
     BeforeAsyncWith(u8),
     BeforeWith(u8),
     EndAsyncFor(u8),
+    CleanupThrow(u8),
     StoreSubscr(u8),
     DeleteSubscr(u8),
     GetIter(u8),
     GetYieldFromIter(u8),
-    PrintExpr(u8),
     LoadBuildClass(u8),
     LoadAssertionError(u8),
     ReturnGenerator(u8),
-    ListToTuple(u8),
     ReturnValue(u8),
-    ImportStar(u8),
     SetupAnnotations(u8),
-    YieldValue(u8),
-    AsyncGenWrap(u8),
-    PrepReraiseStar(u8),
+    LoadLocals(u8),
     PopExcept(u8),
+    HaveArgument(u8),
     StoreName(u8),
     DeleteName(u8),
     UnpackSequence(u8),
@@ -76,22 +78,22 @@ pub enum Instruction {
     ImportName(u8),
     ImportFrom(u8),
     JumpForward(u8),
-    JumpIfFalseOrPop(u8),
-    JumpIfTrueOrPop(u8),
-    PopJumpForwardIfFalse(u8),
-    PopJumpForwardIfTrue(u8),
+    PopJumpIfFalse(u8),
+    PopJumpIfTrue(u8),
     LoadGlobal(u8),
     IsOp(u8),
     ContainsOp(u8),
     Reraise(u8),
     Copy(u8),
+    ReturnConst(u8),
     BinaryOp(u8),
     Send(u8),
     LoadFast(u8),
     StoreFast(u8),
     DeleteFast(u8),
-    PopJumpForwardIfNotNone(u8),
-    PopJumpForwardIfNone(u8),
+    LoadFastCheck(u8),
+    PopJumpIfNotNone(u8),
+    PopJumpIfNone(u8),
     RaiseVarargs(u8),
     GetAwaitable(u8),
     MakeFunction(u8),
@@ -103,31 +105,61 @@ pub enum Instruction {
     StoreDeref(u8),
     DeleteDeref(u8),
     JumpBackward(u8),
+    LoadSuperAttr(u8),
     CallFunctionEx(u8),
+    LoadFastAndClear(u8),
     ExtendedArg(u8),
     ListAppend(u8),
     SetAdd(u8),
     MapAdd(u8),
-    LoadClassderef(u8),
     CopyFreeVars(u8),
+    YieldValue(u8),
     Resume(u8),
     MatchClass(u8),
     FormatValue(u8),
     BuildConstKeyMap(u8),
     BuildString(u8),
-    LoadMethod(u8),
     ListExtend(u8),
     SetUpdate(u8),
     DictMerge(u8),
     DictUpdate(u8),
-    Precall(u8),
     Call(u8),
     KwNames(u8),
-    PopJumpBackwardIfNotNone(u8),
-    PopJumpBackwardIfNone(u8),
-    PopJumpBackwardIfFalse(u8),
-    PopJumpBackwardIfTrue(u8),
-    BinaryOpAdaptive(u8),
+    CallIntrinsic1(u8),
+    CallIntrinsic2(u8),
+    LoadFromDictOrGlobals(u8),
+    LoadFromDictOrDeref(u8),
+    InstrumentedLoadSuperAttr(u8),
+    InstrumentedPopJumpIfNone(u8),
+    InstrumentedPopJumpIfNotNone(u8),
+    InstrumentedResume(u8),
+    InstrumentedCall(u8),
+    InstrumentedReturnValue(u8),
+    InstrumentedYieldValue(u8),
+    InstrumentedCallFunctionEx(u8),
+    InstrumentedJumpForward(u8),
+    InstrumentedJumpBackward(u8),
+    InstrumentedReturnConst(u8),
+    InstrumentedForIter(u8),
+    InstrumentedPopJumpIfFalse(u8),
+    InstrumentedPopJumpIfTrue(u8),
+    InstrumentedEndFor(u8),
+    InstrumentedEndSend(u8),
+    InstrumentedInstruction(u8),
+    InstrumentedLine(u8),
+    MinPseudoOpcode(u8),
+    SetupFinally(u8),
+    SetupCleanup(u8),
+    SetupWith(u8),
+    PopBlock(u8),
+    Jump(u8),
+    JumpNoInterrupt(u8),
+    LoadMethod(u8),
+    LoadSuperMethod(u8),
+    LoadZeroSuperMethod(u8),
+    LoadZeroSuperAttr(u8),
+    StoreFastMaybeNull(u8),
+    MaxPseudoOpcode(u8),
     BinaryOpAddFloat(u8),
     BinaryOpAddInt(u8),
     BinaryOpAddUnicode(u8),
@@ -136,69 +168,62 @@ pub enum Instruction {
     BinaryOpMultiplyInt(u8),
     BinaryOpSubtractFloat(u8),
     BinaryOpSubtractInt(u8),
-    BinarySubscrAdaptive(u8),
     BinarySubscrDict(u8),
     BinarySubscrGetitem(u8),
     BinarySubscrListInt(u8),
     BinarySubscrTupleInt(u8),
-    CallAdaptive(u8),
     CallPyExactArgs(u8),
     CallPyWithDefaults(u8),
-    CompareOpAdaptive(u8),
-    CompareOpFloatJump(u8),
-    CompareOpIntJump(u8),
-    CompareOpStrJump(u8),
-    ExtendedArgQuick(u8),
-    JumpBackwardQuick(u8),
-    LoadAttrAdaptive(u8),
+    CallBoundMethodExactArgs(u8),
+    CallBuiltinClass(u8),
+    CallBuiltinFastWithKeywords(u8),
+    CallMethodDescriptorFastWithKeywords(u8),
+    CallNoKwBuiltinFast(u8),
+    CallNoKwBuiltinO(u8),
+    CallNoKwIsinstance(u8),
+    CallNoKwLen(u8),
+    CallNoKwListAppend(u8),
+    CallNoKwMethodDescriptorFast(u8),
+    CallNoKwMethodDescriptorNoargs(u8),
+    CallNoKwMethodDescriptorO(u8),
+    CallNoKwStr1(u8),
+    CallNoKwTuple1(u8),
+    CallNoKwType1(u8),
+    CompareOpFloat(u8),
+    CompareOpInt(u8),
+    CompareOpStr(u8),
+    ForIterList(u8),
+    ForIterTuple(u8),
+    ForIterRange(u8),
+    ForIterGen(u8),
+    LoadSuperAttrAttr(u8),
+    LoadSuperAttrMethod(u8),
+    LoadAttrClass(u8),
+    LoadAttrGetattributeOverridden(u8),
     LoadAttrInstanceValue(u8),
     LoadAttrModule(u8),
+    LoadAttrProperty(u8),
     LoadAttrSlot(u8),
     LoadAttrWithHint(u8),
+    LoadAttrMethodLazyDict(u8),
+    LoadAttrMethodNoDict(u8),
+    LoadAttrMethodWithValues(u8),
     LoadConstLoadFast(u8),
     LoadFastLoadConst(u8),
     LoadFastLoadFast(u8),
-    LoadGlobalAdaptive(u8),
     LoadGlobalBuiltin(u8),
     LoadGlobalModule(u8),
-    LoadMethodAdaptive(u8),
-    LoadMethodClass(u8),
-    LoadMethodModule(u8),
-    LoadMethodNoDict(u8),
-    LoadMethodWithDict(u8),
-    LoadMethodWithValues(u8),
-    PrecallAdaptive(u8),
-    PrecallBoundMethod(u8),
-    PrecallBuiltinClass(u8),
-    PrecallBuiltinFastWithKeywords(u8),
-    PrecallMethodDescriptorFastWithKeywords(u8),
-    PrecallNoKwBuiltinFast(u8),
-    PrecallNoKwBuiltinO(u8),
-    PrecallNoKwIsinstance(u8),
-    PrecallNoKwLen(u8),
-    PrecallNoKwListAppend(u8),
-    PrecallNoKwMethodDescriptorFast(u8),
-    PrecallNoKwMethodDescriptorNoargs(u8),
-    PrecallNoKwMethodDescriptorO(u8),
-    PrecallNoKwStr1(u8),
-    PrecallNoKwTuple1(u8),
-    PrecallNoKwType1(u8),
-    PrecallPyfunc(u8),
-    ResumeQuick(u8),
-    StoreAttrAdaptive(u8),
     StoreAttrInstanceValue(u8),
     StoreAttrSlot(u8),
     StoreAttrWithHint(u8),
     StoreFastLoadFast(u8),
     StoreFastStoreFast(u8),
-    StoreSubscrAdaptive(u8),
     StoreSubscrDict(u8),
     StoreSubscrListInt(u8),
-    UnpackSequenceAdaptive(u8),
     UnpackSequenceList(u8),
     UnpackSequenceTuple(u8),
     UnpackSequenceTwoTuple(u8),
-    DoTracing(u8),
+    SendGen(u8),
     InvalidOpcode((u8, u8)), // (opcode, arg)
 }
 
@@ -215,12 +240,17 @@ impl GenericInstruction for Instruction {
             Instruction::Cache(arg)
             | Instruction::PopTop(arg)
             | Instruction::PushNull(arg)
+            | Instruction::InterpreterExit(arg)
+            | Instruction::EndFor(arg)
+            | Instruction::EndSend(arg)
             | Instruction::Nop(arg)
-            | Instruction::UnaryPositive(arg)
             | Instruction::UnaryNegative(arg)
             | Instruction::UnaryNot(arg)
             | Instruction::UnaryInvert(arg)
+            | Instruction::Reserved(arg)
             | Instruction::BinarySubscr(arg)
+            | Instruction::BinarySlice(arg)
+            | Instruction::StoreSlice(arg)
             | Instruction::GetLen(arg)
             | Instruction::MatchMapping(arg)
             | Instruction::MatchSequence(arg)
@@ -234,22 +264,19 @@ impl GenericInstruction for Instruction {
             | Instruction::BeforeAsyncWith(arg)
             | Instruction::BeforeWith(arg)
             | Instruction::EndAsyncFor(arg)
+            | Instruction::CleanupThrow(arg)
             | Instruction::StoreSubscr(arg)
             | Instruction::DeleteSubscr(arg)
             | Instruction::GetIter(arg)
             | Instruction::GetYieldFromIter(arg)
-            | Instruction::PrintExpr(arg)
             | Instruction::LoadBuildClass(arg)
             | Instruction::LoadAssertionError(arg)
             | Instruction::ReturnGenerator(arg)
-            | Instruction::ListToTuple(arg)
             | Instruction::ReturnValue(arg)
-            | Instruction::ImportStar(arg)
             | Instruction::SetupAnnotations(arg)
-            | Instruction::YieldValue(arg)
-            | Instruction::AsyncGenWrap(arg)
-            | Instruction::PrepReraiseStar(arg)
+            | Instruction::LoadLocals(arg)
             | Instruction::PopExcept(arg)
+            | Instruction::HaveArgument(arg)
             | Instruction::StoreName(arg)
             | Instruction::DeleteName(arg)
             | Instruction::UnpackSequence(arg)
@@ -271,22 +298,22 @@ impl GenericInstruction for Instruction {
             | Instruction::ImportName(arg)
             | Instruction::ImportFrom(arg)
             | Instruction::JumpForward(arg)
-            | Instruction::JumpIfFalseOrPop(arg)
-            | Instruction::JumpIfTrueOrPop(arg)
-            | Instruction::PopJumpForwardIfFalse(arg)
-            | Instruction::PopJumpForwardIfTrue(arg)
+            | Instruction::PopJumpIfFalse(arg)
+            | Instruction::PopJumpIfTrue(arg)
             | Instruction::LoadGlobal(arg)
             | Instruction::IsOp(arg)
             | Instruction::ContainsOp(arg)
             | Instruction::Reraise(arg)
             | Instruction::Copy(arg)
+            | Instruction::ReturnConst(arg)
             | Instruction::BinaryOp(arg)
             | Instruction::Send(arg)
             | Instruction::LoadFast(arg)
             | Instruction::StoreFast(arg)
             | Instruction::DeleteFast(arg)
-            | Instruction::PopJumpForwardIfNotNone(arg)
-            | Instruction::PopJumpForwardIfNone(arg)
+            | Instruction::LoadFastCheck(arg)
+            | Instruction::PopJumpIfNotNone(arg)
+            | Instruction::PopJumpIfNone(arg)
             | Instruction::RaiseVarargs(arg)
             | Instruction::GetAwaitable(arg)
             | Instruction::MakeFunction(arg)
@@ -298,31 +325,61 @@ impl GenericInstruction for Instruction {
             | Instruction::StoreDeref(arg)
             | Instruction::DeleteDeref(arg)
             | Instruction::JumpBackward(arg)
+            | Instruction::LoadSuperAttr(arg)
             | Instruction::CallFunctionEx(arg)
+            | Instruction::LoadFastAndClear(arg)
             | Instruction::ExtendedArg(arg)
             | Instruction::ListAppend(arg)
             | Instruction::SetAdd(arg)
             | Instruction::MapAdd(arg)
-            | Instruction::LoadClassderef(arg)
             | Instruction::CopyFreeVars(arg)
+            | Instruction::YieldValue(arg)
             | Instruction::Resume(arg)
             | Instruction::MatchClass(arg)
             | Instruction::FormatValue(arg)
             | Instruction::BuildConstKeyMap(arg)
             | Instruction::BuildString(arg)
-            | Instruction::LoadMethod(arg)
             | Instruction::ListExtend(arg)
             | Instruction::SetUpdate(arg)
             | Instruction::DictMerge(arg)
             | Instruction::DictUpdate(arg)
-            | Instruction::Precall(arg)
             | Instruction::Call(arg)
             | Instruction::KwNames(arg)
-            | Instruction::PopJumpBackwardIfNotNone(arg)
-            | Instruction::PopJumpBackwardIfNone(arg)
-            | Instruction::PopJumpBackwardIfFalse(arg)
-            | Instruction::PopJumpBackwardIfTrue(arg)
-            | Instruction::BinaryOpAdaptive(arg)
+            | Instruction::CallIntrinsic1(arg)
+            | Instruction::CallIntrinsic2(arg)
+            | Instruction::LoadFromDictOrGlobals(arg)
+            | Instruction::LoadFromDictOrDeref(arg)
+            | Instruction::InstrumentedLoadSuperAttr(arg)
+            | Instruction::InstrumentedPopJumpIfNone(arg)
+            | Instruction::InstrumentedPopJumpIfNotNone(arg)
+            | Instruction::InstrumentedResume(arg)
+            | Instruction::InstrumentedCall(arg)
+            | Instruction::InstrumentedReturnValue(arg)
+            | Instruction::InstrumentedYieldValue(arg)
+            | Instruction::InstrumentedCallFunctionEx(arg)
+            | Instruction::InstrumentedJumpForward(arg)
+            | Instruction::InstrumentedJumpBackward(arg)
+            | Instruction::InstrumentedReturnConst(arg)
+            | Instruction::InstrumentedForIter(arg)
+            | Instruction::InstrumentedPopJumpIfFalse(arg)
+            | Instruction::InstrumentedPopJumpIfTrue(arg)
+            | Instruction::InstrumentedEndFor(arg)
+            | Instruction::InstrumentedEndSend(arg)
+            | Instruction::InstrumentedInstruction(arg)
+            | Instruction::InstrumentedLine(arg)
+            | Instruction::MinPseudoOpcode(arg)
+            | Instruction::SetupFinally(arg)
+            | Instruction::SetupCleanup(arg)
+            | Instruction::SetupWith(arg)
+            | Instruction::PopBlock(arg)
+            | Instruction::Jump(arg)
+            | Instruction::JumpNoInterrupt(arg)
+            | Instruction::LoadMethod(arg)
+            | Instruction::LoadSuperMethod(arg)
+            | Instruction::LoadZeroSuperMethod(arg)
+            | Instruction::LoadZeroSuperAttr(arg)
+            | Instruction::StoreFastMaybeNull(arg)
+            | Instruction::MaxPseudoOpcode(arg)
             | Instruction::BinaryOpAddFloat(arg)
             | Instruction::BinaryOpAddInt(arg)
             | Instruction::BinaryOpAddUnicode(arg)
@@ -331,69 +388,62 @@ impl GenericInstruction for Instruction {
             | Instruction::BinaryOpMultiplyInt(arg)
             | Instruction::BinaryOpSubtractFloat(arg)
             | Instruction::BinaryOpSubtractInt(arg)
-            | Instruction::BinarySubscrAdaptive(arg)
             | Instruction::BinarySubscrDict(arg)
             | Instruction::BinarySubscrGetitem(arg)
             | Instruction::BinarySubscrListInt(arg)
             | Instruction::BinarySubscrTupleInt(arg)
-            | Instruction::CallAdaptive(arg)
             | Instruction::CallPyExactArgs(arg)
             | Instruction::CallPyWithDefaults(arg)
-            | Instruction::CompareOpAdaptive(arg)
-            | Instruction::CompareOpFloatJump(arg)
-            | Instruction::CompareOpIntJump(arg)
-            | Instruction::CompareOpStrJump(arg)
-            | Instruction::ExtendedArgQuick(arg)
-            | Instruction::JumpBackwardQuick(arg)
-            | Instruction::LoadAttrAdaptive(arg)
+            | Instruction::CallBoundMethodExactArgs(arg)
+            | Instruction::CallBuiltinClass(arg)
+            | Instruction::CallBuiltinFastWithKeywords(arg)
+            | Instruction::CallMethodDescriptorFastWithKeywords(arg)
+            | Instruction::CallNoKwBuiltinFast(arg)
+            | Instruction::CallNoKwBuiltinO(arg)
+            | Instruction::CallNoKwIsinstance(arg)
+            | Instruction::CallNoKwLen(arg)
+            | Instruction::CallNoKwListAppend(arg)
+            | Instruction::CallNoKwMethodDescriptorFast(arg)
+            | Instruction::CallNoKwMethodDescriptorNoargs(arg)
+            | Instruction::CallNoKwMethodDescriptorO(arg)
+            | Instruction::CallNoKwStr1(arg)
+            | Instruction::CallNoKwTuple1(arg)
+            | Instruction::CallNoKwType1(arg)
+            | Instruction::CompareOpFloat(arg)
+            | Instruction::CompareOpInt(arg)
+            | Instruction::CompareOpStr(arg)
+            | Instruction::ForIterList(arg)
+            | Instruction::ForIterTuple(arg)
+            | Instruction::ForIterRange(arg)
+            | Instruction::ForIterGen(arg)
+            | Instruction::LoadSuperAttrAttr(arg)
+            | Instruction::LoadSuperAttrMethod(arg)
+            | Instruction::LoadAttrClass(arg)
+            | Instruction::LoadAttrGetattributeOverridden(arg)
             | Instruction::LoadAttrInstanceValue(arg)
             | Instruction::LoadAttrModule(arg)
+            | Instruction::LoadAttrProperty(arg)
             | Instruction::LoadAttrSlot(arg)
             | Instruction::LoadAttrWithHint(arg)
+            | Instruction::LoadAttrMethodLazyDict(arg)
+            | Instruction::LoadAttrMethodNoDict(arg)
+            | Instruction::LoadAttrMethodWithValues(arg)
             | Instruction::LoadConstLoadFast(arg)
             | Instruction::LoadFastLoadConst(arg)
             | Instruction::LoadFastLoadFast(arg)
-            | Instruction::LoadGlobalAdaptive(arg)
             | Instruction::LoadGlobalBuiltin(arg)
             | Instruction::LoadGlobalModule(arg)
-            | Instruction::LoadMethodAdaptive(arg)
-            | Instruction::LoadMethodClass(arg)
-            | Instruction::LoadMethodModule(arg)
-            | Instruction::LoadMethodNoDict(arg)
-            | Instruction::LoadMethodWithDict(arg)
-            | Instruction::LoadMethodWithValues(arg)
-            | Instruction::PrecallAdaptive(arg)
-            | Instruction::PrecallBoundMethod(arg)
-            | Instruction::PrecallBuiltinClass(arg)
-            | Instruction::PrecallBuiltinFastWithKeywords(arg)
-            | Instruction::PrecallMethodDescriptorFastWithKeywords(arg)
-            | Instruction::PrecallNoKwBuiltinFast(arg)
-            | Instruction::PrecallNoKwBuiltinO(arg)
-            | Instruction::PrecallNoKwIsinstance(arg)
-            | Instruction::PrecallNoKwLen(arg)
-            | Instruction::PrecallNoKwListAppend(arg)
-            | Instruction::PrecallNoKwMethodDescriptorFast(arg)
-            | Instruction::PrecallNoKwMethodDescriptorNoargs(arg)
-            | Instruction::PrecallNoKwMethodDescriptorO(arg)
-            | Instruction::PrecallNoKwStr1(arg)
-            | Instruction::PrecallNoKwTuple1(arg)
-            | Instruction::PrecallNoKwType1(arg)
-            | Instruction::PrecallPyfunc(arg)
-            | Instruction::ResumeQuick(arg)
-            | Instruction::StoreAttrAdaptive(arg)
             | Instruction::StoreAttrInstanceValue(arg)
             | Instruction::StoreAttrSlot(arg)
             | Instruction::StoreAttrWithHint(arg)
             | Instruction::StoreFastLoadFast(arg)
             | Instruction::StoreFastStoreFast(arg)
-            | Instruction::StoreSubscrAdaptive(arg)
             | Instruction::StoreSubscrDict(arg)
             | Instruction::StoreSubscrListInt(arg)
-            | Instruction::UnpackSequenceAdaptive(arg)
             | Instruction::UnpackSequenceList(arg)
             | Instruction::UnpackSequenceTuple(arg)
             | Instruction::UnpackSequenceTwoTuple(arg)
-            | Instruction::DoTracing(arg) => *arg,
+            | Instruction::SendGen(arg) => *arg,
             Instruction::InvalidOpcode((_, arg)) => *arg,
         }
     }
@@ -472,13 +522,11 @@ impl Instructions {
             let jump: Jump = match instruction {
                 Instruction::ForIter(_)
                 | Instruction::JumpForward(_)
-                | Instruction::JumpIfFalseOrPop(_)
-                | Instruction::JumpIfTrueOrPop(_)
-                | Instruction::PopJumpForwardIfFalse(_)
-                | Instruction::PopJumpForwardIfTrue(_)
+                | Instruction::PopJumpIfFalse(_)
+                | Instruction::PopJumpIfTrue(_)
                 | Instruction::Send(_)
-                | Instruction::PopJumpForwardIfNotNone(_)
-                | Instruction::PopJumpForwardIfNone(_) => {
+                | Instruction::PopJumpIfNotNone(_)
+                | Instruction::PopJumpIfNone(_) => {
                     let arg = self.get_full_arg(index);
 
                     let arg = match arg {
@@ -491,12 +539,7 @@ impl Instructions {
                         direction: JumpDirection::Forward,
                     })
                 }
-                Instruction::JumpBackwardNoInterrupt(_)
-                | Instruction::JumpBackward(_)
-                | Instruction::PopJumpBackwardIfNotNone(_)
-                | Instruction::PopJumpBackwardIfNone(_)
-                | Instruction::PopJumpBackwardIfFalse(_)
-                | Instruction::PopJumpBackwardIfTrue(_) => {
+                Instruction::JumpBackwardNoInterrupt(_) | Instruction::JumpBackward(_) => {
                     let arg = self.get_full_arg(index);
 
                     let arg = match arg {

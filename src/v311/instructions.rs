@@ -493,6 +493,7 @@ impl Instructions {
                 }
                 Instruction::JumpBackwardNoInterrupt(_)
                 | Instruction::JumpBackward(_)
+                | Instruction::JumpBackwardQuick(_)
                 | Instruction::PopJumpBackwardIfNotNone(_)
                 | Instruction::PopJumpBackwardIfNone(_)
                 | Instruction::PopJumpBackwardIfFalse(_)

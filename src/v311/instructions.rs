@@ -539,7 +539,7 @@ impl Instructions {
                 index: jump_index,
                 direction: JumpDirection::Backward,
             }) => {
-                let index = index - jump_index - 1;
+                let index = index - jump_index + 1;
                 self.0
                     .get(index as usize)
                     .cloned()

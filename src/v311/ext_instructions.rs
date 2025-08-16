@@ -122,7 +122,7 @@ pub enum ExtInstruction {
     DeleteDeref(ClosureRefIndex),
     JumpBackward(RelativeJump),
     CallFunctionEx(CallExFlags),
-    // Extended arg is ommited in the resolved instruction
+    // Extended arg is ommited in the resolved instructions
     ListAppend(u32),
     SetAdd(u32),
     MapAdd(u32),

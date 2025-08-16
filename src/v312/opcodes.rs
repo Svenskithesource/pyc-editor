@@ -46,7 +46,6 @@ define_opcodes!(
     SETUP_ANNOTATIONS = 85,
     LOAD_LOCALS = 87,
     POP_EXCEPT = 89,
-    HAVE_ARGUMENT = 90,
     STORE_NAME = 90,
     DELETE_NAME = 91,
     UNPACK_SEQUENCE = 92,
@@ -119,7 +118,6 @@ define_opcodes!(
     CALL_INTRINSIC_2 = 174,
     LOAD_FROM_DICT_OR_GLOBALS = 175,
     LOAD_FROM_DICT_OR_DEREF = 176,
-    
     // Specialized ops
     INSTRUMENTED_LOAD_SUPER_ATTR = 237,
     INSTRUMENTED_POP_JUMP_IF_NONE = 238,
@@ -139,19 +137,20 @@ define_opcodes!(
     INSTRUMENTED_END_SEND = 252,
     INSTRUMENTED_INSTRUCTION = 253,
     INSTRUMENTED_LINE = 254,
-    MIN_PSEUDO_OPCODE = 256,
-    SETUP_FINALLY = 256,
-    SETUP_CLEANUP = 257,
-    SETUP_WITH = 258,
-    POP_BLOCK = 259,
-    JUMP = 260,
-    JUMP_NO_INTERRUPT = 261,
-    LOAD_METHOD = 262,
-    LOAD_SUPER_METHOD = 263,
-    LOAD_ZERO_SUPER_METHOD = 264,
-    LOAD_ZERO_SUPER_ATTR = 265,
-    STORE_FAST_MAYBE_NULL = 266,
-    MAX_PSEUDO_OPCODE = 266,
+    // We skip psuedo opcodes as they can never appear in actual bytecode
+    // MIN_PSEUDO_OPCODE = 256,
+    // SETUP_FINALLY = 256,
+    // SETUP_CLEANUP = 257,
+    // SETUP_WITH = 258,
+    // POP_BLOCK = 259,
+    // JUMP = 260,
+    // JUMP_NO_INTERRUPT = 261,
+    // LOAD_METHOD = 262,
+    // LOAD_SUPER_METHOD = 263,
+    // LOAD_ZERO_SUPER_METHOD = 264,
+    // LOAD_ZERO_SUPER_ATTR = 265,
+    // STORE_FAST_MAYBE_NULL = 266,
+    // MAX_PSEUDO_OPCODE = 266,
     BINARY_OP_ADD_FLOAT = 6,
     BINARY_OP_ADD_INT = 7,
     BINARY_OP_ADD_UNICODE = 8,
@@ -237,6 +236,17 @@ impl GenericOpcode for Opcode {
                 | Opcode::POP_JUMP_IF_NONE
                 | Opcode::JUMP_BACKWARD_NO_INTERRUPT
                 | Opcode::JUMP_BACKWARD
+                | Opcode::FOR_ITER_RANGE
+                | Opcode::FOR_ITER_LIST
+                | Opcode::FOR_ITER_GEN
+                | Opcode::FOR_ITER_TUPLE
+                | Opcode::INSTRUMENTED_FOR_ITER
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_NONE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_NOT_NONE
+                | Opcode::INSTRUMENTED_JUMP_FORWARD
+                | Opcode::INSTRUMENTED_JUMP_BACKWARD
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_FALSE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_TRUE
         )
     }
 

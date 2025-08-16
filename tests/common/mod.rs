@@ -16,11 +16,11 @@ pub const PYTHON_VERSIONS: &[PyVersion] = &[
         minor: 11,
         patch: 1,
     },
-    // PyVersion {
-    //     major: 3,
-    //     minor: 12,
-    //     patch: 1,
-    // },
+    PyVersion {
+        major: 3,
+        minor: 12,
+        patch: 1,
+    },
     // PyVersion {
     //     major: 3,
     //     minor: 13,

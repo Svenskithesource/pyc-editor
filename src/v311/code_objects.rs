@@ -803,45 +803,10 @@ impl From<&ResumeWhere> for u32 {
     }
 }
 
-/// Represents a resolved reference to a variable in the cell or free variable storage.
+/// Represents a resolved reference to a variable in the "fast locals" storage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClosureRefIndex {
     pub index: u32,
-}
-
-/// Represents a resolved reference to a variable in the cell or free variable storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ClosureRef {
-    /// Index into `co_cellvars`.
-    /// These are variables created in the current scope that will be used by nested scopes.
-    Cell {
-        /// The index into the `co_cellvars` list.
-        index: u32,
-    },
-    /// Index into `co_freevars`.
-    /// These are variables used in the current scope that were created in an enclosing scope.
-    Free {
-        /// The index into the `co_freevars` list.
-        index: u32,
-    },
-
-    Invalid(u32),
-}
-
-impl ClosureRefIndex {
-    pub fn into_closure_ref(&self, cellvars: &[PyString], freevars: &[PyString]) -> ClosureRef {
-        let cell_len = cellvars.len() as u32;
-        if self.index < cell_len {
-            ClosureRef::Cell { index: self.index }
-        } else {
-            let free_index = self.index - cell_len;
-            if (free_index as usize) < freevars.len() {
-                ClosureRef::Free { index: free_index }
-            } else {
-                ClosureRef::Invalid(self.index)
-            }
-        }
-    }
 }
 
 /// Used to represent the different comparison operations for COMPARE_OP

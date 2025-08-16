@@ -56,7 +56,6 @@ pub enum Instruction {
     SetupAnnotations(u8),
     LoadLocals(u8),
     PopExcept(u8),
-    HaveArgument(u8),
     StoreName(u8),
     DeleteName(u8),
     UnpackSequence(u8),
@@ -147,19 +146,20 @@ pub enum Instruction {
     InstrumentedEndSend(u8),
     InstrumentedInstruction(u8),
     InstrumentedLine(u8),
-    MinPseudoOpcode(u8),
-    SetupFinally(u8),
-    SetupCleanup(u8),
-    SetupWith(u8),
-    PopBlock(u8),
-    Jump(u8),
-    JumpNoInterrupt(u8),
-    LoadMethod(u8),
-    LoadSuperMethod(u8),
-    LoadZeroSuperMethod(u8),
-    LoadZeroSuperAttr(u8),
-    StoreFastMaybeNull(u8),
-    MaxPseudoOpcode(u8),
+    // We skip psuedo opcodes as they can never appear in actual bytecode
+    // MinPseudoOpcode(u8),
+    // SetupFinally(u8),
+    // SetupCleanup(u8),
+    // SetupWith(u8),
+    // PopBlock(u8),
+    // Jump(u8),
+    // JumpNoInterrupt(u8),
+    // LoadMethod(u8),
+    // LoadSuperMethod(u8),
+    // LoadZeroSuperMethod(u8),
+    // LoadZeroSuperAttr(u8),
+    // StoreFastMaybeNull(u8),
+    // MaxPseudoOpcode(u8),
     BinaryOpAddFloat(u8),
     BinaryOpAddInt(u8),
     BinaryOpAddUnicode(u8),
@@ -276,7 +276,6 @@ impl GenericInstruction for Instruction {
             | Instruction::SetupAnnotations(arg)
             | Instruction::LoadLocals(arg)
             | Instruction::PopExcept(arg)
-            | Instruction::HaveArgument(arg)
             | Instruction::StoreName(arg)
             | Instruction::DeleteName(arg)
             | Instruction::UnpackSequence(arg)

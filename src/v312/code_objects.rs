@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 
+use displaydoc::Display;
 use hashable::HashableHashSet;
 use indexmap::IndexSet;
 use num_bigint::BigInt;
@@ -569,6 +570,12 @@ pub struct NameIndex {
     pub index: u32,
 }
 
+/// Holds an index into co_names. LOAD_ATTR is a special case where it will look for (index >> 1). Has helper functions to get the actual PyString of the name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AttrNameIndex {
+    pub index: u32,
+}
+
 /// Holds an index into co_names. LOAD_GLOBAL is a special case where it will look for (index >> 1). Has helper functions to get the actual PyString of the name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalNameIndex {
@@ -597,6 +604,13 @@ impl ConstIndex {
     pub fn get<'a>(&self, co_consts: &'a [Constant]) -> Option<&'a Constant> {
         co_consts.get(self.index as usize)
     }
+}
+
+/// Holds a dynamic index. This means the index can be used in different lists depending on the situation.
+/// Example: LOAD_FROM_DICT_OR_GLOBALS where it looks up the value in co_names. If the name is not found there, looks it up in the globals and then the builtins, similar to LOAD_GLOBAL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DynamicIndex {
+    pub index: u32,
 }
 
 /// All binary operations that can be passed as an argument
@@ -738,6 +752,113 @@ impl From<&BinaryOperation> for u32 {
     }
 }
 
+/// Intrinsic_1 call functions
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+pub enum Intrinsic1Functions {
+    /// Prints the argument to standard out. Used in the REPL.
+    Print = 1,
+    /// Performs import * for the named module.
+    ImportStar = 2,
+    /// Extracts the return value from a StopIteration exception.
+    StopiterationError = 3,
+    /// Wraps an async generator value
+    AsyncGenWrap = 4,
+    /// Performs the unary + operation
+    UnaryPositive = 5,
+    /// Converts a list to a tuple
+    ListToTuple = 6,
+    /// Creates a typing.TypeVar
+    TypeVar = 7,
+    /// Creates a typing.ParamSpec
+    ParamSpec = 8,
+    /// Creates a typing.TypeVarTuple
+    TypeVarTuple = 9,
+    /// Returns typing.Generic subscripted with the argument
+    SubscriptGeneric = 10,
+    /// Creates a typing.TypeAliasType; used in the type statement. The argument is a tuple of the type alias’s name, type parameters, and value.
+    TypeAlias = 11,
+    /// Invalid oparg
+    Invalid(u32),
+}
+
+impl From<u32> for Intrinsic1Functions {
+    fn from(value: u32) -> Self {
+        match value {
+            1 => Self::Print,
+            2 => Self::ImportStar,
+            3 => Self::StopiterationError,
+            4 => Self::AsyncGenWrap,
+            5 => Self::UnaryPositive,
+            6 => Self::ListToTuple,
+            7 => Self::TypeVar,
+            8 => Self::ParamSpec,
+            9 => Self::TypeVarTuple,
+            10 => Self::SubscriptGeneric,
+            11 => Self::TypeAlias,
+            v => Self::Invalid(v),
+        }
+    }
+}
+
+impl From<&Intrinsic1Functions> for u32 {
+    fn from(val: &Intrinsic1Functions) -> Self {
+        match val {
+            Intrinsic1Functions::Print => 1,
+            Intrinsic1Functions::ImportStar => 2,
+            Intrinsic1Functions::StopiterationError => 3,
+            Intrinsic1Functions::AsyncGenWrap => 4,
+            Intrinsic1Functions::UnaryPositive => 5,
+            Intrinsic1Functions::ListToTuple => 6,
+            Intrinsic1Functions::TypeVar => 7,
+            Intrinsic1Functions::ParamSpec => 8,
+            Intrinsic1Functions::TypeVarTuple => 9,
+            Intrinsic1Functions::SubscriptGeneric => 10,
+            Intrinsic1Functions::TypeAlias => 11,
+            Intrinsic1Functions::Invalid(v) => *v,
+        }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+pub enum Intrinsic2Functions {
+    /// Calculates the ExceptionGroup to raise from a try-except*.
+    PrepReraiseStar = 1,
+    /// Creates a typing.TypeVar with a bound.
+    TypeVarWithBound = 2,
+    /// Creates a typing.TypeVar with constraints.
+    TypeVarWithConstraints = 3,
+    /// Sets the __type_params__ attribute of a function.
+    SetFunctionTypeParams = 4,
+    /// Invalid({0})
+    Invalid(u32),
+}
+
+impl From<u32> for Intrinsic2Functions {
+    fn from(value: u32) -> Self {
+        match value {
+            1 => Self::PrepReraiseStar,
+            2 => Self::TypeVarWithBound,
+            3 => Self::TypeVarWithConstraints,
+            4 => Self::SetFunctionTypeParams,
+            v => Self::Invalid(v),
+        }
+    }
+}
+
+impl From<&Intrinsic2Functions> for u32 {
+    fn from(val: &Intrinsic2Functions) -> Self {
+        match val {
+            Intrinsic2Functions::PrepReraiseStar => 1,
+            Intrinsic2Functions::TypeVarWithBound => 2,
+            Intrinsic2Functions::TypeVarWithConstraints => 3,
+            Intrinsic2Functions::SetFunctionTypeParams => 4,
+            Intrinsic2Functions::Invalid(v) => *v,
+        }
+    }
+}
+
 /// awaitable locations
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AwaitableWhere {
@@ -803,45 +924,10 @@ impl From<&ResumeWhere> for u32 {
     }
 }
 
-/// Represents a resolved reference to a variable in the cell or free variable storage.
+/// Represents a resolved reference to a variable in the "fast locals" storage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClosureRefIndex {
     pub index: u32,
-}
-
-/// Represents a resolved reference to a variable in the cell or free variable storage.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ClosureRef {
-    /// Index into `co_cellvars`.
-    /// These are variables created in the current scope that will be used by nested scopes.
-    Cell {
-        /// The index into the `co_cellvars` list.
-        index: u32,
-    },
-    /// Index into `co_freevars`.
-    /// These are variables used in the current scope that were created in an enclosing scope.
-    Free {
-        /// The index into the `co_freevars` list.
-        index: u32,
-    },
-
-    Invalid(u32),
-}
-
-impl ClosureRefIndex {
-    pub fn into_closure_ref(&self, cellvars: &[PyString], freevars: &[PyString]) -> ClosureRef {
-        let cell_len = cellvars.len() as u32;
-        if self.index < cell_len {
-            ClosureRef::Cell { index: self.index }
-        } else {
-            let free_index = self.index - cell_len;
-            if (free_index as usize) < freevars.len() {
-                ClosureRef::Free { index: free_index }
-            } else {
-                ClosureRef::Invalid(self.index)
-            }
-        }
-    }
 }
 
 /// Used to represent the different comparison operations for COMPARE_OP

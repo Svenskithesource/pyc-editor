@@ -487,7 +487,7 @@ impl From<u32> for AbsoluteJump {
     }
 }
 
-/// Holds an index into co_names. Has helper functions to get the actual PyString of the name.
+/// Holds an index into co_names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NameIndex {
     pub index: u32,
@@ -499,7 +499,7 @@ impl NameIndex {
     }
 }
 
-/// Holds an index into co_varnames. Has helper functions to get the actual PyString of the name.
+/// Holds an index into co_varnames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VarNameIndex {
     pub index: u32,

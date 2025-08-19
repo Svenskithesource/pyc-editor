@@ -7,6 +7,7 @@ use crate::{
     error::Error,
     traits::{GenericInstruction, InstructionAccess},
     v312::{
+        cache::get_cache_count,
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},
         ext_instructions::ExtInstructions,
         opcodes::Opcode,
@@ -366,19 +367,19 @@ impl GenericInstruction for Instruction {
             | Instruction::InstrumentedEndSend(arg)
             | Instruction::InstrumentedInstruction(arg)
             | Instruction::InstrumentedLine(arg)
-            | Instruction::MinPseudoOpcode(arg)
-            | Instruction::SetupFinally(arg)
-            | Instruction::SetupCleanup(arg)
-            | Instruction::SetupWith(arg)
-            | Instruction::PopBlock(arg)
-            | Instruction::Jump(arg)
-            | Instruction::JumpNoInterrupt(arg)
-            | Instruction::LoadMethod(arg)
-            | Instruction::LoadSuperMethod(arg)
-            | Instruction::LoadZeroSuperMethod(arg)
-            | Instruction::LoadZeroSuperAttr(arg)
-            | Instruction::StoreFastMaybeNull(arg)
-            | Instruction::MaxPseudoOpcode(arg)
+            // | Instruction::MinPseudoOpcode(arg)
+            // | Instruction::SetupFinally(arg)
+            // | Instruction::SetupCleanup(arg)
+            // | Instruction::SetupWith(arg)
+            // | Instruction::PopBlock(arg)
+            // | Instruction::Jump(arg)
+            // | Instruction::JumpNoInterrupt(arg)
+            // | Instruction::LoadMethod(arg)
+            // | Instruction::LoadSuperMethod(arg)
+            // | Instruction::LoadZeroSuperMethod(arg)
+            // | Instruction::LoadZeroSuperAttr(arg)
+            // | Instruction::StoreFastMaybeNull(arg)
+            // | Instruction::MaxPseudoOpcode(arg)
             | Instruction::BinaryOpAddFloat(arg)
             | Instruction::BinaryOpAddInt(arg)
             | Instruction::BinaryOpAddUnicode(arg)
@@ -446,6 +447,13 @@ impl GenericInstruction for Instruction {
             Instruction::InvalidOpcode((_, arg)) => *arg,
         }
     }
+}
+
+/// Resolves the actual index of the current jump instruction.
+/// In 3.12 the jump offsets are relative to the CACHE opcodes succeeding the jump instruction.
+/// They're calculated from the predefined cache layout. This does not guarantee the index is actually valid.
+pub fn get_real_jump_index(instructions: &[Instruction], index: usize) -> Option<usize> {
+    Some(index + get_cache_count(instructions.get(index)?.get_opcode()).unwrap_or(0))
 }
 
 /// A list of instructions

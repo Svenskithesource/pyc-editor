@@ -5,17 +5,19 @@ use std::{
 
 use store_interval_tree::{Interval, IntervalTree};
 
+use crate::v312::instructions;
 use crate::{
     error::Error,
     traits::{GenericInstruction, InstructionAccess},
     utils::get_extended_args_count,
     v312::{
+        cache::get_cache_count,
         code_objects::{
             AttrNameIndex, AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex,
             CompareOperation, ConstIndex, DynamicIndex, FormatFlag, GlobalNameIndex,
             Intrinsic1Functions, Intrinsic2Functions, Jump, JumpDirection, MakeFunctionFlags,
             NameIndex, OpInversion, RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount,
-            VarNameIndex,
+            SuperAttrNameIndex, VarNameIndex,
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,
@@ -39,14 +41,14 @@ pub enum ExtInstruction {
     Cache(UnusedArgument),
     PopTop(UnusedArgument),
     PushNull(UnusedArgument),
-    InterpreterExit(u8),
+    InterpreterExit(UnusedArgument),
     EndFor(UnusedArgument),
     EndSend(UnusedArgument),
     Nop(UnusedArgument),
     UnaryNegative(UnusedArgument),
     UnaryNot(UnusedArgument),
     UnaryInvert(UnusedArgument),
-    Reserved(u8),
+    Reserved(UnusedArgument),
     BinarySubscr(UnusedArgument),
     BinarySlice(UnusedArgument),
     StoreSlice(UnusedArgument),
@@ -123,7 +125,7 @@ pub enum ExtInstruction {
     StoreDeref(ClosureRefIndex),
     DeleteDeref(ClosureRefIndex),
     JumpBackward(RelativeJump),
-    LoadSuperAttr(u8),
+    LoadSuperAttr(SuperAttrNameIndex),
     CallFunctionEx(CallExFlags),
     LoadFastAndClear(VarNameIndex),
     // Extended arg is ommited in the resolved instructions
@@ -260,6 +262,13 @@ impl InstructionAccess for ExtInstructions {
     }
 }
 
+/// Resolves the actual index of the current jump instruction.
+/// In 3.12 the jump offsets are relative to the CACHE opcodes succeeding the jump instruction.
+/// They're calculated from the predefined cache layout. This does not guarantee the index is actually valid.
+pub fn get_real_jump_index(instructions: &[ExtInstruction], index: usize) -> Option<usize> {
+    Some(index + get_cache_count(instructions.get(index)?.get_opcode()).unwrap_or(0))
+}
+
 impl ExtInstructions {
     pub fn with_capacity(capacity: usize) -> Self {
         ExtInstructions(Vec::with_capacity(capacity))
@@ -276,21 +285,32 @@ impl ExtInstructions {
 
         for (index, instruction) in instructions.iter().enumerate() {
             match instruction {
-                Instruction::ExtendedArg(arg) | Instruction::ExtendedArgQuick(arg) => {
+                Instruction::ExtendedArg(arg) => {
                     let arg = *arg as u32 | extended_arg;
                     extended_arg = arg << 8;
                     continue;
                 }
                 Instruction::ForIter(arg)
                 | Instruction::JumpForward(arg)
-                | Instruction::JumpIfFalseOrPop(arg)
-                | Instruction::JumpIfTrueOrPop(arg)
-                | Instruction::PopJumpForwardIfFalse(arg)
-                | Instruction::PopJumpForwardIfTrue(arg)
+                | Instruction::PopJumpIfFalse(arg)
+                | Instruction::PopJumpIfTrue(arg)
                 | Instruction::Send(arg)
-                | Instruction::PopJumpForwardIfNotNone(arg)
-                | Instruction::PopJumpForwardIfNone(arg) => {
+                | Instruction::PopJumpIfNotNone(arg)
+                | Instruction::PopJumpIfNone(arg)
+                | Instruction::ForIterRange(arg)
+                | Instruction::ForIterList(arg)
+                | Instruction::ForIterGen(arg)
+                | Instruction::ForIterTuple(arg)
+                | Instruction::InstrumentedForIter(arg)
+                | Instruction::InstrumentedPopJumpIfNone(arg)
+                | Instruction::InstrumentedPopJumpIfNotNone(arg)
+                | Instruction::InstrumentedJumpForward(arg)
+                | Instruction::InstrumentedPopJumpIfFalse(arg)
+                | Instruction::InstrumentedPopJumpIfTrue(arg) => {
                     let arg = *arg as u32 | extended_arg;
+                    let index = instructions::get_real_jump_index(instructions, index)
+                        .expect("Index is always valid here");
+
                     relative_jump_indexes.insert(
                         Interval::new(
                             std::ops::Bound::Excluded(index as u32),
@@ -301,12 +321,11 @@ impl ExtInstructions {
                 }
                 Instruction::JumpBackwardNoInterrupt(arg)
                 | Instruction::JumpBackward(arg)
-                | Instruction::JumpBackwardQuick(arg)
-                | Instruction::PopJumpBackwardIfNotNone(arg)
-                | Instruction::PopJumpBackwardIfNone(arg)
-                | Instruction::PopJumpBackwardIfFalse(arg)
-                | Instruction::PopJumpBackwardIfTrue(arg) => {
+                | Instruction::InstrumentedJumpBackward(arg) => {
                     let arg = *arg as u32 | extended_arg;
+                    let index = instructions::get_real_jump_index(instructions, index)
+                        .expect("Index is always valid here");
+
                     relative_jump_indexes.insert(
                         Interval::new(
                             std::ops::Bound::Included(index as u32 - arg + 1),
@@ -323,7 +342,10 @@ impl ExtInstructions {
 
         for (index, instruction) in instructions.iter().enumerate() {
             match instruction {
-                Instruction::ExtendedArg(_) | Instruction::ExtendedArgQuick(_) => {
+                Instruction::ExtendedArg(_) => {
+                    let index = instructions::get_real_jump_index(instructions, index)
+                        .expect("Index is always valid here");
+
                     for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32))
                     {
                         *entry.value() -= 1
@@ -337,20 +359,31 @@ impl ExtInstructions {
 
         for (index, instruction) in instructions.iter().enumerate() {
             let arg = match instruction {
-                Instruction::ExtendedArg(arg) | Instruction::ExtendedArgQuick(arg) => {
+                Instruction::ExtendedArg(arg) => {
                     let arg = *arg as u32 | extended_arg;
                     extended_arg = arg << 8;
                     continue;
                 }
                 Instruction::ForIter(arg)
                 | Instruction::JumpForward(arg)
-                | Instruction::JumpIfFalseOrPop(arg)
-                | Instruction::JumpIfTrueOrPop(arg)
-                | Instruction::PopJumpForwardIfFalse(arg)
-                | Instruction::PopJumpForwardIfTrue(arg)
+                | Instruction::PopJumpIfFalse(arg)
+                | Instruction::PopJumpIfTrue(arg)
                 | Instruction::Send(arg)
-                | Instruction::PopJumpForwardIfNotNone(arg)
-                | Instruction::PopJumpForwardIfNone(arg) => {
+                | Instruction::PopJumpIfNotNone(arg)
+                | Instruction::PopJumpIfNone(arg)
+                | Instruction::ForIterRange(arg)
+                | Instruction::ForIterList(arg)
+                | Instruction::ForIterGen(arg)
+                | Instruction::ForIterTuple(arg)
+                | Instruction::InstrumentedForIter(arg)
+                | Instruction::InstrumentedPopJumpIfNone(arg)
+                | Instruction::InstrumentedPopJumpIfNotNone(arg)
+                | Instruction::InstrumentedJumpForward(arg)
+                | Instruction::InstrumentedPopJumpIfFalse(arg)
+                | Instruction::InstrumentedPopJumpIfTrue(arg) => {
+                    let index = instructions::get_real_jump_index(instructions, index)
+                        .expect("Index is always valid here");
+
                     let interval = Interval::new(
                         std::ops::Bound::Excluded(index as u32),
                         std::ops::Bound::Excluded(index as u32 + (*arg as u32 | extended_arg) + 1),
@@ -364,11 +397,10 @@ impl ExtInstructions {
                 }
                 Instruction::JumpBackwardNoInterrupt(arg)
                 | Instruction::JumpBackward(arg)
-                | Instruction::JumpBackwardQuick(arg)
-                | Instruction::PopJumpBackwardIfNotNone(arg)
-                | Instruction::PopJumpBackwardIfNone(arg)
-                | Instruction::PopJumpBackwardIfFalse(arg)
-                | Instruction::PopJumpBackwardIfTrue(arg) => {
+                | Instruction::InstrumentedJumpBackward(arg) => {
+                    let index = instructions::get_real_jump_index(instructions, index)
+                        .expect("Index is always valid here");
+
                     let interval = Interval::new(
                         std::ops::Bound::Included(index as u32 - (*arg as u32 | extended_arg) + 1),
                         std::ops::Bound::Excluded(index as u32),
@@ -419,13 +451,21 @@ impl ExtInstructions {
             match inst {
                 ExtInstruction::ForIter(jump)
                 | ExtInstruction::JumpForward(jump)
-                | ExtInstruction::JumpIfFalseOrPop(jump)
-                | ExtInstruction::JumpIfTrueOrPop(jump)
-                | ExtInstruction::PopJumpForwardIfFalse(jump)
-                | ExtInstruction::PopJumpForwardIfTrue(jump)
+                | ExtInstruction::PopJumpIfFalse(jump)
+                | ExtInstruction::PopJumpIfTrue(jump)
                 | ExtInstruction::Send(jump)
-                | ExtInstruction::PopJumpForwardIfNotNone(jump)
-                | ExtInstruction::PopJumpForwardIfNone(jump) => {
+                | ExtInstruction::PopJumpIfNotNone(jump)
+                | ExtInstruction::PopJumpIfNone(jump)
+                | ExtInstruction::ForIterRange(jump)
+                | ExtInstruction::ForIterList(jump)
+                | ExtInstruction::ForIterGen(jump)
+                | ExtInstruction::ForIterTuple(jump)
+                | ExtInstruction::InstrumentedForIter(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+                | ExtInstruction::InstrumentedJumpForward(jump)
+                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+                | ExtInstruction::InstrumentedPopJumpIfTrue(jump) => {
                     // Relative jumps only need to update if the index falls within it's jump range
                     if idx <= index && index + idx <= jump.index as usize {
                         jump.index -= 1
@@ -433,11 +473,7 @@ impl ExtInstructions {
                 }
                 ExtInstruction::JumpBackwardNoInterrupt(jump)
                 | ExtInstruction::JumpBackward(jump)
-                | ExtInstruction::JumpBackwardQuick(jump)
-                | ExtInstruction::PopJumpBackwardIfNotNone(jump)
-                | ExtInstruction::PopJumpBackwardIfNone(jump)
-                | ExtInstruction::PopJumpBackwardIfFalse(jump)
-                | ExtInstruction::PopJumpBackwardIfTrue(jump) => {
+                | ExtInstruction::InstrumentedJumpBackward(jump) => {
                     // Relative jumps only need to update if the index falls within it's jump range
                     if idx > index && index + idx >= jump.index as usize {
                         jump.index -= 1
@@ -463,13 +499,21 @@ impl ExtInstructions {
             match inst {
                 ExtInstruction::ForIter(jump)
                 | ExtInstruction::JumpForward(jump)
-                | ExtInstruction::JumpIfFalseOrPop(jump)
-                | ExtInstruction::JumpIfTrueOrPop(jump)
-                | ExtInstruction::PopJumpForwardIfFalse(jump)
-                | ExtInstruction::PopJumpForwardIfTrue(jump)
+                | ExtInstruction::PopJumpIfFalse(jump)
+                | ExtInstruction::PopJumpIfTrue(jump)
                 | ExtInstruction::Send(jump)
-                | ExtInstruction::PopJumpForwardIfNotNone(jump)
-                | ExtInstruction::PopJumpForwardIfNone(jump) => {
+                | ExtInstruction::PopJumpIfNotNone(jump)
+                | ExtInstruction::PopJumpIfNone(jump)
+                | ExtInstruction::ForIterRange(jump)
+                | ExtInstruction::ForIterList(jump)
+                | ExtInstruction::ForIterGen(jump)
+                | ExtInstruction::ForIterTuple(jump)
+                | ExtInstruction::InstrumentedForIter(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+                | ExtInstruction::InstrumentedJumpForward(jump)
+                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+                | ExtInstruction::InstrumentedPopJumpIfTrue(jump) => {
                     // Relative jumps only need to update if the index falls within it's jump range
                     if idx <= index && index + idx <= jump.index as usize {
                         jump.index += 1
@@ -477,11 +521,7 @@ impl ExtInstructions {
                 }
                 ExtInstruction::JumpBackwardNoInterrupt(jump)
                 | ExtInstruction::JumpBackward(jump)
-                | ExtInstruction::JumpBackwardQuick(jump)
-                | ExtInstruction::PopJumpBackwardIfNotNone(jump)
-                | ExtInstruction::PopJumpBackwardIfNone(jump)
-                | ExtInstruction::PopJumpBackwardIfFalse(jump)
-                | ExtInstruction::PopJumpBackwardIfTrue(jump) => {
+                | ExtInstruction::InstrumentedJumpBackward(jump) => {
                     // Relative jumps only need to update if the index falls within it's jump range
                     if idx > index && index + idx >= jump.index as usize {
                         jump.index += 1
@@ -501,20 +541,24 @@ impl ExtInstructions {
             let jump: Jump = match instruction {
                 ExtInstruction::ForIter(jump)
                 | ExtInstruction::JumpForward(jump)
-                | ExtInstruction::JumpIfFalseOrPop(jump)
-                | ExtInstruction::JumpIfTrueOrPop(jump)
-                | ExtInstruction::PopJumpForwardIfFalse(jump)
-                | ExtInstruction::PopJumpForwardIfTrue(jump)
+                | ExtInstruction::PopJumpIfFalse(jump)
+                | ExtInstruction::PopJumpIfTrue(jump)
                 | ExtInstruction::Send(jump)
-                | ExtInstruction::PopJumpForwardIfNotNone(jump)
-                | ExtInstruction::PopJumpForwardIfNone(jump)
+                | ExtInstruction::PopJumpIfNotNone(jump)
+                | ExtInstruction::PopJumpIfNone(jump)
+                | ExtInstruction::ForIterRange(jump)
+                | ExtInstruction::ForIterList(jump)
+                | ExtInstruction::ForIterGen(jump)
+                | ExtInstruction::ForIterTuple(jump)
+                | ExtInstruction::InstrumentedForIter(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+                | ExtInstruction::InstrumentedJumpForward(jump)
+                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+                | ExtInstruction::InstrumentedPopJumpIfTrue(jump)
                 | ExtInstruction::JumpBackwardNoInterrupt(jump)
                 | ExtInstruction::JumpBackward(jump)
-                | ExtInstruction::JumpBackwardQuick(jump)
-                | ExtInstruction::PopJumpBackwardIfNotNone(jump)
-                | ExtInstruction::PopJumpBackwardIfNone(jump)
-                | ExtInstruction::PopJumpBackwardIfFalse(jump)
-                | ExtInstruction::PopJumpBackwardIfTrue(jump) => (*jump).into(),
+                | ExtInstruction::InstrumentedJumpBackward(jump) => (*jump).into(),
                 _ => continue,
             };
 
@@ -573,24 +617,30 @@ impl ExtInstructions {
         self.iter().enumerate().for_each(|(idx, inst)| match inst {
             ExtInstruction::ForIter(jump)
             | ExtInstruction::JumpForward(jump)
-            | ExtInstruction::JumpIfFalseOrPop(jump)
-            | ExtInstruction::JumpIfTrueOrPop(jump)
-            | ExtInstruction::PopJumpForwardIfFalse(jump)
-            | ExtInstruction::PopJumpForwardIfTrue(jump)
+            | ExtInstruction::PopJumpIfFalse(jump)
+            | ExtInstruction::PopJumpIfTrue(jump)
             | ExtInstruction::Send(jump)
-            | ExtInstruction::PopJumpForwardIfNotNone(jump)
-            | ExtInstruction::PopJumpForwardIfNone(jump)
+            | ExtInstruction::PopJumpIfNotNone(jump)
+            | ExtInstruction::PopJumpIfNone(jump)
+            | ExtInstruction::ForIterRange(jump)
+            | ExtInstruction::ForIterList(jump)
+            | ExtInstruction::ForIterGen(jump)
+            | ExtInstruction::ForIterTuple(jump)
+            | ExtInstruction::InstrumentedForIter(jump)
+            | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+            | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+            | ExtInstruction::InstrumentedJumpForward(jump)
+            | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+            | ExtInstruction::InstrumentedPopJumpIfTrue(jump)
             | ExtInstruction::JumpBackwardNoInterrupt(jump)
             | ExtInstruction::JumpBackward(jump)
-            | ExtInstruction::JumpBackwardQuick(jump)
-            | ExtInstruction::PopJumpBackwardIfNotNone(jump)
-            | ExtInstruction::PopJumpBackwardIfNone(jump)
-            | ExtInstruction::PopJumpBackwardIfFalse(jump)
-            | ExtInstruction::PopJumpBackwardIfTrue(jump) => match jump {
+            | ExtInstruction::InstrumentedJumpBackward(jump) => match jump {
                 RelativeJump {
                     index,
                     direction: JumpDirection::Forward,
                 } => {
+                    let idx = get_real_jump_index(&self, idx).expect("Index is always valid here");
+
                     relative_jump_indexes.insert(
                         Interval::new(
                             std::ops::Bound::Excluded(idx as u32),
@@ -603,6 +653,8 @@ impl ExtInstructions {
                     index,
                     direction: JumpDirection::Backward,
                 } => {
+                    let idx = get_real_jump_index(&self, idx).expect("Index is always valid here");
+
                     relative_jump_indexes.insert(
                         Interval::new(
                             std::ops::Bound::Included(idx as u32 - index + 1),
@@ -626,6 +678,8 @@ impl ExtInstructions {
                 // Calculate how many extended args an instruction will need
                 let extended_arg_count = get_extended_args_count(arg) as u32;
 
+                let index = get_real_jump_index(&self, index).expect("Index is always valid here");
+
                 for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
                     let interval_clone = (*entry.interval()).clone();
                     let entry_value = entry.value();
@@ -648,23 +702,29 @@ impl ExtInstructions {
             relative_jumps_to_update.clear();
 
             for (index, instruction) in self.iter().enumerate() {
+                let index = get_real_jump_index(&self, index).expect("Index is always valid here");
+
                 let arg = match instruction {
                     ExtInstruction::ForIter(jump)
                     | ExtInstruction::JumpForward(jump)
-                    | ExtInstruction::JumpIfFalseOrPop(jump)
-                    | ExtInstruction::JumpIfTrueOrPop(jump)
-                    | ExtInstruction::PopJumpForwardIfFalse(jump)
-                    | ExtInstruction::PopJumpForwardIfTrue(jump)
+                    | ExtInstruction::PopJumpIfFalse(jump)
+                    | ExtInstruction::PopJumpIfTrue(jump)
                     | ExtInstruction::Send(jump)
-                    | ExtInstruction::PopJumpForwardIfNotNone(jump)
-                    | ExtInstruction::PopJumpForwardIfNone(jump)
+                    | ExtInstruction::PopJumpIfNotNone(jump)
+                    | ExtInstruction::PopJumpIfNone(jump)
+                    | ExtInstruction::ForIterRange(jump)
+                    | ExtInstruction::ForIterList(jump)
+                    | ExtInstruction::ForIterGen(jump)
+                    | ExtInstruction::ForIterTuple(jump)
+                    | ExtInstruction::InstrumentedForIter(jump)
+                    | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+                    | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+                    | ExtInstruction::InstrumentedJumpForward(jump)
+                    | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+                    | ExtInstruction::InstrumentedPopJumpIfTrue(jump)
                     | ExtInstruction::JumpBackwardNoInterrupt(jump)
                     | ExtInstruction::JumpBackward(jump)
-                    | ExtInstruction::JumpBackwardQuick(jump)
-                    | ExtInstruction::PopJumpBackwardIfNotNone(jump)
-                    | ExtInstruction::PopJumpBackwardIfNone(jump)
-                    | ExtInstruction::PopJumpBackwardIfFalse(jump)
-                    | ExtInstruction::PopJumpBackwardIfTrue(jump) => {
+                    | ExtInstruction::InstrumentedJumpBackward(jump) => {
                         let interval = match jump {
                             RelativeJump {
                                 index: _,
@@ -706,23 +766,29 @@ impl ExtInstructions {
         let mut instructions: Instructions = Instructions::with_capacity(self.0.len() * 2); // This will not be enough this as we dynamically generate EXTENDED_ARGS, but it's better than not reserving any length.
 
         for (index, instruction) in self.0.iter().enumerate() {
+            let index = get_real_jump_index(&self, index).expect("Index is always valid here");
+
             let arg = match instruction {
                 ExtInstruction::ForIter(jump)
                 | ExtInstruction::JumpForward(jump)
-                | ExtInstruction::JumpIfFalseOrPop(jump)
-                | ExtInstruction::JumpIfTrueOrPop(jump)
-                | ExtInstruction::PopJumpForwardIfFalse(jump)
-                | ExtInstruction::PopJumpForwardIfTrue(jump)
+                | ExtInstruction::PopJumpIfFalse(jump)
+                | ExtInstruction::PopJumpIfTrue(jump)
                 | ExtInstruction::Send(jump)
-                | ExtInstruction::PopJumpForwardIfNotNone(jump)
-                | ExtInstruction::PopJumpForwardIfNone(jump)
+                | ExtInstruction::PopJumpIfNotNone(jump)
+                | ExtInstruction::PopJumpIfNone(jump)
+                | ExtInstruction::ForIterRange(jump)
+                | ExtInstruction::ForIterList(jump)
+                | ExtInstruction::ForIterGen(jump)
+                | ExtInstruction::ForIterTuple(jump)
+                | ExtInstruction::InstrumentedForIter(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+                | ExtInstruction::InstrumentedJumpForward(jump)
+                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+                | ExtInstruction::InstrumentedPopJumpIfTrue(jump)
                 | ExtInstruction::JumpBackwardNoInterrupt(jump)
                 | ExtInstruction::JumpBackward(jump)
-                | ExtInstruction::JumpBackwardQuick(jump)
-                | ExtInstruction::PopJumpBackwardIfNotNone(jump)
-                | ExtInstruction::PopJumpBackwardIfNone(jump)
-                | ExtInstruction::PopJumpBackwardIfFalse(jump)
-                | ExtInstruction::PopJumpBackwardIfTrue(jump) => {
+                | ExtInstruction::InstrumentedJumpBackward(jump) => {
                     let interval = match jump {
                         RelativeJump {
                             index: _,
@@ -808,12 +874,17 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::CACHE => ExtInstruction::Cache(value.1.into()),
             Opcode::POP_TOP => ExtInstruction::PopTop(value.1.into()),
             Opcode::PUSH_NULL => ExtInstruction::PushNull(value.1.into()),
+            Opcode::INTERPRETER_EXIT => ExtInstruction::InterpreterExit(value.1.into()),
+            Opcode::END_FOR => ExtInstruction::EndFor(value.1.into()),
+            Opcode::END_SEND => ExtInstruction::EndSend(value.1.into()),
             Opcode::NOP => ExtInstruction::Nop(value.1.into()),
-            Opcode::UNARY_POSITIVE => ExtInstruction::UnaryPositive(value.1.into()),
             Opcode::UNARY_NEGATIVE => ExtInstruction::UnaryNegative(value.1.into()),
             Opcode::UNARY_NOT => ExtInstruction::UnaryNot(value.1.into()),
             Opcode::UNARY_INVERT => ExtInstruction::UnaryInvert(value.1.into()),
+            Opcode::RESERVED => ExtInstruction::Reserved(value.1.into()),
             Opcode::BINARY_SUBSCR => ExtInstruction::BinarySubscr(value.1.into()),
+            Opcode::BINARY_SLICE => ExtInstruction::BinarySlice(value.1.into()),
+            Opcode::STORE_SLICE => ExtInstruction::StoreSlice(value.1.into()),
             Opcode::GET_LEN => ExtInstruction::GetLen(value.1.into()),
             Opcode::MATCH_MAPPING => ExtInstruction::MatchMapping(value.1.into()),
             Opcode::MATCH_SEQUENCE => ExtInstruction::MatchSequence(value.1.into()),
@@ -827,94 +898,110 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::BEFORE_ASYNC_WITH => ExtInstruction::BeforeAsyncWith(value.1.into()),
             Opcode::BEFORE_WITH => ExtInstruction::BeforeWith(value.1.into()),
             Opcode::END_ASYNC_FOR => ExtInstruction::EndAsyncFor(value.1.into()),
+            Opcode::CLEANUP_THROW => ExtInstruction::CleanupThrow(value.1.into()),
             Opcode::STORE_SUBSCR => ExtInstruction::StoreSubscr(value.1.into()),
             Opcode::DELETE_SUBSCR => ExtInstruction::DeleteSubscr(value.1.into()),
             Opcode::GET_ITER => ExtInstruction::GetIter(value.1.into()),
             Opcode::GET_YIELD_FROM_ITER => ExtInstruction::GetYieldFromIter(value.1.into()),
-            Opcode::PRINT_EXPR => ExtInstruction::PrintExpr(value.1.into()),
             Opcode::LOAD_BUILD_CLASS => ExtInstruction::LoadBuildClass(value.1.into()),
             Opcode::LOAD_ASSERTION_ERROR => ExtInstruction::LoadAssertionError(value.1.into()),
             Opcode::RETURN_GENERATOR => ExtInstruction::ReturnGenerator(value.1.into()),
-            Opcode::LIST_TO_TUPLE => ExtInstruction::ListToTuple(value.1.into()),
             Opcode::RETURN_VALUE => ExtInstruction::ReturnValue(value.1.into()),
-            Opcode::IMPORT_STAR => ExtInstruction::ImportStar(value.1.into()),
             Opcode::SETUP_ANNOTATIONS => ExtInstruction::SetupAnnotations(value.1.into()),
-            Opcode::YIELD_VALUE => ExtInstruction::YieldValue(value.1.into()),
-            Opcode::ASYNC_GEN_WRAP => ExtInstruction::AsyncGenWrap(value.1.into()),
-            Opcode::PREP_RERAISE_STAR => ExtInstruction::PrepReraiseStar(value.1.into()),
+            Opcode::LOAD_LOCALS => ExtInstruction::LoadLocals(value.1.into()),
             Opcode::POP_EXCEPT => ExtInstruction::PopExcept(value.1.into()),
-            Opcode::STORE_NAME => ExtInstruction::StoreName(NameIndex { index: value.1 }),
-            Opcode::DELETE_NAME => ExtInstruction::DeleteName(NameIndex { index: value.1 }),
-            Opcode::UNPACK_SEQUENCE => ExtInstruction::UnpackSequence(value.1),
+            Opcode::STORE_NAME => ExtInstruction::StoreName(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::DELETE_NAME => ExtInstruction::DeleteName(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::UNPACK_SEQUENCE => ExtInstruction::UnpackSequence(value.1.into()),
             Opcode::FOR_ITER => ExtInstruction::ForIter(RelativeJump {
-                index: value.1,
+                index: value.1.into(),
                 direction: JumpDirection::Forward,
             }),
-            Opcode::UNPACK_EX => ExtInstruction::UnpackEx(value.1),
-            Opcode::STORE_ATTR => ExtInstruction::StoreAttr(NameIndex { index: value.1 }),
-            Opcode::DELETE_ATTR => ExtInstruction::DeleteAttr(NameIndex { index: value.1 }),
-            Opcode::STORE_GLOBAL => ExtInstruction::StoreGlobal(NameIndex { index: value.1 }),
-            Opcode::DELETE_GLOBAL => ExtInstruction::DeleteGlobal(NameIndex { index: value.1 }),
-            Opcode::SWAP => ExtInstruction::Swap(value.1),
-            Opcode::LOAD_CONST => ExtInstruction::LoadConst(ConstIndex { index: value.1 }),
-            Opcode::LOAD_NAME => ExtInstruction::LoadName(NameIndex { index: value.1 }),
-            Opcode::BUILD_TUPLE => ExtInstruction::BuildTuple(value.1),
-            Opcode::BUILD_LIST => ExtInstruction::BuildList(value.1),
-            Opcode::BUILD_SET => ExtInstruction::BuildSet(value.1),
-            Opcode::BUILD_MAP => ExtInstruction::BuildMap(value.1),
-            Opcode::LOAD_ATTR => ExtInstruction::LoadAttr(NameIndex { index: value.1 }),
+            Opcode::UNPACK_EX => ExtInstruction::UnpackEx(value.1.into()),
+            Opcode::STORE_ATTR => ExtInstruction::StoreAttr(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::DELETE_ATTR => ExtInstruction::DeleteAttr(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::STORE_GLOBAL => ExtInstruction::StoreGlobal(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::DELETE_GLOBAL => ExtInstruction::DeleteGlobal(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::SWAP => ExtInstruction::Swap(value.1.into()),
+            Opcode::LOAD_CONST => ExtInstruction::LoadConst(ConstIndex {
+                index: value.1.into(),
+            }),
+            Opcode::LOAD_NAME => ExtInstruction::LoadName(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::BUILD_TUPLE => ExtInstruction::BuildTuple(value.1.into()),
+            Opcode::BUILD_LIST => ExtInstruction::BuildList(value.1.into()),
+            Opcode::BUILD_SET => ExtInstruction::BuildSet(value.1.into()),
+            Opcode::BUILD_MAP => ExtInstruction::BuildMap(value.1.into()),
+            Opcode::LOAD_ATTR => ExtInstruction::LoadAttr(AttrNameIndex {
+                index: value.1.into(),
+            }),
             Opcode::COMPARE_OP => ExtInstruction::CompareOp(value.1.into()),
-            Opcode::IMPORT_NAME => ExtInstruction::ImportName(NameIndex { index: value.1 }),
-            Opcode::IMPORT_FROM => ExtInstruction::ImportFrom(NameIndex { index: value.1 }),
+            Opcode::IMPORT_NAME => ExtInstruction::ImportName(NameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::IMPORT_FROM => ExtInstruction::ImportFrom(NameIndex {
+                index: value.1.into(),
+            }),
             Opcode::JUMP_FORWARD => ExtInstruction::JumpForward(RelativeJump {
-                index: value.1,
+                index: value.1.into(),
                 direction: JumpDirection::Forward,
             }),
-            Opcode::JUMP_IF_FALSE_OR_POP => ExtInstruction::JumpIfFalseOrPop(RelativeJump {
-                index: value.1,
+            Opcode::POP_JUMP_IF_FALSE => ExtInstruction::PopJumpIfFalse(RelativeJump {
+                index: value.1.into(),
                 direction: JumpDirection::Forward,
             }),
-            Opcode::JUMP_IF_TRUE_OR_POP => ExtInstruction::JumpIfTrueOrPop(RelativeJump {
-                index: value.1,
+            Opcode::POP_JUMP_IF_TRUE => ExtInstruction::PopJumpIfTrue(RelativeJump {
+                index: value.1.into(),
                 direction: JumpDirection::Forward,
             }),
-            Opcode::POP_JUMP_FORWARD_IF_FALSE => {
-                ExtInstruction::PopJumpForwardIfFalse(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Forward,
-                })
-            }
-            Opcode::POP_JUMP_FORWARD_IF_TRUE => {
-                ExtInstruction::PopJumpForwardIfTrue(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Forward,
-                })
-            }
-            Opcode::LOAD_GLOBAL => ExtInstruction::LoadGlobal(GlobalNameIndex { index: value.1 }),
+            Opcode::LOAD_GLOBAL => ExtInstruction::LoadGlobal(GlobalNameIndex {
+                index: value.1.into(),
+            }),
             Opcode::IS_OP => ExtInstruction::IsOp(value.1.into()),
             Opcode::CONTAINS_OP => ExtInstruction::ContainsOp(value.1.into()),
             Opcode::RERAISE => ExtInstruction::Reraise(value.1.into()),
-            Opcode::COPY => ExtInstruction::Copy(value.1),
+            Opcode::COPY => ExtInstruction::Copy(value.1.into()),
+            Opcode::RETURN_CONST => ExtInstruction::ReturnConst(ConstIndex {
+                index: value.1.into(),
+            }),
             Opcode::BINARY_OP => ExtInstruction::BinaryOp(value.1.into()),
             Opcode::SEND => ExtInstruction::Send(RelativeJump {
-                index: value.1,
+                index: value.1.into(),
                 direction: JumpDirection::Forward,
             }),
-            Opcode::LOAD_FAST => ExtInstruction::LoadFast(VarNameIndex { index: value.1 }),
-            Opcode::STORE_FAST => ExtInstruction::StoreFast(VarNameIndex { index: value.1 }),
-            Opcode::DELETE_FAST => ExtInstruction::DeleteFast(VarNameIndex { index: value.1 }),
-            Opcode::POP_JUMP_FORWARD_IF_NOT_NONE => {
-                ExtInstruction::PopJumpForwardIfNotNone(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Forward,
-                })
-            }
-            Opcode::POP_JUMP_FORWARD_IF_NONE => {
-                ExtInstruction::PopJumpForwardIfNone(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Forward,
-                })
-            }
+            Opcode::LOAD_FAST => ExtInstruction::LoadFast(VarNameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::STORE_FAST => ExtInstruction::StoreFast(VarNameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::DELETE_FAST => ExtInstruction::DeleteFast(VarNameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::LOAD_FAST_CHECK => ExtInstruction::LoadFastCheck(VarNameIndex {
+                index: value.1.into(),
+            }),
+            Opcode::POP_JUMP_IF_NOT_NONE => ExtInstruction::PopJumpIfNotNone(RelativeJump {
+                index: value.1.into(),
+                direction: JumpDirection::Forward,
+            }),
+            Opcode::POP_JUMP_IF_NONE => ExtInstruction::PopJumpIfNone(RelativeJump {
+                index: value.1.into(),
+                direction: JumpDirection::Forward,
+            }),
             Opcode::RAISE_VARARGS => ExtInstruction::RaiseVarargs(value.1.into()),
             Opcode::GET_AWAITABLE => ExtInstruction::GetAwaitable(value.1.into()),
             Opcode::MAKE_FUNCTION => {
@@ -923,152 +1010,236 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::BUILD_SLICE => ExtInstruction::BuildSlice(value.1.into()),
             Opcode::JUMP_BACKWARD_NO_INTERRUPT => {
                 ExtInstruction::JumpBackwardNoInterrupt(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Backward,
+                    index: value.1.into(),
+                    direction: JumpDirection::Forward,
                 })
             }
-            Opcode::MAKE_CELL => ExtInstruction::MakeCell(ClosureRefIndex { index: value.1 }),
-            Opcode::LOAD_CLOSURE => ExtInstruction::LoadClosure(ClosureRefIndex { index: value.1 }),
-            Opcode::LOAD_DEREF => ExtInstruction::LoadDeref(ClosureRefIndex { index: value.1 }),
-            Opcode::STORE_DEREF => ExtInstruction::StoreDeref(ClosureRefIndex { index: value.1 }),
-            Opcode::DELETE_DEREF => ExtInstruction::DeleteDeref(ClosureRefIndex { index: value.1 }),
+            Opcode::MAKE_CELL => ExtInstruction::MakeCell(ClosureRefIndex {
+                index: value.1.into(),
+            }),
+            Opcode::LOAD_CLOSURE => ExtInstruction::LoadClosure(ClosureRefIndex {
+                index: value.1.into(),
+            }),
+            Opcode::LOAD_DEREF => ExtInstruction::LoadDeref(ClosureRefIndex {
+                index: value.1.into(),
+            }),
+            Opcode::STORE_DEREF => ExtInstruction::StoreDeref(ClosureRefIndex {
+                index: value.1.into(),
+            }),
+            Opcode::DELETE_DEREF => ExtInstruction::DeleteDeref(ClosureRefIndex {
+                index: value.1.into(),
+            }),
             Opcode::JUMP_BACKWARD => ExtInstruction::JumpBackward(RelativeJump {
-                index: value.1,
+                index: value.1.into(),
                 direction: JumpDirection::Backward,
+            }),
+            Opcode::LOAD_SUPER_ATTR => ExtInstruction::LoadSuperAttr(SuperAttrNameIndex {
+                index: value.1.into(),
             }),
             Opcode::CALL_FUNCTION_EX => ExtInstruction::CallFunctionEx(value.1.into()),
-            Opcode::EXTENDED_ARG => return Err(Error::InvalidConversion),
-            Opcode::LIST_APPEND => ExtInstruction::ListAppend(value.1),
-            Opcode::SET_ADD => ExtInstruction::SetAdd(value.1),
-            Opcode::MAP_ADD => ExtInstruction::MapAdd(value.1),
-            Opcode::LOAD_CLASSDEREF => {
-                ExtInstruction::LoadClassderef(ClosureRefIndex { index: value.1 })
-            }
-            Opcode::COPY_FREE_VARS => ExtInstruction::CopyFreeVars(value.1),
-            Opcode::RESUME => ExtInstruction::Resume(value.1.into()),
-            Opcode::MATCH_CLASS => ExtInstruction::MatchClass(value.1),
-            Opcode::FORMAT_VALUE => ExtInstruction::FormatValue(value.1.into()),
-            Opcode::BUILD_CONST_KEY_MAP => ExtInstruction::BuildConstKeyMap(value.1),
-            Opcode::BUILD_STRING => ExtInstruction::BuildString(value.1),
-            Opcode::LOAD_METHOD => ExtInstruction::LoadMethod(NameIndex { index: value.1 }),
-            Opcode::LIST_EXTEND => ExtInstruction::ListExtend(value.1),
-            Opcode::SET_UPDATE => ExtInstruction::SetUpdate(value.1),
-            Opcode::DICT_MERGE => ExtInstruction::DictMerge(value.1),
-            Opcode::DICT_UPDATE => ExtInstruction::DictUpdate(value.1),
-            Opcode::PRECALL => ExtInstruction::Precall(value.1),
-            Opcode::CALL => ExtInstruction::Call(value.1),
-            Opcode::KW_NAMES => ExtInstruction::KwNames(ConstIndex { index: value.1 }),
-            Opcode::POP_JUMP_BACKWARD_IF_NOT_NONE => {
-                ExtInstruction::PopJumpBackwardIfNotNone(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Backward,
-                })
-            }
-            Opcode::POP_JUMP_BACKWARD_IF_NONE => {
-                ExtInstruction::PopJumpBackwardIfNone(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Backward,
-                })
-            }
-            Opcode::POP_JUMP_BACKWARD_IF_FALSE => {
-                ExtInstruction::PopJumpBackwardIfFalse(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Backward,
-                })
-            }
-            Opcode::POP_JUMP_BACKWARD_IF_TRUE => {
-                ExtInstruction::PopJumpBackwardIfTrue(RelativeJump {
-                    index: value.1,
-                    direction: JumpDirection::Backward,
-                })
-            }
-            Opcode::BINARY_OP_ADAPTIVE => ExtInstruction::BinaryOpAdaptive(value.1),
-            Opcode::BINARY_OP_ADD_FLOAT => ExtInstruction::BinaryOpAddFloat(value.1),
-            Opcode::BINARY_OP_ADD_INT => ExtInstruction::BinaryOpAddInt(value.1),
-            Opcode::BINARY_OP_ADD_UNICODE => ExtInstruction::BinaryOpAddUnicode(value.1),
-            Opcode::BINARY_OP_INPLACE_ADD_UNICODE => {
-                ExtInstruction::BinaryOpInplaceAddUnicode(value.1)
-            }
-            Opcode::BINARY_OP_MULTIPLY_FLOAT => ExtInstruction::BinaryOpMultiplyFloat(value.1),
-            Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1),
-            Opcode::BINARY_OP_SUBTRACT_FLOAT => ExtInstruction::BinaryOpSubtractFloat(value.1),
-            Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1),
-            Opcode::BINARY_SUBSCR_ADAPTIVE => ExtInstruction::BinarySubscrAdaptive(value.1),
-            Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1),
-            Opcode::BINARY_SUBSCR_GETITEM => ExtInstruction::BinarySubscrGetitem(value.1),
-            Opcode::BINARY_SUBSCR_LIST_INT => ExtInstruction::BinarySubscrListInt(value.1),
-            Opcode::BINARY_SUBSCR_TUPLE_INT => ExtInstruction::BinarySubscrTupleInt(value.1),
-            Opcode::CALL_ADAPTIVE => ExtInstruction::CallAdaptive(value.1),
-            Opcode::CALL_PY_EXACT_ARGS => ExtInstruction::CallPyExactArgs(value.1),
-            Opcode::CALL_PY_WITH_DEFAULTS => ExtInstruction::CallPyWithDefaults(value.1),
-            Opcode::COMPARE_OP_ADAPTIVE => ExtInstruction::CompareOpAdaptive(value.1),
-            Opcode::COMPARE_OP_FLOAT_JUMP => ExtInstruction::CompareOpFloatJump(value.1),
-            Opcode::COMPARE_OP_INT_JUMP => ExtInstruction::CompareOpIntJump(value.1),
-            Opcode::COMPARE_OP_STR_JUMP => ExtInstruction::CompareOpStrJump(value.1),
-            Opcode::EXTENDED_ARG_QUICK => return Err(Error::InvalidConversion),
-            Opcode::JUMP_BACKWARD_QUICK => ExtInstruction::JumpBackwardQuick(RelativeJump {
-                index: value.1,
-                direction: JumpDirection::Backward,
+            Opcode::LOAD_FAST_AND_CLEAR => ExtInstruction::LoadFastAndClear(VarNameIndex {
+                index: value.1.into(),
             }),
-            Opcode::LOAD_ATTR_ADAPTIVE => ExtInstruction::LoadAttrAdaptive(value.1),
-            Opcode::LOAD_ATTR_INSTANCE_VALUE => ExtInstruction::LoadAttrInstanceValue(value.1),
-            Opcode::LOAD_ATTR_MODULE => ExtInstruction::LoadAttrModule(value.1),
-            Opcode::LOAD_ATTR_SLOT => ExtInstruction::LoadAttrSlot(value.1),
-            Opcode::LOAD_ATTR_WITH_HINT => ExtInstruction::LoadAttrWithHint(value.1),
-            Opcode::LOAD_CONST__LOAD_FAST => ExtInstruction::LoadConstLoadFast(value.1),
-            Opcode::LOAD_FAST__LOAD_CONST => ExtInstruction::LoadFastLoadConst(value.1),
-            Opcode::LOAD_FAST__LOAD_FAST => ExtInstruction::LoadFastLoadFast(value.1),
-            Opcode::LOAD_GLOBAL_ADAPTIVE => ExtInstruction::LoadGlobalAdaptive(value.1),
-            Opcode::LOAD_GLOBAL_BUILTIN => ExtInstruction::LoadGlobalBuiltin(value.1),
-            Opcode::LOAD_GLOBAL_MODULE => ExtInstruction::LoadGlobalModule(value.1),
-            Opcode::LOAD_METHOD_ADAPTIVE => ExtInstruction::LoadMethodAdaptive(value.1),
-            Opcode::LOAD_METHOD_CLASS => ExtInstruction::LoadMethodClass(value.1),
-            Opcode::LOAD_METHOD_MODULE => ExtInstruction::LoadMethodModule(value.1),
-            Opcode::LOAD_METHOD_NO_DICT => ExtInstruction::LoadMethodNoDict(value.1),
-            Opcode::LOAD_METHOD_WITH_DICT => ExtInstruction::LoadMethodWithDict(value.1),
-            Opcode::LOAD_METHOD_WITH_VALUES => ExtInstruction::LoadMethodWithValues(value.1),
-            Opcode::PRECALL_ADAPTIVE => ExtInstruction::PrecallAdaptive(value.1),
-            Opcode::PRECALL_BOUND_METHOD => ExtInstruction::PrecallBoundMethod(value.1),
-            Opcode::PRECALL_BUILTIN_CLASS => ExtInstruction::PrecallBuiltinClass(value.1),
-            Opcode::PRECALL_BUILTIN_FAST_WITH_KEYWORDS => {
-                ExtInstruction::PrecallBuiltinFastWithKeywords(value.1)
+            Opcode::EXTENDED_ARG => return Err(Error::InvalidConversion),
+            Opcode::LIST_APPEND => ExtInstruction::ListAppend(value.1.into()),
+            Opcode::SET_ADD => ExtInstruction::SetAdd(value.1.into()),
+            Opcode::MAP_ADD => ExtInstruction::MapAdd(value.1.into()),
+            Opcode::COPY_FREE_VARS => ExtInstruction::CopyFreeVars(value.1.into()),
+            Opcode::YIELD_VALUE => ExtInstruction::YieldValue(value.1.into()),
+            Opcode::RESUME => ExtInstruction::Resume(value.1.into()),
+            Opcode::MATCH_CLASS => ExtInstruction::MatchClass(value.1.into()),
+            Opcode::FORMAT_VALUE => ExtInstruction::FormatValue(value.1.into()),
+            Opcode::BUILD_CONST_KEY_MAP => ExtInstruction::BuildConstKeyMap(value.1.into()),
+            Opcode::BUILD_STRING => ExtInstruction::BuildString(value.1.into()),
+            Opcode::LIST_EXTEND => ExtInstruction::ListExtend(value.1.into()),
+            Opcode::SET_UPDATE => ExtInstruction::SetUpdate(value.1.into()),
+            Opcode::DICT_MERGE => ExtInstruction::DictMerge(value.1.into()),
+            Opcode::DICT_UPDATE => ExtInstruction::DictUpdate(value.1.into()),
+            Opcode::CALL => ExtInstruction::Call(value.1.into()),
+            Opcode::KW_NAMES => ExtInstruction::KwNames(ConstIndex {
+                index: value.1.into(),
+            }),
+            Opcode::CALL_INTRINSIC_1 => ExtInstruction::CallIntrinsic1(value.1.into()),
+            Opcode::CALL_INTRINSIC_2 => ExtInstruction::CallIntrinsic2(value.1.into()),
+            Opcode::LOAD_FROM_DICT_OR_GLOBALS => {
+                ExtInstruction::LoadFromDictOrGlobals(DynamicIndex {
+                    index: value.1.into(),
+                })
             }
-            Opcode::PRECALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS => {
-                ExtInstruction::PrecallMethodDescriptorFastWithKeywords(value.1)
+            Opcode::LOAD_FROM_DICT_OR_DEREF => ExtInstruction::LoadFromDictOrDeref(DynamicIndex {
+                index: value.1.into(),
+            }),
+            Opcode::INSTRUMENTED_LOAD_SUPER_ATTR => {
+                ExtInstruction::InstrumentedLoadSuperAttr(value.1.into())
             }
-            Opcode::PRECALL_NO_KW_BUILTIN_FAST => ExtInstruction::PrecallNoKwBuiltinFast(value.1),
-            Opcode::PRECALL_NO_KW_BUILTIN_O => ExtInstruction::PrecallNoKwBuiltinO(value.1),
-            Opcode::PRECALL_NO_KW_ISINSTANCE => ExtInstruction::PrecallNoKwIsinstance(value.1),
-            Opcode::PRECALL_NO_KW_LEN => ExtInstruction::PrecallNoKwLen(value.1),
-            Opcode::PRECALL_NO_KW_LIST_APPEND => ExtInstruction::PrecallNoKwListAppend(value.1),
-            Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_FAST => {
-                ExtInstruction::PrecallNoKwMethodDescriptorFast(value.1)
+            Opcode::INSTRUMENTED_POP_JUMP_IF_NONE => {
+                ExtInstruction::InstrumentedPopJumpIfNone(RelativeJump {
+                    index: value.1.into(),
+                    direction: JumpDirection::Forward,
+                })
             }
-            Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_NOARGS => {
-                ExtInstruction::PrecallNoKwMethodDescriptorNoargs(value.1)
+            Opcode::INSTRUMENTED_POP_JUMP_IF_NOT_NONE => {
+                ExtInstruction::InstrumentedPopJumpIfNotNone(RelativeJump {
+                    index: value.1.into(),
+                    direction: JumpDirection::Forward,
+                })
             }
-            Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_O => {
-                ExtInstruction::PrecallNoKwMethodDescriptorO(value.1)
+            Opcode::INSTRUMENTED_RESUME => ExtInstruction::InstrumentedResume(value.1.into()),
+            Opcode::INSTRUMENTED_CALL => ExtInstruction::InstrumentedCall(value.1.into()),
+            Opcode::INSTRUMENTED_RETURN_VALUE => {
+                ExtInstruction::InstrumentedReturnValue(value.1.into())
             }
-            Opcode::PRECALL_NO_KW_STR_1 => ExtInstruction::PrecallNoKwStr1(value.1),
-            Opcode::PRECALL_NO_KW_TUPLE_1 => ExtInstruction::PrecallNoKwTuple1(value.1),
-            Opcode::PRECALL_NO_KW_TYPE_1 => ExtInstruction::PrecallNoKwType1(value.1),
-            Opcode::PRECALL_PYFUNC => ExtInstruction::PrecallPyfunc(value.1),
-            Opcode::RESUME_QUICK => ExtInstruction::ResumeQuick(value.1.into()),
-            Opcode::STORE_ATTR_ADAPTIVE => ExtInstruction::StoreAttrAdaptive(value.1),
-            Opcode::STORE_ATTR_INSTANCE_VALUE => ExtInstruction::StoreAttrInstanceValue(value.1),
-            Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1),
-            Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1),
-            Opcode::STORE_FAST__LOAD_FAST => ExtInstruction::StoreFastLoadFast(value.1),
-            Opcode::STORE_FAST__STORE_FAST => ExtInstruction::StoreFastStoreFast(value.1),
-            Opcode::STORE_SUBSCR_ADAPTIVE => ExtInstruction::StoreSubscrAdaptive(value.1),
-            Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1),
-            Opcode::STORE_SUBSCR_LIST_INT => ExtInstruction::StoreSubscrListInt(value.1),
-            Opcode::UNPACK_SEQUENCE_ADAPTIVE => ExtInstruction::UnpackSequenceAdaptive(value.1),
-            Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1),
-            Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1),
-            Opcode::UNPACK_SEQUENCE_TWO_TUPLE => ExtInstruction::UnpackSequenceTwoTuple(value.1),
-            Opcode::DO_TRACING => ExtInstruction::DoTracing(value.1),
+            Opcode::INSTRUMENTED_YIELD_VALUE => {
+                ExtInstruction::InstrumentedYieldValue(value.1.into())
+            }
+            Opcode::INSTRUMENTED_CALL_FUNCTION_EX => {
+                ExtInstruction::InstrumentedCallFunctionEx(value.1.into())
+            }
+            Opcode::INSTRUMENTED_JUMP_FORWARD => {
+                ExtInstruction::InstrumentedJumpForward(RelativeJump {
+                    index: value.1.into(),
+                    direction: JumpDirection::Forward,
+                })
+            }
+            Opcode::INSTRUMENTED_JUMP_BACKWARD => {
+                ExtInstruction::InstrumentedJumpBackward(RelativeJump {
+                    index: value.1.into(),
+                    direction: JumpDirection::Backward,
+                })
+            }
+            Opcode::INSTRUMENTED_RETURN_CONST => {
+                ExtInstruction::InstrumentedReturnConst(value.1.into())
+            }
+            Opcode::INSTRUMENTED_FOR_ITER => ExtInstruction::InstrumentedForIter(RelativeJump {
+                index: value.1.into(),
+                direction: JumpDirection::Forward,
+            }),
+            Opcode::INSTRUMENTED_POP_JUMP_IF_FALSE => {
+                ExtInstruction::InstrumentedPopJumpIfFalse(RelativeJump {
+                    index: value.1.into(),
+                    direction: JumpDirection::Forward,
+                })
+            }
+            Opcode::INSTRUMENTED_POP_JUMP_IF_TRUE => {
+                ExtInstruction::InstrumentedPopJumpIfTrue(RelativeJump {
+                    index: value.1.into(),
+                    direction: JumpDirection::Forward,
+                })
+            }
+            Opcode::INSTRUMENTED_END_FOR => ExtInstruction::InstrumentedEndFor(value.1.into()),
+            Opcode::INSTRUMENTED_END_SEND => ExtInstruction::InstrumentedEndSend(value.1.into()),
+            Opcode::INSTRUMENTED_INSTRUCTION => {
+                ExtInstruction::InstrumentedInstruction(value.1.into())
+            }
+            Opcode::INSTRUMENTED_LINE => ExtInstruction::InstrumentedLine(value.1.into()),
+            Opcode::BINARY_OP_ADD_FLOAT => ExtInstruction::BinaryOpAddFloat(value.1.into()),
+            Opcode::BINARY_OP_ADD_INT => ExtInstruction::BinaryOpAddInt(value.1.into()),
+            Opcode::BINARY_OP_ADD_UNICODE => ExtInstruction::BinaryOpAddUnicode(value.1.into()),
+            Opcode::BINARY_OP_INPLACE_ADD_UNICODE => {
+                ExtInstruction::BinaryOpInplaceAddUnicode(value.1.into())
+            }
+            Opcode::BINARY_OP_MULTIPLY_FLOAT => {
+                ExtInstruction::BinaryOpMultiplyFloat(value.1.into())
+            }
+            Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1.into()),
+            Opcode::BINARY_OP_SUBTRACT_FLOAT => {
+                ExtInstruction::BinaryOpSubtractFloat(value.1.into())
+            }
+            Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1.into()),
+            Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1.into()),
+            Opcode::BINARY_SUBSCR_GETITEM => ExtInstruction::BinarySubscrGetitem(value.1.into()),
+            Opcode::BINARY_SUBSCR_LIST_INT => ExtInstruction::BinarySubscrListInt(value.1.into()),
+            Opcode::BINARY_SUBSCR_TUPLE_INT => ExtInstruction::BinarySubscrTupleInt(value.1.into()),
+            Opcode::CALL_PY_EXACT_ARGS => ExtInstruction::CallPyExactArgs(value.1.into()),
+            Opcode::CALL_PY_WITH_DEFAULTS => ExtInstruction::CallPyWithDefaults(value.1.into()),
+            Opcode::CALL_BOUND_METHOD_EXACT_ARGS => {
+                ExtInstruction::CallBoundMethodExactArgs(value.1.into())
+            }
+            Opcode::CALL_BUILTIN_CLASS => ExtInstruction::CallBuiltinClass(value.1.into()),
+            Opcode::CALL_BUILTIN_FAST_WITH_KEYWORDS => {
+                ExtInstruction::CallBuiltinFastWithKeywords(value.1.into())
+            }
+            Opcode::CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS => {
+                ExtInstruction::CallMethodDescriptorFastWithKeywords(value.1.into())
+            }
+            Opcode::CALL_NO_KW_BUILTIN_FAST => ExtInstruction::CallNoKwBuiltinFast(value.1.into()),
+            Opcode::CALL_NO_KW_BUILTIN_O => ExtInstruction::CallNoKwBuiltinO(value.1.into()),
+            Opcode::CALL_NO_KW_ISINSTANCE => ExtInstruction::CallNoKwIsinstance(value.1.into()),
+            Opcode::CALL_NO_KW_LEN => ExtInstruction::CallNoKwLen(value.1.into()),
+            Opcode::CALL_NO_KW_LIST_APPEND => ExtInstruction::CallNoKwListAppend(value.1.into()),
+            Opcode::CALL_NO_KW_METHOD_DESCRIPTOR_FAST => {
+                ExtInstruction::CallNoKwMethodDescriptorFast(value.1.into())
+            }
+            Opcode::CALL_NO_KW_METHOD_DESCRIPTOR_NOARGS => {
+                ExtInstruction::CallNoKwMethodDescriptorNoargs(value.1.into())
+            }
+            Opcode::CALL_NO_KW_METHOD_DESCRIPTOR_O => {
+                ExtInstruction::CallNoKwMethodDescriptorO(value.1.into())
+            }
+            Opcode::CALL_NO_KW_STR_1 => ExtInstruction::CallNoKwStr1(value.1.into()),
+            Opcode::CALL_NO_KW_TUPLE_1 => ExtInstruction::CallNoKwTuple1(value.1.into()),
+            Opcode::CALL_NO_KW_TYPE_1 => ExtInstruction::CallNoKwType1(value.1.into()),
+            Opcode::COMPARE_OP_FLOAT => ExtInstruction::CompareOpFloat(value.1.into()),
+            Opcode::COMPARE_OP_INT => ExtInstruction::CompareOpInt(value.1.into()),
+            Opcode::COMPARE_OP_STR => ExtInstruction::CompareOpStr(value.1.into()),
+            Opcode::FOR_ITER_LIST => ExtInstruction::ForIterList(RelativeJump {
+                index: value.1.into(),
+                direction: JumpDirection::Forward,
+            }),
+            Opcode::FOR_ITER_TUPLE => ExtInstruction::ForIterTuple(RelativeJump {
+                index: value.1.into(),
+                direction: JumpDirection::Forward,
+            }),
+            Opcode::FOR_ITER_RANGE => ExtInstruction::ForIterRange(RelativeJump {
+                index: value.1.into(),
+                direction: JumpDirection::Forward,
+            }),
+            Opcode::FOR_ITER_GEN => ExtInstruction::ForIterGen(RelativeJump {
+                index: value.1.into(),
+                direction: JumpDirection::Forward,
+            }),
+            Opcode::LOAD_SUPER_ATTR_ATTR => ExtInstruction::LoadSuperAttrAttr(value.1.into()),
+            Opcode::LOAD_SUPER_ATTR_METHOD => ExtInstruction::LoadSuperAttrMethod(value.1.into()),
+            Opcode::LOAD_ATTR_CLASS => ExtInstruction::LoadAttrClass(value.1.into()),
+            Opcode::LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN => {
+                ExtInstruction::LoadAttrGetattributeOverridden(value.1.into())
+            }
+            Opcode::LOAD_ATTR_INSTANCE_VALUE => {
+                ExtInstruction::LoadAttrInstanceValue(value.1.into())
+            }
+            Opcode::LOAD_ATTR_MODULE => ExtInstruction::LoadAttrModule(value.1.into()),
+            Opcode::LOAD_ATTR_PROPERTY => ExtInstruction::LoadAttrProperty(value.1.into()),
+            Opcode::LOAD_ATTR_SLOT => ExtInstruction::LoadAttrSlot(value.1.into()),
+            Opcode::LOAD_ATTR_WITH_HINT => ExtInstruction::LoadAttrWithHint(value.1.into()),
+            Opcode::LOAD_ATTR_METHOD_LAZY_DICT => {
+                ExtInstruction::LoadAttrMethodLazyDict(value.1.into())
+            }
+            Opcode::LOAD_ATTR_METHOD_NO_DICT => {
+                ExtInstruction::LoadAttrMethodNoDict(value.1.into())
+            }
+            Opcode::LOAD_ATTR_METHOD_WITH_VALUES => {
+                ExtInstruction::LoadAttrMethodWithValues(value.1.into())
+            }
+            Opcode::LOAD_CONST__LOAD_FAST => ExtInstruction::LoadConstLoadFast(value.1.into()),
+            Opcode::LOAD_FAST__LOAD_CONST => ExtInstruction::LoadFastLoadConst(value.1.into()),
+            Opcode::LOAD_FAST__LOAD_FAST => ExtInstruction::LoadFastLoadFast(value.1.into()),
+            Opcode::LOAD_GLOBAL_BUILTIN => ExtInstruction::LoadGlobalBuiltin(value.1.into()),
+            Opcode::LOAD_GLOBAL_MODULE => ExtInstruction::LoadGlobalModule(value.1.into()),
+            Opcode::STORE_ATTR_INSTANCE_VALUE => {
+                ExtInstruction::StoreAttrInstanceValue(value.1.into())
+            }
+            Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1.into()),
+            Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1.into()),
+            Opcode::STORE_FAST__LOAD_FAST => ExtInstruction::StoreFastLoadFast(value.1.into()),
+            Opcode::STORE_FAST__STORE_FAST => ExtInstruction::StoreFastStoreFast(value.1.into()),
+            Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1.into()),
+            Opcode::STORE_SUBSCR_LIST_INT => ExtInstruction::StoreSubscrListInt(value.1.into()),
+            Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1.into()),
+            Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1.into()),
+            Opcode::UNPACK_SEQUENCE_TWO_TUPLE => {
+                ExtInstruction::UnpackSequenceTwoTuple(value.1.into())
+            }
+            Opcode::SEND_GEN => ExtInstruction::SendGen(value.1.into()),
             Opcode::INVALID_OPCODE(opcode) => ExtInstruction::InvalidOpcode((opcode, value.1)),
         })
     }
@@ -1083,12 +1254,17 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::Cache(_) => Opcode::CACHE,
             ExtInstruction::PopTop(_) => Opcode::POP_TOP,
             ExtInstruction::PushNull(_) => Opcode::PUSH_NULL,
+            ExtInstruction::InterpreterExit(_) => Opcode::INTERPRETER_EXIT,
+            ExtInstruction::EndFor(_) => Opcode::END_FOR,
+            ExtInstruction::EndSend(_) => Opcode::END_SEND,
             ExtInstruction::Nop(_) => Opcode::NOP,
-            ExtInstruction::UnaryPositive(_) => Opcode::UNARY_POSITIVE,
             ExtInstruction::UnaryNegative(_) => Opcode::UNARY_NEGATIVE,
             ExtInstruction::UnaryNot(_) => Opcode::UNARY_NOT,
             ExtInstruction::UnaryInvert(_) => Opcode::UNARY_INVERT,
+            ExtInstruction::Reserved(_) => Opcode::RESERVED,
             ExtInstruction::BinarySubscr(_) => Opcode::BINARY_SUBSCR,
+            ExtInstruction::BinarySlice(_) => Opcode::BINARY_SLICE,
+            ExtInstruction::StoreSlice(_) => Opcode::STORE_SLICE,
             ExtInstruction::GetLen(_) => Opcode::GET_LEN,
             ExtInstruction::MatchMapping(_) => Opcode::MATCH_MAPPING,
             ExtInstruction::MatchSequence(_) => Opcode::MATCH_SEQUENCE,
@@ -1102,21 +1278,17 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::BeforeAsyncWith(_) => Opcode::BEFORE_ASYNC_WITH,
             ExtInstruction::BeforeWith(_) => Opcode::BEFORE_WITH,
             ExtInstruction::EndAsyncFor(_) => Opcode::END_ASYNC_FOR,
+            ExtInstruction::CleanupThrow(_) => Opcode::CLEANUP_THROW,
             ExtInstruction::StoreSubscr(_) => Opcode::STORE_SUBSCR,
             ExtInstruction::DeleteSubscr(_) => Opcode::DELETE_SUBSCR,
             ExtInstruction::GetIter(_) => Opcode::GET_ITER,
             ExtInstruction::GetYieldFromIter(_) => Opcode::GET_YIELD_FROM_ITER,
-            ExtInstruction::PrintExpr(_) => Opcode::PRINT_EXPR,
             ExtInstruction::LoadBuildClass(_) => Opcode::LOAD_BUILD_CLASS,
             ExtInstruction::LoadAssertionError(_) => Opcode::LOAD_ASSERTION_ERROR,
             ExtInstruction::ReturnGenerator(_) => Opcode::RETURN_GENERATOR,
-            ExtInstruction::ListToTuple(_) => Opcode::LIST_TO_TUPLE,
             ExtInstruction::ReturnValue(_) => Opcode::RETURN_VALUE,
-            ExtInstruction::ImportStar(_) => Opcode::IMPORT_STAR,
             ExtInstruction::SetupAnnotations(_) => Opcode::SETUP_ANNOTATIONS,
-            ExtInstruction::YieldValue(_) => Opcode::YIELD_VALUE,
-            ExtInstruction::AsyncGenWrap(_) => Opcode::ASYNC_GEN_WRAP,
-            ExtInstruction::PrepReraiseStar(_) => Opcode::PREP_RERAISE_STAR,
+            ExtInstruction::LoadLocals(_) => Opcode::LOAD_LOCALS,
             ExtInstruction::PopExcept(_) => Opcode::POP_EXCEPT,
             ExtInstruction::StoreName(_) => Opcode::STORE_NAME,
             ExtInstruction::DeleteName(_) => Opcode::DELETE_NAME,
@@ -1139,22 +1311,22 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::ImportName(_) => Opcode::IMPORT_NAME,
             ExtInstruction::ImportFrom(_) => Opcode::IMPORT_FROM,
             ExtInstruction::JumpForward(_) => Opcode::JUMP_FORWARD,
-            ExtInstruction::JumpIfFalseOrPop(_) => Opcode::JUMP_IF_FALSE_OR_POP,
-            ExtInstruction::JumpIfTrueOrPop(_) => Opcode::JUMP_IF_TRUE_OR_POP,
-            ExtInstruction::PopJumpForwardIfFalse(_) => Opcode::POP_JUMP_FORWARD_IF_FALSE,
-            ExtInstruction::PopJumpForwardIfTrue(_) => Opcode::POP_JUMP_FORWARD_IF_TRUE,
+            ExtInstruction::PopJumpIfFalse(_) => Opcode::POP_JUMP_IF_FALSE,
+            ExtInstruction::PopJumpIfTrue(_) => Opcode::POP_JUMP_IF_TRUE,
             ExtInstruction::LoadGlobal(_) => Opcode::LOAD_GLOBAL,
             ExtInstruction::IsOp(_) => Opcode::IS_OP,
             ExtInstruction::ContainsOp(_) => Opcode::CONTAINS_OP,
             ExtInstruction::Reraise(_) => Opcode::RERAISE,
             ExtInstruction::Copy(_) => Opcode::COPY,
+            ExtInstruction::ReturnConst(_) => Opcode::RETURN_CONST,
             ExtInstruction::BinaryOp(_) => Opcode::BINARY_OP,
             ExtInstruction::Send(_) => Opcode::SEND,
             ExtInstruction::LoadFast(_) => Opcode::LOAD_FAST,
             ExtInstruction::StoreFast(_) => Opcode::STORE_FAST,
             ExtInstruction::DeleteFast(_) => Opcode::DELETE_FAST,
-            ExtInstruction::PopJumpForwardIfNotNone(_) => Opcode::POP_JUMP_FORWARD_IF_NOT_NONE,
-            ExtInstruction::PopJumpForwardIfNone(_) => Opcode::POP_JUMP_FORWARD_IF_NONE,
+            ExtInstruction::LoadFastCheck(_) => Opcode::LOAD_FAST_CHECK,
+            ExtInstruction::PopJumpIfNotNone(_) => Opcode::POP_JUMP_IF_NOT_NONE,
+            ExtInstruction::PopJumpIfNone(_) => Opcode::POP_JUMP_IF_NONE,
             ExtInstruction::RaiseVarargs(_) => Opcode::RAISE_VARARGS,
             ExtInstruction::GetAwaitable(_) => Opcode::GET_AWAITABLE,
             ExtInstruction::MakeFunction(_) => Opcode::MAKE_FUNCTION,
@@ -1166,30 +1338,49 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::StoreDeref(_) => Opcode::STORE_DEREF,
             ExtInstruction::DeleteDeref(_) => Opcode::DELETE_DEREF,
             ExtInstruction::JumpBackward(_) => Opcode::JUMP_BACKWARD,
+            ExtInstruction::LoadSuperAttr(_) => Opcode::LOAD_SUPER_ATTR,
             ExtInstruction::CallFunctionEx(_) => Opcode::CALL_FUNCTION_EX,
+            ExtInstruction::LoadFastAndClear(_) => Opcode::LOAD_FAST_AND_CLEAR,
             ExtInstruction::ListAppend(_) => Opcode::LIST_APPEND,
             ExtInstruction::SetAdd(_) => Opcode::SET_ADD,
             ExtInstruction::MapAdd(_) => Opcode::MAP_ADD,
-            ExtInstruction::LoadClassderef(_) => Opcode::LOAD_CLASSDEREF,
             ExtInstruction::CopyFreeVars(_) => Opcode::COPY_FREE_VARS,
+            ExtInstruction::YieldValue(_) => Opcode::YIELD_VALUE,
             ExtInstruction::Resume(_) => Opcode::RESUME,
             ExtInstruction::MatchClass(_) => Opcode::MATCH_CLASS,
             ExtInstruction::FormatValue(_) => Opcode::FORMAT_VALUE,
             ExtInstruction::BuildConstKeyMap(_) => Opcode::BUILD_CONST_KEY_MAP,
             ExtInstruction::BuildString(_) => Opcode::BUILD_STRING,
-            ExtInstruction::LoadMethod(_) => Opcode::LOAD_METHOD,
             ExtInstruction::ListExtend(_) => Opcode::LIST_EXTEND,
             ExtInstruction::SetUpdate(_) => Opcode::SET_UPDATE,
             ExtInstruction::DictMerge(_) => Opcode::DICT_MERGE,
             ExtInstruction::DictUpdate(_) => Opcode::DICT_UPDATE,
-            ExtInstruction::Precall(_) => Opcode::PRECALL,
             ExtInstruction::Call(_) => Opcode::CALL,
             ExtInstruction::KwNames(_) => Opcode::KW_NAMES,
-            ExtInstruction::PopJumpBackwardIfNotNone(_) => Opcode::POP_JUMP_BACKWARD_IF_NOT_NONE,
-            ExtInstruction::PopJumpBackwardIfNone(_) => Opcode::POP_JUMP_BACKWARD_IF_NONE,
-            ExtInstruction::PopJumpBackwardIfFalse(_) => Opcode::POP_JUMP_BACKWARD_IF_FALSE,
-            ExtInstruction::PopJumpBackwardIfTrue(_) => Opcode::POP_JUMP_BACKWARD_IF_TRUE,
-            ExtInstruction::BinaryOpAdaptive(_) => Opcode::BINARY_OP_ADAPTIVE,
+            ExtInstruction::CallIntrinsic1(_) => Opcode::CALL_INTRINSIC_1,
+            ExtInstruction::CallIntrinsic2(_) => Opcode::CALL_INTRINSIC_2,
+            ExtInstruction::LoadFromDictOrGlobals(_) => Opcode::LOAD_FROM_DICT_OR_GLOBALS,
+            ExtInstruction::LoadFromDictOrDeref(_) => Opcode::LOAD_FROM_DICT_OR_DEREF,
+            ExtInstruction::InstrumentedLoadSuperAttr(_) => Opcode::INSTRUMENTED_LOAD_SUPER_ATTR,
+            ExtInstruction::InstrumentedPopJumpIfNone(_) => Opcode::INSTRUMENTED_POP_JUMP_IF_NONE,
+            ExtInstruction::InstrumentedPopJumpIfNotNone(_) => {
+                Opcode::INSTRUMENTED_POP_JUMP_IF_NOT_NONE
+            }
+            ExtInstruction::InstrumentedResume(_) => Opcode::INSTRUMENTED_RESUME,
+            ExtInstruction::InstrumentedCall(_) => Opcode::INSTRUMENTED_CALL,
+            ExtInstruction::InstrumentedReturnValue(_) => Opcode::INSTRUMENTED_RETURN_VALUE,
+            ExtInstruction::InstrumentedYieldValue(_) => Opcode::INSTRUMENTED_YIELD_VALUE,
+            ExtInstruction::InstrumentedCallFunctionEx(_) => Opcode::INSTRUMENTED_CALL_FUNCTION_EX,
+            ExtInstruction::InstrumentedJumpForward(_) => Opcode::INSTRUMENTED_JUMP_FORWARD,
+            ExtInstruction::InstrumentedJumpBackward(_) => Opcode::INSTRUMENTED_JUMP_BACKWARD,
+            ExtInstruction::InstrumentedReturnConst(_) => Opcode::INSTRUMENTED_RETURN_CONST,
+            ExtInstruction::InstrumentedForIter(_) => Opcode::INSTRUMENTED_FOR_ITER,
+            ExtInstruction::InstrumentedPopJumpIfFalse(_) => Opcode::INSTRUMENTED_POP_JUMP_IF_FALSE,
+            ExtInstruction::InstrumentedPopJumpIfTrue(_) => Opcode::INSTRUMENTED_POP_JUMP_IF_TRUE,
+            ExtInstruction::InstrumentedEndFor(_) => Opcode::INSTRUMENTED_END_FOR,
+            ExtInstruction::InstrumentedEndSend(_) => Opcode::INSTRUMENTED_END_SEND,
+            ExtInstruction::InstrumentedInstruction(_) => Opcode::INSTRUMENTED_INSTRUCTION,
+            ExtInstruction::InstrumentedLine(_) => Opcode::INSTRUMENTED_LINE,
             ExtInstruction::BinaryOpAddFloat(_) => Opcode::BINARY_OP_ADD_FLOAT,
             ExtInstruction::BinaryOpAddInt(_) => Opcode::BINARY_OP_ADD_INT,
             ExtInstruction::BinaryOpAddUnicode(_) => Opcode::BINARY_OP_ADD_UNICODE,
@@ -1198,78 +1389,72 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::BinaryOpMultiplyInt(_) => Opcode::BINARY_OP_MULTIPLY_INT,
             ExtInstruction::BinaryOpSubtractFloat(_) => Opcode::BINARY_OP_SUBTRACT_FLOAT,
             ExtInstruction::BinaryOpSubtractInt(_) => Opcode::BINARY_OP_SUBTRACT_INT,
-            ExtInstruction::BinarySubscrAdaptive(_) => Opcode::BINARY_SUBSCR_ADAPTIVE,
             ExtInstruction::BinarySubscrDict(_) => Opcode::BINARY_SUBSCR_DICT,
             ExtInstruction::BinarySubscrGetitem(_) => Opcode::BINARY_SUBSCR_GETITEM,
             ExtInstruction::BinarySubscrListInt(_) => Opcode::BINARY_SUBSCR_LIST_INT,
             ExtInstruction::BinarySubscrTupleInt(_) => Opcode::BINARY_SUBSCR_TUPLE_INT,
-            ExtInstruction::CallAdaptive(_) => Opcode::CALL_ADAPTIVE,
             ExtInstruction::CallPyExactArgs(_) => Opcode::CALL_PY_EXACT_ARGS,
             ExtInstruction::CallPyWithDefaults(_) => Opcode::CALL_PY_WITH_DEFAULTS,
-            ExtInstruction::CompareOpAdaptive(_) => Opcode::COMPARE_OP_ADAPTIVE,
-            ExtInstruction::CompareOpFloatJump(_) => Opcode::COMPARE_OP_FLOAT_JUMP,
-            ExtInstruction::CompareOpIntJump(_) => Opcode::COMPARE_OP_INT_JUMP,
-            ExtInstruction::CompareOpStrJump(_) => Opcode::COMPARE_OP_STR_JUMP,
-            ExtInstruction::JumpBackwardQuick(_) => Opcode::JUMP_BACKWARD_QUICK,
-            ExtInstruction::LoadAttrAdaptive(_) => Opcode::LOAD_ATTR_ADAPTIVE,
+            ExtInstruction::CallBoundMethodExactArgs(_) => Opcode::CALL_BOUND_METHOD_EXACT_ARGS,
+            ExtInstruction::CallBuiltinClass(_) => Opcode::CALL_BUILTIN_CLASS,
+            ExtInstruction::CallBuiltinFastWithKeywords(_) => {
+                Opcode::CALL_BUILTIN_FAST_WITH_KEYWORDS
+            }
+            ExtInstruction::CallMethodDescriptorFastWithKeywords(_) => {
+                Opcode::CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS
+            }
+            ExtInstruction::CallNoKwBuiltinFast(_) => Opcode::CALL_NO_KW_BUILTIN_FAST,
+            ExtInstruction::CallNoKwBuiltinO(_) => Opcode::CALL_NO_KW_BUILTIN_O,
+            ExtInstruction::CallNoKwIsinstance(_) => Opcode::CALL_NO_KW_ISINSTANCE,
+            ExtInstruction::CallNoKwLen(_) => Opcode::CALL_NO_KW_LEN,
+            ExtInstruction::CallNoKwListAppend(_) => Opcode::CALL_NO_KW_LIST_APPEND,
+            ExtInstruction::CallNoKwMethodDescriptorFast(_) => {
+                Opcode::CALL_NO_KW_METHOD_DESCRIPTOR_FAST
+            }
+            ExtInstruction::CallNoKwMethodDescriptorNoargs(_) => {
+                Opcode::CALL_NO_KW_METHOD_DESCRIPTOR_NOARGS
+            }
+            ExtInstruction::CallNoKwMethodDescriptorO(_) => Opcode::CALL_NO_KW_METHOD_DESCRIPTOR_O,
+            ExtInstruction::CallNoKwStr1(_) => Opcode::CALL_NO_KW_STR_1,
+            ExtInstruction::CallNoKwTuple1(_) => Opcode::CALL_NO_KW_TUPLE_1,
+            ExtInstruction::CallNoKwType1(_) => Opcode::CALL_NO_KW_TYPE_1,
+            ExtInstruction::CompareOpFloat(_) => Opcode::COMPARE_OP_FLOAT,
+            ExtInstruction::CompareOpInt(_) => Opcode::COMPARE_OP_INT,
+            ExtInstruction::CompareOpStr(_) => Opcode::COMPARE_OP_STR,
+            ExtInstruction::ForIterList(_) => Opcode::FOR_ITER_LIST,
+            ExtInstruction::ForIterTuple(_) => Opcode::FOR_ITER_TUPLE,
+            ExtInstruction::ForIterRange(_) => Opcode::FOR_ITER_RANGE,
+            ExtInstruction::ForIterGen(_) => Opcode::FOR_ITER_GEN,
+            ExtInstruction::LoadSuperAttrAttr(_) => Opcode::LOAD_SUPER_ATTR_ATTR,
+            ExtInstruction::LoadSuperAttrMethod(_) => Opcode::LOAD_SUPER_ATTR_METHOD,
+            ExtInstruction::LoadAttrClass(_) => Opcode::LOAD_ATTR_CLASS,
+            ExtInstruction::LoadAttrGetattributeOverridden(_) => {
+                Opcode::LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN
+            }
             ExtInstruction::LoadAttrInstanceValue(_) => Opcode::LOAD_ATTR_INSTANCE_VALUE,
             ExtInstruction::LoadAttrModule(_) => Opcode::LOAD_ATTR_MODULE,
+            ExtInstruction::LoadAttrProperty(_) => Opcode::LOAD_ATTR_PROPERTY,
             ExtInstruction::LoadAttrSlot(_) => Opcode::LOAD_ATTR_SLOT,
             ExtInstruction::LoadAttrWithHint(_) => Opcode::LOAD_ATTR_WITH_HINT,
+            ExtInstruction::LoadAttrMethodLazyDict(_) => Opcode::LOAD_ATTR_METHOD_LAZY_DICT,
+            ExtInstruction::LoadAttrMethodNoDict(_) => Opcode::LOAD_ATTR_METHOD_NO_DICT,
+            ExtInstruction::LoadAttrMethodWithValues(_) => Opcode::LOAD_ATTR_METHOD_WITH_VALUES,
             ExtInstruction::LoadConstLoadFast(_) => Opcode::LOAD_CONST__LOAD_FAST,
             ExtInstruction::LoadFastLoadConst(_) => Opcode::LOAD_FAST__LOAD_CONST,
             ExtInstruction::LoadFastLoadFast(_) => Opcode::LOAD_FAST__LOAD_FAST,
-            ExtInstruction::LoadGlobalAdaptive(_) => Opcode::LOAD_GLOBAL_ADAPTIVE,
             ExtInstruction::LoadGlobalBuiltin(_) => Opcode::LOAD_GLOBAL_BUILTIN,
             ExtInstruction::LoadGlobalModule(_) => Opcode::LOAD_GLOBAL_MODULE,
-            ExtInstruction::LoadMethodAdaptive(_) => Opcode::LOAD_METHOD_ADAPTIVE,
-            ExtInstruction::LoadMethodClass(_) => Opcode::LOAD_METHOD_CLASS,
-            ExtInstruction::LoadMethodModule(_) => Opcode::LOAD_METHOD_MODULE,
-            ExtInstruction::LoadMethodNoDict(_) => Opcode::LOAD_METHOD_NO_DICT,
-            ExtInstruction::LoadMethodWithDict(_) => Opcode::LOAD_METHOD_WITH_DICT,
-            ExtInstruction::LoadMethodWithValues(_) => Opcode::LOAD_METHOD_WITH_VALUES,
-            ExtInstruction::PrecallAdaptive(_) => Opcode::PRECALL_ADAPTIVE,
-            ExtInstruction::PrecallBoundMethod(_) => Opcode::PRECALL_BOUND_METHOD,
-            ExtInstruction::PrecallBuiltinClass(_) => Opcode::PRECALL_BUILTIN_CLASS,
-            ExtInstruction::PrecallBuiltinFastWithKeywords(_) => {
-                Opcode::PRECALL_BUILTIN_FAST_WITH_KEYWORDS
-            }
-            ExtInstruction::PrecallMethodDescriptorFastWithKeywords(_) => {
-                Opcode::PRECALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS
-            }
-            ExtInstruction::PrecallNoKwBuiltinFast(_) => Opcode::PRECALL_NO_KW_BUILTIN_FAST,
-            ExtInstruction::PrecallNoKwBuiltinO(_) => Opcode::PRECALL_NO_KW_BUILTIN_O,
-            ExtInstruction::PrecallNoKwIsinstance(_) => Opcode::PRECALL_NO_KW_ISINSTANCE,
-            ExtInstruction::PrecallNoKwLen(_) => Opcode::PRECALL_NO_KW_LEN,
-            ExtInstruction::PrecallNoKwListAppend(_) => Opcode::PRECALL_NO_KW_LIST_APPEND,
-            ExtInstruction::PrecallNoKwMethodDescriptorFast(_) => {
-                Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_FAST
-            }
-            ExtInstruction::PrecallNoKwMethodDescriptorNoargs(_) => {
-                Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_NOARGS
-            }
-            ExtInstruction::PrecallNoKwMethodDescriptorO(_) => {
-                Opcode::PRECALL_NO_KW_METHOD_DESCRIPTOR_O
-            }
-            ExtInstruction::PrecallNoKwStr1(_) => Opcode::PRECALL_NO_KW_STR_1,
-            ExtInstruction::PrecallNoKwTuple1(_) => Opcode::PRECALL_NO_KW_TUPLE_1,
-            ExtInstruction::PrecallNoKwType1(_) => Opcode::PRECALL_NO_KW_TYPE_1,
-            ExtInstruction::PrecallPyfunc(_) => Opcode::PRECALL_PYFUNC,
-            ExtInstruction::ResumeQuick(_) => Opcode::RESUME_QUICK,
-            ExtInstruction::StoreAttrAdaptive(_) => Opcode::STORE_ATTR_ADAPTIVE,
             ExtInstruction::StoreAttrInstanceValue(_) => Opcode::STORE_ATTR_INSTANCE_VALUE,
             ExtInstruction::StoreAttrSlot(_) => Opcode::STORE_ATTR_SLOT,
             ExtInstruction::StoreAttrWithHint(_) => Opcode::STORE_ATTR_WITH_HINT,
             ExtInstruction::StoreFastLoadFast(_) => Opcode::STORE_FAST__LOAD_FAST,
             ExtInstruction::StoreFastStoreFast(_) => Opcode::STORE_FAST__STORE_FAST,
-            ExtInstruction::StoreSubscrAdaptive(_) => Opcode::STORE_SUBSCR_ADAPTIVE,
             ExtInstruction::StoreSubscrDict(_) => Opcode::STORE_SUBSCR_DICT,
             ExtInstruction::StoreSubscrListInt(_) => Opcode::STORE_SUBSCR_LIST_INT,
-            ExtInstruction::UnpackSequenceAdaptive(_) => Opcode::UNPACK_SEQUENCE_ADAPTIVE,
             ExtInstruction::UnpackSequenceList(_) => Opcode::UNPACK_SEQUENCE_LIST,
             ExtInstruction::UnpackSequenceTuple(_) => Opcode::UNPACK_SEQUENCE_TUPLE,
             ExtInstruction::UnpackSequenceTwoTuple(_) => Opcode::UNPACK_SEQUENCE_TWO_TUPLE,
-            ExtInstruction::DoTracing(_) => Opcode::DO_TRACING,
+            ExtInstruction::SendGen(_) => Opcode::SEND_GEN,
             ExtInstruction::InvalidOpcode((opcode, _)) => Opcode::INVALID_OPCODE(*opcode),
         }
     }
@@ -1279,12 +1464,17 @@ impl GenericInstruction for ExtInstruction {
             ExtInstruction::Cache(n)
             | ExtInstruction::PopTop(n)
             | ExtInstruction::PushNull(n)
+            | ExtInstruction::InterpreterExit(n)
+            | ExtInstruction::EndFor(n)
+            | ExtInstruction::EndSend(n)
             | ExtInstruction::Nop(n)
-            | ExtInstruction::UnaryPositive(n)
             | ExtInstruction::UnaryNegative(n)
             | ExtInstruction::UnaryNot(n)
             | ExtInstruction::UnaryInvert(n)
+            | ExtInstruction::Reserved(n)
             | ExtInstruction::BinarySubscr(n)
+            | ExtInstruction::BinarySlice(n)
+            | ExtInstruction::StoreSlice(n)
             | ExtInstruction::GetLen(n)
             | ExtInstruction::MatchMapping(n)
             | ExtInstruction::MatchSequence(n)
@@ -1298,34 +1488,30 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::BeforeAsyncWith(n)
             | ExtInstruction::BeforeWith(n)
             | ExtInstruction::EndAsyncFor(n)
+            | ExtInstruction::CleanupThrow(n)
             | ExtInstruction::StoreSubscr(n)
             | ExtInstruction::DeleteSubscr(n)
             | ExtInstruction::GetIter(n)
             | ExtInstruction::GetYieldFromIter(n)
-            | ExtInstruction::PrintExpr(n)
             | ExtInstruction::LoadBuildClass(n)
             | ExtInstruction::LoadAssertionError(n)
             | ExtInstruction::ReturnGenerator(n)
-            | ExtInstruction::ListToTuple(n)
             | ExtInstruction::ReturnValue(n)
-            | ExtInstruction::ImportStar(n)
             | ExtInstruction::SetupAnnotations(n)
-            | ExtInstruction::YieldValue(n)
-            | ExtInstruction::AsyncGenWrap(n)
-            | ExtInstruction::PrepReraiseStar(n)
+            | ExtInstruction::LoadLocals(n)
             | ExtInstruction::PopExcept(n) => n.0,
             ExtInstruction::StoreName(name_index)
             | ExtInstruction::DeleteName(name_index)
-            | ExtInstruction::LoadName(name_index)
-            | ExtInstruction::ImportName(name_index)
-            | ExtInstruction::ImportFrom(name_index)
             | ExtInstruction::StoreAttr(name_index)
             | ExtInstruction::DeleteAttr(name_index)
             | ExtInstruction::StoreGlobal(name_index)
             | ExtInstruction::DeleteGlobal(name_index)
-            | ExtInstruction::LoadAttr(name_index)
-            | ExtInstruction::LoadMethod(name_index) => name_index.index,
+            | ExtInstruction::LoadName(name_index)
+            | ExtInstruction::ImportName(name_index)
+            | ExtInstruction::ImportFrom(name_index) => name_index.index,
+            ExtInstruction::LoadAttr(name_index) => name_index.index,
             ExtInstruction::LoadGlobal(global_name_index) => global_name_index.index,
+            ExtInstruction::LoadSuperAttr(super_name_index) => super_name_index.index,
             ExtInstruction::UnpackSequence(n)
             | ExtInstruction::UnpackEx(n)
             | ExtInstruction::Swap(n)
@@ -1338,6 +1524,7 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::SetAdd(n)
             | ExtInstruction::MapAdd(n)
             | ExtInstruction::CopyFreeVars(n)
+            | ExtInstruction::YieldValue(n)
             | ExtInstruction::MatchClass(n)
             | ExtInstruction::BuildConstKeyMap(n)
             | ExtInstruction::BuildString(n)
@@ -1345,9 +1532,18 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::SetUpdate(n)
             | ExtInstruction::DictMerge(n)
             | ExtInstruction::DictUpdate(n)
-            | ExtInstruction::Precall(n)
             | ExtInstruction::Call(n)
-            | ExtInstruction::BinaryOpAdaptive(n)
+            | ExtInstruction::InstrumentedLoadSuperAttr(n)
+            | ExtInstruction::InstrumentedResume(n)
+            | ExtInstruction::InstrumentedCall(n)
+            | ExtInstruction::InstrumentedReturnValue(n)
+            | ExtInstruction::InstrumentedYieldValue(n)
+            | ExtInstruction::InstrumentedCallFunctionEx(n)
+            | ExtInstruction::InstrumentedReturnConst(n)
+            | ExtInstruction::InstrumentedEndFor(n)
+            | ExtInstruction::InstrumentedEndSend(n)
+            | ExtInstruction::InstrumentedInstruction(n)
+            | ExtInstruction::InstrumentedLine(n)
             | ExtInstruction::BinaryOpAddFloat(n)
             | ExtInstruction::BinaryOpAddInt(n)
             | ExtInstruction::BinaryOpAddUnicode(n)
@@ -1356,92 +1552,94 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::BinaryOpMultiplyInt(n)
             | ExtInstruction::BinaryOpSubtractFloat(n)
             | ExtInstruction::BinaryOpSubtractInt(n)
-            | ExtInstruction::BinarySubscrAdaptive(n)
             | ExtInstruction::BinarySubscrDict(n)
             | ExtInstruction::BinarySubscrGetitem(n)
             | ExtInstruction::BinarySubscrListInt(n)
             | ExtInstruction::BinarySubscrTupleInt(n)
-            | ExtInstruction::CallAdaptive(n)
             | ExtInstruction::CallPyExactArgs(n)
             | ExtInstruction::CallPyWithDefaults(n)
-            | ExtInstruction::CompareOpAdaptive(n)
-            | ExtInstruction::CompareOpFloatJump(n)
-            | ExtInstruction::CompareOpIntJump(n)
-            | ExtInstruction::CompareOpStrJump(n)
-            | ExtInstruction::LoadAttrAdaptive(n)
+            | ExtInstruction::CallBoundMethodExactArgs(n)
+            | ExtInstruction::CallBuiltinClass(n)
+            | ExtInstruction::CallBuiltinFastWithKeywords(n)
+            | ExtInstruction::CallMethodDescriptorFastWithKeywords(n)
+            | ExtInstruction::CallNoKwBuiltinFast(n)
+            | ExtInstruction::CallNoKwBuiltinO(n)
+            | ExtInstruction::CallNoKwIsinstance(n)
+            | ExtInstruction::CallNoKwLen(n)
+            | ExtInstruction::CallNoKwListAppend(n)
+            | ExtInstruction::CallNoKwMethodDescriptorFast(n)
+            | ExtInstruction::CallNoKwMethodDescriptorNoargs(n)
+            | ExtInstruction::CallNoKwMethodDescriptorO(n)
+            | ExtInstruction::CallNoKwStr1(n)
+            | ExtInstruction::CallNoKwTuple1(n)
+            | ExtInstruction::CallNoKwType1(n)
+            | ExtInstruction::CompareOpFloat(n)
+            | ExtInstruction::CompareOpInt(n)
+            | ExtInstruction::CompareOpStr(n)
+            | ExtInstruction::LoadSuperAttrAttr(n)
+            | ExtInstruction::LoadSuperAttrMethod(n)
+            | ExtInstruction::LoadAttrClass(n)
+            | ExtInstruction::LoadAttrGetattributeOverridden(n)
             | ExtInstruction::LoadAttrInstanceValue(n)
             | ExtInstruction::LoadAttrModule(n)
+            | ExtInstruction::LoadAttrProperty(n)
             | ExtInstruction::LoadAttrSlot(n)
             | ExtInstruction::LoadAttrWithHint(n)
+            | ExtInstruction::LoadAttrMethodLazyDict(n)
+            | ExtInstruction::LoadAttrMethodNoDict(n)
+            | ExtInstruction::LoadAttrMethodWithValues(n)
             | ExtInstruction::LoadConstLoadFast(n)
             | ExtInstruction::LoadFastLoadConst(n)
             | ExtInstruction::LoadFastLoadFast(n)
-            | ExtInstruction::LoadGlobalAdaptive(n)
             | ExtInstruction::LoadGlobalBuiltin(n)
             | ExtInstruction::LoadGlobalModule(n)
-            | ExtInstruction::LoadMethodAdaptive(n)
-            | ExtInstruction::LoadMethodClass(n)
-            | ExtInstruction::LoadMethodModule(n)
-            | ExtInstruction::LoadMethodNoDict(n)
-            | ExtInstruction::LoadMethodWithDict(n)
-            | ExtInstruction::LoadMethodWithValues(n)
-            | ExtInstruction::PrecallAdaptive(n)
-            | ExtInstruction::PrecallBoundMethod(n)
-            | ExtInstruction::PrecallBuiltinClass(n)
-            | ExtInstruction::PrecallBuiltinFastWithKeywords(n)
-            | ExtInstruction::PrecallMethodDescriptorFastWithKeywords(n)
-            | ExtInstruction::PrecallNoKwBuiltinFast(n)
-            | ExtInstruction::PrecallNoKwBuiltinO(n)
-            | ExtInstruction::PrecallNoKwIsinstance(n)
-            | ExtInstruction::PrecallNoKwLen(n)
-            | ExtInstruction::PrecallNoKwListAppend(n)
-            | ExtInstruction::PrecallNoKwMethodDescriptorFast(n)
-            | ExtInstruction::PrecallNoKwMethodDescriptorNoargs(n)
-            | ExtInstruction::PrecallNoKwMethodDescriptorO(n)
-            | ExtInstruction::PrecallNoKwStr1(n)
-            | ExtInstruction::PrecallNoKwTuple1(n)
-            | ExtInstruction::PrecallNoKwType1(n)
-            | ExtInstruction::PrecallPyfunc(n)
-            | ExtInstruction::StoreAttrAdaptive(n)
             | ExtInstruction::StoreAttrInstanceValue(n)
             | ExtInstruction::StoreAttrSlot(n)
             | ExtInstruction::StoreAttrWithHint(n)
             | ExtInstruction::StoreFastLoadFast(n)
             | ExtInstruction::StoreFastStoreFast(n)
-            | ExtInstruction::StoreSubscrAdaptive(n)
             | ExtInstruction::StoreSubscrDict(n)
             | ExtInstruction::StoreSubscrListInt(n)
-            | ExtInstruction::UnpackSequenceAdaptive(n)
             | ExtInstruction::UnpackSequenceList(n)
             | ExtInstruction::UnpackSequenceTuple(n)
             | ExtInstruction::UnpackSequenceTwoTuple(n)
-            | ExtInstruction::DoTracing(n) => *n,
-            ExtInstruction::ForIter(jump) => jump.index,
-            ExtInstruction::LoadConst(const_index) | ExtInstruction::KwNames(const_index) => {
-                const_index.index
-            }
+            | ExtInstruction::SendGen(n) => *n,
+            ExtInstruction::CallIntrinsic1(functions) => functions.into(),
+            ExtInstruction::CallIntrinsic2(functions) => functions.into(),
+            ExtInstruction::LoadConst(const_index)
+            | ExtInstruction::ReturnConst(const_index)
+            | ExtInstruction::KwNames(const_index) => const_index.index,
             ExtInstruction::CompareOp(cmp_op) => cmp_op.into(),
-            ExtInstruction::JumpForward(jump)
-            | ExtInstruction::JumpIfFalseOrPop(jump)
-            | ExtInstruction::JumpIfTrueOrPop(jump)
-            | ExtInstruction::PopJumpForwardIfFalse(jump)
-            | ExtInstruction::PopJumpForwardIfTrue(jump)
+            ExtInstruction::ForIter(jump)
+            | ExtInstruction::JumpForward(jump)
+            | ExtInstruction::PopJumpIfFalse(jump)
+            | ExtInstruction::PopJumpIfTrue(jump)
             | ExtInstruction::Send(jump)
-            | ExtInstruction::PopJumpForwardIfNotNone(jump)
-            | ExtInstruction::PopJumpForwardIfNone(jump)
+            | ExtInstruction::PopJumpIfNotNone(jump)
+            | ExtInstruction::PopJumpIfNone(jump)
+            | ExtInstruction::ForIterRange(jump)
+            | ExtInstruction::ForIterList(jump)
+            | ExtInstruction::ForIterGen(jump)
+            | ExtInstruction::ForIterTuple(jump)
+            | ExtInstruction::InstrumentedForIter(jump)
+            | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+            | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+            | ExtInstruction::InstrumentedJumpForward(jump)
+            | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+            | ExtInstruction::InstrumentedPopJumpIfTrue(jump)
             | ExtInstruction::JumpBackwardNoInterrupt(jump)
             | ExtInstruction::JumpBackward(jump)
-            | ExtInstruction::JumpBackwardQuick(jump)
-            | ExtInstruction::PopJumpBackwardIfNotNone(jump)
-            | ExtInstruction::PopJumpBackwardIfNone(jump)
-            | ExtInstruction::PopJumpBackwardIfFalse(jump)
-            | ExtInstruction::PopJumpBackwardIfTrue(jump) => jump.index,
+            | ExtInstruction::InstrumentedJumpBackward(jump) => jump.index,
             ExtInstruction::IsOp(invert) | ExtInstruction::ContainsOp(invert) => invert.into(),
             ExtInstruction::Reraise(reraise) => reraise.into(),
             ExtInstruction::BinaryOp(binary_op) => binary_op.into(),
             ExtInstruction::LoadFast(varname_index)
             | ExtInstruction::StoreFast(varname_index)
-            | ExtInstruction::DeleteFast(varname_index) => varname_index.index,
+            | ExtInstruction::DeleteFast(varname_index)
+            | ExtInstruction::LoadFastCheck(varname_index)
+            | ExtInstruction::LoadFastAndClear(varname_index) => varname_index.index,
+            ExtInstruction::LoadFromDictOrDeref(dynamic_index)
+            | ExtInstruction::LoadFromDictOrGlobals(dynamic_index) => dynamic_index.index,
             ExtInstruction::RaiseVarargs(raise_var_args) => raise_var_args.into(),
             ExtInstruction::GetAwaitable(awaitable_where) => awaitable_where.into(),
             ExtInstruction::MakeFunction(flags) => flags.bits(),
@@ -1450,12 +1648,9 @@ impl GenericInstruction for ExtInstruction {
             | ExtInstruction::LoadClosure(closure_index)
             | ExtInstruction::LoadDeref(closure_index)
             | ExtInstruction::StoreDeref(closure_index)
-            | ExtInstruction::DeleteDeref(closure_index)
-            | ExtInstruction::LoadClassderef(closure_index) => closure_index.index,
+            | ExtInstruction::DeleteDeref(closure_index) => closure_index.index,
             ExtInstruction::CallFunctionEx(flags) => flags.into(),
-            ExtInstruction::Resume(resume_where) | ExtInstruction::ResumeQuick(resume_where) => {
-                resume_where.into()
-            }
+            ExtInstruction::Resume(resume_where) => resume_where.into(),
             ExtInstruction::FormatValue(format) => format.bits().into(),
             ExtInstruction::InvalidOpcode((_, arg)) => *arg,
         }

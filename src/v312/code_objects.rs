@@ -9,7 +9,7 @@ use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
 use crate::{error::Error, v312::instructions::Instructions};
-use std::fmt;
+use std::{any::Any, fmt, ops::BitOr};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FrozenConstant {
@@ -195,11 +195,11 @@ impl TryFrom<python_marshal::Object> for Constant {
         match value {
             python_marshal::Object::Code(code) => match code {
                 python_marshal::Code::V310(_) => Err(Error::UnsupportedVersion((3, 10).into())),
-                python_marshal::Code::V311(code) => {
+                python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
+                python_marshal::Code::V312(code) => {
                     let code = Code::try_from(code)?;
                     Ok(Constant::CodeObject(code))
                 }
-                python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
                 python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
             },
             _ => {
@@ -412,8 +412,8 @@ impl TryFrom<(python_marshal::Object, Vec<Object>)> for Code {
 
         match code_object {
             python_marshal::Code::V310(_) => Err(Error::UnsupportedVersion((3, 10).into())),
-            python_marshal::Code::V311(code) => Ok(Code::try_from(code)?),
-            python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
+            python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
+            python_marshal::Code::V312(code) => Ok(Code::try_from(code)?),
             python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
         }
     }
@@ -421,7 +421,7 @@ impl TryFrom<(python_marshal::Object, Vec<Object>)> for Code {
 
 impl From<Code> for python_marshal::Code {
     fn from(val: Code) -> Self {
-        python_marshal::Code::V311(python_marshal::code_objects::Code311 {
+        python_marshal::Code::V312(python_marshal::code_objects::Code312 {
             argcount: val.argcount,
             posonlyargcount: val.posonlyargcount,
             kwonlyargcount: val.kwonlyargcount,
@@ -469,10 +469,10 @@ macro_rules! extract_strings_tuple {
     };
 }
 
-impl TryFrom<python_marshal::code_objects::Code311> for Code {
+impl TryFrom<python_marshal::code_objects::Code312> for Code {
     type Error = crate::error::Error;
 
-    fn try_from(code: python_marshal::code_objects::Code311) -> Result<Self, Self::Error> {
+    fn try_from(code: python_marshal::code_objects::Code312) -> Result<Self, Self::Error> {
         let co_code = extract_object!(Some(*code.code), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
         let co_consts = extract_object!(Some(*code.consts), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?;
         let co_names = extract_strings_tuple!(
@@ -564,25 +564,31 @@ impl From<u32> for AbsoluteJump {
     }
 }
 
-/// Holds an index into co_names. Has helper functions to get the actual PyString of the name.
+/// Holds an index into co_names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NameIndex {
     pub index: u32,
 }
 
-/// Holds an index into co_names. LOAD_ATTR is a special case where it will look for (index >> 1). Has helper functions to get the actual PyString of the name.
+/// Holds an index into co_names. LOAD_ATTR is a special case where it will look for (index >> 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AttrNameIndex {
     pub index: u32,
 }
 
-/// Holds an index into co_names. LOAD_GLOBAL is a special case where it will look for (index >> 1). Has helper functions to get the actual PyString of the name.
+/// Holds an index into co_names. LOAD_SUPER_ATTR is a special case where it will look for (index >> 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SuperAttrNameIndex {
+    pub index: u32,
+}
+
+/// Holds an index into co_names. LOAD_GLOBAL is a special case where it will look for (index >> 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalNameIndex {
     pub index: u32,
 }
 
-/// Holds an index into co_varnames. Has helper functions to get the actual PyString of the name.
+/// Holds an index into co_varnames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VarNameIndex {
     pub index: u32,
@@ -931,6 +937,8 @@ pub struct ClosureRefIndex {
 }
 
 /// Used to represent the different comparison operations for COMPARE_OP
+/// 3.12 stores the operation in the 4 highest bits and the lower 4 bits are used for by the quickened versions to store the mask.
+/// See https://github.com/python/cpython/blob/3.12/Include/internal/pycore_code.h#L471-L486
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompareOperation {
     Smaller,
@@ -939,7 +947,6 @@ pub enum CompareOperation {
     NotEqual,
     Bigger,
     BiggerOrEqual,
-    /// We try to support invalid bytecode, so we have to represent it somehow.
     Invalid(u32),
 }
 
@@ -959,7 +966,8 @@ impl fmt::Display for CompareOperation {
 
 impl From<u32> for CompareOperation {
     fn from(value: u32) -> Self {
-        match value {
+        // 3.12 now stores them in the highest 4 bits
+        match value >> 4 {
             0 => Self::Smaller,
             1 => Self::SmallerOrEqual,
             2 => Self::Equal,
@@ -971,15 +979,34 @@ impl From<u32> for CompareOperation {
     }
 }
 
+#[repr(u8)]
+enum ComparisonBits {
+    ComparisonUnordered = 1,
+    ComparisonLessThan = 2,
+    ComparisonGreaterThan = 4,
+    ComparisonEquals = 8,
+    ComparisonNotEquals = (ComparisonBits::ComparisonUnordered as u8
+        | ComparisonBits::ComparisonLessThan as u8
+        | ComparisonBits::ComparisonGreaterThan as u8),
+}
+
+impl BitOr for ComparisonBits {
+    type Output = u8;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self as u8 | rhs as u8
+    }
+}
+
 impl From<&CompareOperation> for u32 {
     fn from(val: &CompareOperation) -> Self {
         match val {
-            CompareOperation::Smaller => 0,
-            CompareOperation::SmallerOrEqual => 1,
-            CompareOperation::Equal => 2,
-            CompareOperation::NotEqual => 3,
-            CompareOperation::Bigger => 4,
-            CompareOperation::BiggerOrEqual => 5,
+            CompareOperation::Smaller => (0 << 4) | ComparisonBits::ComparisonLessThan as u32,
+            CompareOperation::SmallerOrEqual => (1 << 4) | (ComparisonBits::ComparisonLessThan | ComparisonBits::ComparisonEquals) as u32,
+            CompareOperation::Equal => (2 << 4) | ComparisonBits::ComparisonEquals as u32,
+            CompareOperation::NotEqual => (3 << 4) | ComparisonBits::ComparisonNotEquals as u32,
+            CompareOperation::Bigger => (4 << 4) | ComparisonBits::ComparisonGreaterThan as u32,
+            CompareOperation::BiggerOrEqual => (5 << 4) | (ComparisonBits::ComparisonGreaterThan | ComparisonBits::ComparisonEquals) as u32,
             CompareOperation::Invalid(v) => *v,
         }
     }

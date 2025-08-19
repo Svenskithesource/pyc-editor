@@ -2,13 +2,13 @@ pub mod code_objects;
 pub mod ext_instructions;
 pub mod instructions;
 pub mod opcodes;
+pub mod cache;
 
 #[cfg(test)]
 mod tests {
     use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
     use python_marshal::{CodeFlags, PyString};
 
-    use crate::v312;
     use crate::v312::code_objects::CompareOperation::Equal;
     use crate::v312::code_objects::{
         Constant, FrozenConstant, JumpDirection, LinetableEntry, NameIndex, RelativeJump,
@@ -18,6 +18,7 @@ mod tests {
         get_line_number, starts_line_number, Instruction, Instructions,
     };
     use crate::v312::opcodes::Opcode;
+    use crate::{load_code, v312};
     use crate::{load_pyc, prelude::*};
 
     use std::fs::File;
@@ -70,10 +71,10 @@ mod tests {
         match resolved
             .iter()
             .enumerate()
-            .find(|(_, instruction)| instruction.get_opcode() == Opcode::POP_JUMP_FORWARD_IF_TRUE)
+            .find(|(_, instruction)| instruction.get_opcode() == Opcode::POP_JUMP_IF_TRUE)
             .expect("There must be a jump")
         {
-            (index, ExtInstruction::PopJumpForwardIfTrue(jump)) => {
+            (index, ExtInstruction::PopJumpIfTrue(jump)) => {
                 let target = resolved
                     .get_jump_target(index as u32, (*jump).into())
                     .expect("Should never fail");
@@ -184,10 +185,7 @@ mod tests {
                 Instruction::PushNull(0),
                 Instruction::LoadName(0),
                 Instruction::LoadConst(0),
-                Instruction::Precall(1),
-                Instruction::Cache(0),
                 Instruction::Call(1),
-                Instruction::Cache(0),
                 Instruction::Cache(0),
                 Instruction::Cache(0),
                 Instruction::Cache(0),
@@ -200,16 +198,12 @@ mod tests {
                 Instruction::LoadName(1),
                 Instruction::FormatValue(2),
                 Instruction::BuildString(2),
-                Instruction::Precall(1),
-                Instruction::Cache(0),
                 Instruction::Call(1),
                 Instruction::Cache(0),
                 Instruction::Cache(0),
                 Instruction::Cache(0),
-                Instruction::Cache(0),
                 Instruction::PopTop(0),
-                Instruction::LoadConst(3),
-                Instruction::ReturnValue(0),
+                Instruction::ReturnConst(3),
             ]),
             consts: vec![
                 Constant::FrozenConstant(FrozenConstant::String(PyString {
@@ -249,9 +243,8 @@ mod tests {
             },
             firstlineno: 1,
             linetable: vec![
-                240, 3, 1, 1, 1, 224, 0, 5, 128, 5, 128, 104, 129, 15, 132, 15, 128, 15, 216, 4, 5,
-                128, 1, 224, 0, 5, 128, 5, 128, 111, 144, 17, 128, 111, 128, 111, 209, 0, 22, 212,
-                0, 22, 208, 0, 22, 208, 0, 22, 208, 0, 22,
+                240, 3, 1, 1, 1, 225, 0, 5, 128, 104, 132, 15, 216, 4, 5, 128, 1, 225, 0, 5, 136,
+                11, 144, 17, 144, 4, 128, 111, 213, 0, 22,
             ],
             exceptiontable: vec![],
         };
@@ -263,142 +256,86 @@ mod tests {
                     start: 0,
                     end: 2,
                     line_number: Some(0),
-                    column_start: 1.into(),
-                    column_end: 1.into(),
+                    column_start: Some(1),
+                    column_end: Some(1)
                 },
                 LinetableEntry {
                     start: 2,
-                    end: 4,
-                    line_number: Some(2),
-                    column_start: 0.into(),
-                    column_end: 5.into(),
-                },
-                LinetableEntry {
-                    start: 4,
                     end: 6,
                     line_number: Some(2),
-                    column_start: 0.into(),
-                    column_end: 5.into(),
+                    column_start: Some(0),
+                    column_end: Some(5)
                 },
                 LinetableEntry {
                     start: 6,
                     end: 8,
                     line_number: Some(2),
-                    column_start: 6.into(),
-                    column_end: 14.into(),
+                    column_start: Some(6),
+                    column_end: Some(14)
                 },
                 LinetableEntry {
                     start: 8,
-                    end: 12,
+                    end: 18,
                     line_number: Some(2),
-                    column_start: 0.into(),
-                    column_end: 15.into(),
+                    column_start: Some(0),
+                    column_end: Some(15)
                 },
                 LinetableEntry {
-                    start: 12,
+                    start: 18,
+                    end: 20,
+                    line_number: Some(3),
+                    column_start: Some(4),
+                    column_end: Some(5)
+                },
+                LinetableEntry {
+                    start: 20,
                     end: 22,
-                    line_number: Some(2),
-                    column_start: 0.into(),
-                    column_end: 15.into(),
+                    line_number: Some(3),
+                    column_start: Some(0),
+                    column_end: Some(1)
                 },
                 LinetableEntry {
                     start: 22,
-                    end: 24,
-                    line_number: Some(2),
-                    column_start: 0.into(),
-                    column_end: 15.into(),
-                },
-                LinetableEntry {
-                    start: 24,
                     end: 26,
-                    line_number: Some(3),
-                    column_start: 4.into(),
-                    column_end: 5.into(),
+                    line_number: Some(5),
+                    column_start: Some(0),
+                    column_end: Some(5)
                 },
                 LinetableEntry {
                     start: 26,
                     end: 28,
-                    line_number: Some(3),
-                    column_start: 0.into(),
-                    column_end: 1.into(),
+                    line_number: Some(5),
+                    column_start: Some(8),
+                    column_end: Some(19)
                 },
                 LinetableEntry {
                     start: 28,
                     end: 30,
                     line_number: Some(5),
-                    column_start: 0.into(),
-                    column_end: 5.into(),
+                    column_start: Some(17),
+                    column_end: Some(18)
                 },
                 LinetableEntry {
                     start: 30,
                     end: 32,
                     line_number: Some(5),
-                    column_start: 0.into(),
-                    column_end: 5.into(),
+                    column_start: Some(16),
+                    column_end: Some(20)
                 },
                 LinetableEntry {
                     start: 32,
                     end: 34,
                     line_number: Some(5),
-                    column_start: 6.into(),
-                    column_end: 21.into(),
+                    column_start: Some(6),
+                    column_end: Some(21)
                 },
                 LinetableEntry {
                     start: 34,
-                    end: 36,
+                    end: 46,
                     line_number: Some(5),
-                    column_start: 17.into(),
-                    column_end: 18.into(),
-                },
-                LinetableEntry {
-                    start: 36,
-                    end: 38,
-                    line_number: Some(5),
-                    column_start: 6.into(),
-                    column_end: 21.into(),
-                },
-                LinetableEntry {
-                    start: 38,
-                    end: 40,
-                    line_number: Some(5),
-                    column_start: 6.into(),
-                    column_end: 21.into(),
-                },
-                LinetableEntry {
-                    start: 40,
-                    end: 44,
-                    line_number: Some(5),
-                    column_start: 0.into(),
-                    column_end: 22.into(),
-                },
-                LinetableEntry {
-                    start: 44,
-                    end: 54,
-                    line_number: Some(5),
-                    column_start: 0.into(),
-                    column_end: 22.into(),
-                },
-                LinetableEntry {
-                    start: 54,
-                    end: 56,
-                    line_number: Some(5),
-                    column_start: 0.into(),
-                    column_end: 22.into(),
-                },
-                LinetableEntry {
-                    start: 56,
-                    end: 58,
-                    line_number: Some(5),
-                    column_start: 0.into(),
-                    column_end: 22.into(),
-                },
-                LinetableEntry {
-                    start: 58,
-                    end: 60,
-                    line_number: Some(5),
-                    column_start: 0.into(),
-                    column_end: 22.into(),
-                },
+                    column_start: Some(0),
+                    column_end: Some(22)
+                }
             ]
         );
 

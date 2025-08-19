@@ -14,6 +14,7 @@ use std::io::Read;
 pub enum PycFile {
     V310(v310::code_objects::Pyc),
     V311(v311::code_objects::Pyc),
+    V312(v312::code_objects::Pyc),
 }
 
 impl From<PycFile> for python_marshal::PycFile {
@@ -37,6 +38,15 @@ impl From<PycFile> for python_marshal::PycFile {
                     references: Vec::new(), // All references are resolved in this editor.
                 }
             }
+            PycFile::V312(pyc) => {
+                python_marshal::PycFile {
+                    python_version: pyc.python_version,
+                    timestamp: Some(pyc.timestamp),
+                    hash: pyc.hash,
+                    object: python_marshal::Object::Code(pyc.code_object.into()),
+                    references: Vec::new(), // All references are resolved in this editor.
+                }
+            }
         }
     }
 }
@@ -45,6 +55,7 @@ impl From<PycFile> for python_marshal::PycFile {
 pub enum CodeObject {
     V310(v310::code_objects::Code),
     V311(v311::code_objects::Code),
+    V312(v312::code_objects::Code),
 }
 
 pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
@@ -66,6 +77,14 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
         } => {
             let pyc = v311::code_objects::Pyc::try_from(pyc_file)?;
             Ok(PycFile::V311(pyc))
+        }
+        PyVersion {
+            major: 3,
+            minor: 12,
+            ..
+        } => {
+            let pyc = v312::code_objects::Pyc::try_from(pyc_file)?;
+            Ok(PycFile::V312(pyc))
         }
         _ => Err(Error::UnsupportedVersion(pyc_file.python_version)),
     }
@@ -104,6 +123,16 @@ pub fn load_code(mut data: impl Read, python_version: PyVersion) -> Result<CodeO
             let code = python_marshal::load_bytes(&buf, python_version)?;
             Ok(CodeObject::V311(code.try_into()?))
         }
+        PyVersion {
+            major: 3,
+            minor: 12,
+            ..
+        } => {
+            let mut buf = Vec::new();
+            data.read_to_end(&mut buf)?;
+            let code = python_marshal::load_bytes(&buf, python_version)?;
+            Ok(CodeObject::V312(code.try_into()?))
+        }
         _ => Err(Error::UnsupportedVersion(python_version)),
     }
 }
@@ -113,28 +142,18 @@ pub fn dump_code(
     python_version: PyVersion,
     marshal_version: u8,
 ) -> Result<Vec<u8>, Error> {
-    match code_object {
-        CodeObject::V310(code) => {
-            let object = python_marshal::Object::Code(code.into());
-            let (obj, refs) = minimize_references(&object, vec![]);
+    let object = match code_object {
+        CodeObject::V310(code) => python_marshal::Object::Code(code.into()),
+        CodeObject::V311(code) => python_marshal::Object::Code(code.into()),
+        CodeObject::V312(code) => python_marshal::Object::Code(code.into()),
+    };
 
-            Ok(python_marshal::dump_bytes(
-                obj,
-                Some(refs),
-                python_version,
-                marshal_version,
-            )?)
-        }
-        CodeObject::V311(code) => {
-            let object = python_marshal::Object::Code(code.into());
-            let (obj, refs) = minimize_references(&object, vec![]);
+    let (obj, refs) = minimize_references(&object, vec![]);
 
-            Ok(python_marshal::dump_bytes(
-                obj,
-                Some(refs),
-                python_version,
-                marshal_version,
-            )?)
-        }
-    }
+    Ok(python_marshal::dump_bytes(
+        obj,
+        Some(refs),
+        python_version,
+        marshal_version,
+    )?)
 }

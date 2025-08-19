@@ -1563,9 +1563,9 @@ dependencies = [
 
 [[package]]
 name = "python_marshal"
-version = "0.4.5"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aa9fa8c3d93972faca95dfab8bcc1daeb5a5a2ee84820229f9f11712a1b134b"
+checksum = "be80575b9cfaab4f35e048e28f689eb7fec3e34714598af47f4e6ebe22b83eae"
 dependencies = [
  "bitflags 2.9.1",
  "bstr",

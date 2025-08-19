@@ -1011,7 +1011,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::JUMP_BACKWARD_NO_INTERRUPT => {
                 ExtInstruction::JumpBackwardNoInterrupt(RelativeJump {
                     index: value.1.into(),
-                    direction: JumpDirection::Forward,
+                    direction: JumpDirection::Backward,
                 })
             }
             Opcode::MAKE_CELL => ExtInstruction::MakeCell(ClosureRefIndex {

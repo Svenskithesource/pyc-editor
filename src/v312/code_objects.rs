@@ -9,7 +9,7 @@ use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
 use crate::{error::Error, v312::instructions::Instructions};
-use std::{any::Any, fmt, ops::BitOr};
+use std::{fmt, ops::BitOr};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FrozenConstant {
@@ -981,13 +981,13 @@ impl From<u32> for CompareOperation {
 
 #[repr(u8)]
 enum ComparisonBits {
-    ComparisonUnordered = 1,
-    ComparisonLessThan = 2,
-    ComparisonGreaterThan = 4,
-    ComparisonEquals = 8,
-    ComparisonNotEquals = (ComparisonBits::ComparisonUnordered as u8
-        | ComparisonBits::ComparisonLessThan as u8
-        | ComparisonBits::ComparisonGreaterThan as u8),
+    Unordered = 1,
+    LessThan = 2,
+    GreaterThan = 4,
+    Equals = 8,
+    NotEquals = (ComparisonBits::Unordered as u8
+        | ComparisonBits::LessThan as u8
+        | ComparisonBits::GreaterThan as u8),
 }
 
 impl BitOr for ComparisonBits {
@@ -1001,12 +1001,16 @@ impl BitOr for ComparisonBits {
 impl From<&CompareOperation> for u32 {
     fn from(val: &CompareOperation) -> Self {
         match val {
-            CompareOperation::Smaller => (0 << 4) | ComparisonBits::ComparisonLessThan as u32,
-            CompareOperation::SmallerOrEqual => (1 << 4) | (ComparisonBits::ComparisonLessThan | ComparisonBits::ComparisonEquals) as u32,
-            CompareOperation::Equal => (2 << 4) | ComparisonBits::ComparisonEquals as u32,
-            CompareOperation::NotEqual => (3 << 4) | ComparisonBits::ComparisonNotEquals as u32,
-            CompareOperation::Bigger => (4 << 4) | ComparisonBits::ComparisonGreaterThan as u32,
-            CompareOperation::BiggerOrEqual => (5 << 4) | (ComparisonBits::ComparisonGreaterThan | ComparisonBits::ComparisonEquals) as u32,
+            CompareOperation::Smaller => ComparisonBits::LessThan as u32,
+            CompareOperation::SmallerOrEqual => {
+                (1 << 4) | (ComparisonBits::LessThan | ComparisonBits::Equals) as u32
+            }
+            CompareOperation::Equal => (2 << 4) | ComparisonBits::Equals as u32,
+            CompareOperation::NotEqual => (3 << 4) | ComparisonBits::NotEquals as u32,
+            CompareOperation::Bigger => (4 << 4) | ComparisonBits::GreaterThan as u32,
+            CompareOperation::BiggerOrEqual => {
+                (5 << 4) | (ComparisonBits::GreaterThan | ComparisonBits::Equals) as u32
+            }
             CompareOperation::Invalid(v) => *v,
         }
     }

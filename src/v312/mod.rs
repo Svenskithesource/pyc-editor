@@ -1,14 +1,15 @@
+pub mod cache;
 pub mod code_objects;
 pub mod ext_instructions;
 pub mod instructions;
 pub mod opcodes;
-pub mod cache;
 
 #[cfg(test)]
 mod tests {
     use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
     use python_marshal::{CodeFlags, PyString};
 
+    use crate::v312;
     use crate::v312::code_objects::CompareOperation::Equal;
     use crate::v312::code_objects::{
         Constant, FrozenConstant, JumpDirection, LinetableEntry, NameIndex, RelativeJump,
@@ -18,7 +19,6 @@ mod tests {
         get_line_number, starts_line_number, Instruction, Instructions,
     };
     use crate::v312::opcodes::Opcode;
-    use crate::{load_code, v312};
     use crate::{load_pyc, prelude::*};
 
     use std::fs::File;

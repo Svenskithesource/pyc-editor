@@ -682,21 +682,12 @@ pub fn starts_line_number(lines: &[LinetableEntry], index: u32) -> Option<u32> {
     let mut current_line = None;
 
     for entry in lines {
-        match current_line {
-            None => {
-                if entry.start == index * 2 {
-                    return entry.line_number;
-                } else {
-                    current_line = Some(entry.line_number);
-                }
+        if entry.line_number.is_some() && current_line != entry.line_number {
+            if entry.start == index * 2 {
+                return entry.line_number;
             }
-            Some(line_number) => {
-                if entry.start == index * 2 && entry.line_number != line_number {
-                    return entry.line_number;
-                } else {
-                    current_line = Some(entry.line_number);
-                }
-            }
+
+            current_line = entry.line_number;
         }
     }
 

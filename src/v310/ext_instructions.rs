@@ -591,7 +591,16 @@ impl ExtInstructions {
                 }
 
                 for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
-                    *entry.value() += extended_arg_count
+                    let interval_clone = (*entry.interval()).clone();
+                    let entry_value = entry.value();
+
+                    if *entry_value <= u8::MAX.into()
+                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    {
+                        relative_jumps_to_update.push(interval_clone);
+                    }
+
+                    *entry_value += extended_arg_count;
                 }
             }
         }

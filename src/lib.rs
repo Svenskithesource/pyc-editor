@@ -16,6 +16,7 @@ pub enum PycFile {
     V310(v310::code_objects::Pyc),
     V311(v311::code_objects::Pyc),
     V312(v312::code_objects::Pyc),
+    V313(v313::code_objects::Pyc),
 }
 
 impl From<PycFile> for python_marshal::PycFile {
@@ -48,6 +49,15 @@ impl From<PycFile> for python_marshal::PycFile {
                     references: Vec::new(), // All references are resolved in this editor.
                 }
             }
+            PycFile::V313(pyc) => {
+                python_marshal::PycFile {
+                    python_version: pyc.python_version,
+                    timestamp: Some(pyc.timestamp),
+                    hash: pyc.hash,
+                    object: python_marshal::Object::Code(pyc.code_object.into()),
+                    references: Vec::new(), // All references are resolved in this editor.
+                }
+            }
         }
     }
 }
@@ -57,6 +67,7 @@ pub enum CodeObject {
     V310(v310::code_objects::Code),
     V311(v311::code_objects::Code),
     V312(v312::code_objects::Code),
+    V313(v313::code_objects::Code),
 }
 
 pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
@@ -86,6 +97,14 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
         } => {
             let pyc = v312::code_objects::Pyc::try_from(pyc_file)?;
             Ok(PycFile::V312(pyc))
+        }
+        PyVersion {
+            major: 3,
+            minor: 13,
+            ..
+        } => {
+            let pyc = v313::code_objects::Pyc::try_from(pyc_file)?;
+            Ok(PycFile::V313(pyc))
         }
         _ => Err(Error::UnsupportedVersion(pyc_file.python_version)),
     }
@@ -147,6 +166,7 @@ pub fn dump_code(
         CodeObject::V310(code) => python_marshal::Object::Code(code.into()),
         CodeObject::V311(code) => python_marshal::Object::Code(code.into()),
         CodeObject::V312(code) => python_marshal::Object::Code(code.into()),
+        CodeObject::V313(code) => python_marshal::Object::Code(code.into()),
     };
 
     let (obj, refs) = minimize_references(&object, vec![]);

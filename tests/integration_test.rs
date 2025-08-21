@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pyc_editor::{dump_pyc, load_pyc, v310, v311, v312};
+use pyc_editor::{dump_pyc, load_pyc, v310, v311, v312, v313};
 
 use crate::common::DATA_PATH;
 
@@ -24,6 +24,9 @@ macro_rules! handle_code_object_versions {
             pyc_editor::CodeObject::V312(code) => {
                 $handler!(V312, v312, code)
             }
+            pyc_editor::CodeObject::V313(code) => {
+                $handler!(V313, v313, code)
+            }
         }
     };
 }
@@ -41,6 +44,9 @@ macro_rules! handle_pyc_versions {
             pyc_editor::PycFile::V312(ref mut pyc) => {
                 $handler!(V312, v312, pyc)
             }
+            pyc_editor::PycFile::V313(ref mut pyc) => {
+                $handler!(V313, v313, pyc)
+            }
         }
     };
     // Variant for immutable references
@@ -54,6 +60,9 @@ macro_rules! handle_pyc_versions {
             }
             pyc_editor::PycFile::V312(ref pyc) => {
                 $handler!(V312, v312, pyc)
+            }
+            pyc_editor::PycFile::V313(ref pyc) => {
+                $handler!(V313, v313, pyc)
             }
         }
     };
@@ -108,11 +117,11 @@ fn test_recompile_resolved_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.par_iter().for_each(|pyc_file| {
+        pyc_files.iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);

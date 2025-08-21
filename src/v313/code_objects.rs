@@ -196,11 +196,11 @@ impl TryFrom<python_marshal::Object> for Constant {
             python_marshal::Object::Code(code) => match code {
                 python_marshal::Code::V310(_) => Err(Error::UnsupportedVersion((3, 10).into())),
                 python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
-                python_marshal::Code::V312(code) => {
+                python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
+                python_marshal::Code::V313(code) => {
                     let code = Code::try_from(code)?;
                     Ok(Constant::CodeObject(code))
                 }
-                python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
             },
             _ => {
                 let frozen_constant = FrozenConstant::try_from(value)?;
@@ -413,15 +413,15 @@ impl TryFrom<(python_marshal::Object, Vec<Object>)> for Code {
         match code_object {
             python_marshal::Code::V310(_) => Err(Error::UnsupportedVersion((3, 10).into())),
             python_marshal::Code::V311(_) => Err(Error::UnsupportedVersion((3, 11).into())),
-            python_marshal::Code::V312(code) => Ok(Code::try_from(code)?),
-            python_marshal::Code::V313(_) => Err(Error::UnsupportedVersion((3, 13).into())),
+            python_marshal::Code::V312(_) => Err(Error::UnsupportedVersion((3, 12).into())),
+            python_marshal::Code::V313(code) => Ok(Code::try_from(code)?),
         }
     }
 }
 
 impl From<Code> for python_marshal::Code {
     fn from(val: Code) -> Self {
-        python_marshal::Code::V312(python_marshal::code_objects::Code312 {
+        python_marshal::Code::V313(python_marshal::code_objects::Code313 {
             argcount: val.argcount,
             posonlyargcount: val.posonlyargcount,
             kwonlyargcount: val.kwonlyargcount,
@@ -469,10 +469,10 @@ macro_rules! extract_strings_tuple {
     };
 }
 
-impl TryFrom<python_marshal::code_objects::Code312> for Code {
+impl TryFrom<python_marshal::code_objects::Code313> for Code {
     type Error = crate::error::Error;
 
-    fn try_from(code: python_marshal::code_objects::Code312) -> Result<Self, Self::Error> {
+    fn try_from(code: python_marshal::code_objects::Code313) -> Result<Self, Self::Error> {
         let co_code = extract_object!(Some(*code.code), python_marshal::Object::Bytes(bytes) => bytes, python_marshal::error::Error::NullInTuple)?;
         let co_consts = extract_object!(Some(*code.consts), python_marshal::Object::Tuple(objs) => objs, python_marshal::error::Error::NullInTuple)?;
         let co_names = extract_strings_tuple!(
@@ -570,10 +570,22 @@ pub struct NameIndex {
     pub index: u32,
 }
 
+impl From<u32> for NameIndex {
+    fn from(value: u32) -> Self {
+        NameIndex { index: value }
+    }
+}
+
 /// Holds an index into co_names. LOAD_ATTR is a special case where it will look for (index >> 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AttrNameIndex {
     pub index: u32,
+}
+
+impl From<u32> for AttrNameIndex {
+    fn from(value: u32) -> Self {
+        AttrNameIndex { index: value }
+    }
 }
 
 /// Holds an index into co_names. LOAD_SUPER_ATTR is a special case where it will look for (index >> 2).
@@ -582,16 +594,34 @@ pub struct SuperAttrNameIndex {
     pub index: u32,
 }
 
+impl From<u32> for SuperAttrNameIndex {
+    fn from(value: u32) -> Self {
+        SuperAttrNameIndex { index: value }
+    }
+}
+
 /// Holds an index into co_names. LOAD_GLOBAL is a special case where it will look for (index >> 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlobalNameIndex {
     pub index: u32,
 }
 
+impl From<u32> for GlobalNameIndex {
+    fn from(value: u32) -> Self {
+        GlobalNameIndex { index: value }
+    }
+}
+
 /// Holds an index into co_varnames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VarNameIndex {
     pub index: u32,
+}
+
+impl From<u32> for VarNameIndex {
+    fn from(value: u32) -> Self {
+        VarNameIndex { index: value }
+    }
 }
 
 impl VarNameIndex {
@@ -606,6 +636,12 @@ pub struct ConstIndex {
     pub index: u32,
 }
 
+impl From<u32> for ConstIndex {
+    fn from(value: u32) -> Self {
+        ConstIndex { index: value }
+    }
+}
+
 impl ConstIndex {
     pub fn get<'a>(&self, co_consts: &'a [Constant]) -> Option<&'a Constant> {
         co_consts.get(self.index as usize)
@@ -617,6 +653,12 @@ impl ConstIndex {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DynamicIndex {
     pub index: u32,
+}
+
+impl From<u32> for DynamicIndex {
+    fn from(value: u32) -> Self {
+        DynamicIndex { index: value }
+    }
 }
 
 /// All binary operations that can be passed as an argument
@@ -936,11 +978,43 @@ pub struct ClosureRefIndex {
     pub index: u32,
 }
 
+impl From<u32> for ClosureRefIndex {
+    fn from(value: u32) -> Self {
+        ClosureRefIndex { index: value }
+    }
+}
+
 /// Used to represent the different comparison operations for COMPARE_OP
-/// 3.12 stores the operation in the 4 highest bits and the lower 4 bits are used for by the quickened versions to store the mask.
-/// See https://github.com/python/cpython/blob/3.12/Include/internal/pycore_code.h#L471-L486
+/// 3.13 stores the operation in the 5 highest bits and the lower 4 bits are used for by the quickened versions to store the mask.
+/// The fifth-lowest bit indicates if it should be coerced to a bool.
+/// See https://github.com/python/cpython/blob/3.13/Include/internal/pycore_code.h#L569-L585
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CompareOperation {
+pub struct CompareOperation {
+    pub compare_op: CompareOps,
+    pub to_bool: bool,
+}
+
+impl From<u32> for CompareOperation {
+    fn from(value: u32) -> Self {
+        CompareOperation {
+            compare_op: value.into(),
+            to_bool: (value & 16) != 0,
+        }
+    }
+}
+
+impl From<&CompareOperation> for u32 {
+    fn from(value: &CompareOperation) -> Self {
+        let mut val = (&value.compare_op).into();
+        if value.to_bool {
+            val |= 16;
+        }
+        val
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompareOps {
     Smaller,
     SmallerOrEqual,
     Equal,
@@ -950,24 +1024,24 @@ pub enum CompareOperation {
     Invalid(u32),
 }
 
-impl fmt::Display for CompareOperation {
+impl fmt::Display for CompareOps {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompareOperation::Smaller => write!(f, "<"),
-            CompareOperation::SmallerOrEqual => write!(f, "<="),
-            CompareOperation::Equal => write!(f, "=="),
-            CompareOperation::NotEqual => write!(f, "!="),
-            CompareOperation::Bigger => write!(f, ">"),
-            CompareOperation::BiggerOrEqual => write!(f, ">="),
-            CompareOperation::Invalid(v) => write!(f, "Invalid({})", v),
+            CompareOps::Smaller => write!(f, "<"),
+            CompareOps::SmallerOrEqual => write!(f, "<="),
+            CompareOps::Equal => write!(f, "=="),
+            CompareOps::NotEqual => write!(f, "!="),
+            CompareOps::Bigger => write!(f, ">"),
+            CompareOps::BiggerOrEqual => write!(f, ">="),
+            CompareOps::Invalid(v) => write!(f, "Invalid({})", v),
         }
     }
 }
 
-impl From<u32> for CompareOperation {
+impl From<u32> for CompareOps {
     fn from(value: u32) -> Self {
-        // 3.12 now stores them in the highest 4 bits
-        match value >> 4 {
+        // 3.13 stores them in the highest 5 bits
+        match value >> 5 {
             0 => Self::Smaller,
             1 => Self::SmallerOrEqual,
             2 => Self::Equal,
@@ -979,6 +1053,7 @@ impl From<u32> for CompareOperation {
     }
 }
 
+/// See https://github.com/python/cpython/blob/3.13/Include/internal/pycore_code.h#L569-L585
 #[repr(u8)]
 enum ComparisonBits {
     Unordered = 1,
@@ -998,20 +1073,20 @@ impl BitOr for ComparisonBits {
     }
 }
 
-impl From<&CompareOperation> for u32 {
-    fn from(val: &CompareOperation) -> Self {
+impl From<&CompareOps> for u32 {
+    fn from(val: &CompareOps) -> Self {
         match val {
-            CompareOperation::Smaller => ComparisonBits::LessThan as u32,
-            CompareOperation::SmallerOrEqual => {
-                (1 << 4) | (ComparisonBits::LessThan | ComparisonBits::Equals) as u32
+            CompareOps::Smaller => ComparisonBits::LessThan as u32,
+            CompareOps::SmallerOrEqual => {
+                (1 << 5) | (ComparisonBits::LessThan | ComparisonBits::Equals) as u32
             }
-            CompareOperation::Equal => (2 << 4) | ComparisonBits::Equals as u32,
-            CompareOperation::NotEqual => (3 << 4) | ComparisonBits::NotEquals as u32,
-            CompareOperation::Bigger => (4 << 4) | ComparisonBits::GreaterThan as u32,
-            CompareOperation::BiggerOrEqual => {
-                (5 << 4) | (ComparisonBits::GreaterThan | ComparisonBits::Equals) as u32
+            CompareOps::Equal => (2 << 5) | ComparisonBits::Equals as u32,
+            CompareOps::NotEqual => (3 << 5) | ComparisonBits::NotEquals as u32,
+            CompareOps::Bigger => (4 << 5) | ComparisonBits::GreaterThan as u32,
+            CompareOps::BiggerOrEqual => {
+                (5 << 5) | (ComparisonBits::GreaterThan | ComparisonBits::Equals) as u32
             }
-            CompareOperation::Invalid(v) => *v,
+            CompareOps::Invalid(v) => *v,
         }
     }
 }
@@ -1183,7 +1258,7 @@ impl From<&CallExFlags> for u32 {
 bitflags! {
     /// Describes which optional data for a new function is present on the stack.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct MakeFunctionFlags: u32 { // Or u8 if the arg is always a byte
+    pub struct FunctionAttributeFlags: u32 { // Or u8 if the arg is always a byte
         /// A tuple of default values for positional args.
         const POS_DEFAULTS = 0x01;
         /// A dictionary of keyword-only default values.
@@ -1195,19 +1270,19 @@ bitflags! {
     }
 }
 
-impl fmt::Display for MakeFunctionFlags {
+impl fmt::Display for FunctionAttributeFlags {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut parts = Vec::new();
-        if self.contains(MakeFunctionFlags::POS_DEFAULTS) {
+        if self.contains(FunctionAttributeFlags::POS_DEFAULTS) {
             parts.push("POS_DEFAULTS");
         }
-        if self.contains(MakeFunctionFlags::KW_DEFAULTS) {
+        if self.contains(FunctionAttributeFlags::KW_DEFAULTS) {
             parts.push("KW_DEFAULTS");
         }
-        if self.contains(MakeFunctionFlags::ANNOTATIONS) {
+        if self.contains(FunctionAttributeFlags::ANNOTATIONS) {
             parts.push("ANNOTATIONS");
         }
-        if self.contains(MakeFunctionFlags::CLOSURE) {
+        if self.contains(FunctionAttributeFlags::CLOSURE) {
             parts.push("CLOSURE");
         }
 
@@ -1243,63 +1318,35 @@ impl From<&SliceCount> for u32 {
     }
 }
 
-bitflags! {
-    /// Represents the conversion to apply to a value before f-string formatting.
-    /// From https://github.com/python/cpython/blob/3.10/Python/compile.c#L4349C5-L4361C7
-    ///  Our oparg encodes 2 pieces of information: the conversion
-    ///    character, and whether or not a format_spec was provided.
-
-    ///    Convert the conversion char to 3 bits:
-    ///        : 000  0x0  FVC_NONE   The default if nothing specified.
-    ///    !s  : 001  0x1  FVC_STR
-    ///    !r  : 010  0x2  FVC_REPR
-    ///    !a  : 011  0x3  FVC_ASCII
-
-    ///    next bit is whether or not we have a format spec:
-    ///    yes : 100  0x4
-    ///    no  : 000  0x0
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct FormatFlag: u8 {
-        /// No conversion (default)
-        const FVC_NONE = 0x0;
-        /// !s conversion
-        const FVC_STR = 0x1;
-        /// !r conversion
-        const FVC_REPR = 0x2;
-        /// !a conversion
-        const FVC_ASCII = 0x3;
-        /// Format spec is present
-        const FVS_MASK = 0x4;
-    }
+/// The convert format used for formatting f-strings.
+/// See https://docs.python.org/3.13/library/dis.html#opcode-CONVERT_VALUE
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConvertFormat {
+    Str,
+    Repr,
+    Ascii,
+    Invalid(u32),
 }
 
-impl fmt::Display for FormatFlag {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let conv = match self.bits() & 0x3 {
-            0x0 => "",
-            0x1 => "str",
-            0x2 => "repr",
-            0x3 => "ascii",
-            _ => "invalid",
-        };
-
-        if self.contains(FormatFlag::FVS_MASK) {
-            write!(f, "{} with format", conv)
-        } else {
-            write!(f, "{}", conv)
+impl From<u32> for ConvertFormat {
+    fn from(value: u32) -> Self {
+        match value {
+            1 => Self::Str,
+            2 => Self::Repr,
+            3 => Self::Ascii,
+            _ => Self::Invalid(value),
         }
     }
 }
 
-impl From<u32> for FormatFlag {
-    fn from(value: u32) -> Self {
-        FormatFlag::from_bits_retain(value as u8)
-    }
-}
-
-impl From<&FormatFlag> for u32 {
-    fn from(val: &FormatFlag) -> Self {
-        val.bits() as u32
+impl From<&ConvertFormat> for u32 {
+    fn from(val: &ConvertFormat) -> Self {
+        match val {
+            ConvertFormat::Str => 1,
+            ConvertFormat::Repr => 2,
+            ConvertFormat::Ascii => 3,
+            ConvertFormat::Invalid(v) => *v,
+        }
     }
 }
 

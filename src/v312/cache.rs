@@ -40,7 +40,7 @@ pub struct StoreAttrCache {
     pub index: u16,
 }
 
-/// Cache layout of the STORE_ATTR instruction
+/// Cache layout of the CALL instruction
 /// See https://github.com/python/cpython/blob/3.12/Include/internal/pycore_code.h#L60
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]

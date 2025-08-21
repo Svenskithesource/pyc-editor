@@ -153,6 +153,16 @@ pub fn load_code(mut data: impl Read, python_version: PyVersion) -> Result<CodeO
             let code = python_marshal::load_bytes(&buf, python_version)?;
             Ok(CodeObject::V312(code.try_into()?))
         }
+        PyVersion {
+            major: 3,
+            minor: 13,
+            ..
+        } => {
+            let mut buf = Vec::new();
+            data.read_to_end(&mut buf)?;
+            let code = python_marshal::load_bytes(&buf, python_version)?;
+            Ok(CodeObject::V313(code.try_into()?))
+        }
         _ => Err(Error::UnsupportedVersion(python_version)),
     }
 }

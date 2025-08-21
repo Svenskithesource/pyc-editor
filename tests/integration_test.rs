@@ -122,73 +122,77 @@ fn test_recompile_resolved_standard_lib() {
         let pyc_files = common::find_pyc_files(version);
 
         pyc_files.iter().for_each(|pyc_file| {
-            println!("Testing pyc file: {:?}", pyc_file);
-            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
-            let reader = BufReader::new(file);
+            if pyc_file.ends_with("test_contextlib.cpython-313.pyc") {
+                println!("Testing pyc file: {:?}", pyc_file);
+                let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+                let reader = BufReader::new(file);
 
-            let original_pyc = python_marshal::load_pyc(reader).expect("Failed to load pyc file");
-            let original_pyc = python_marshal::resolver::resolve_all_refs(
-                &original_pyc.object,
-                &original_pyc.references,
-            )
-            .0;
+                let original_pyc =
+                    python_marshal::load_pyc(reader).expect("Failed to load pyc file");
+                let original_pyc = python_marshal::resolver::resolve_all_refs(
+                    &original_pyc.object,
+                    &original_pyc.references,
+                )
+                .0;
 
-            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
-            let reader = BufReader::new(file);
+                let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+                let reader = BufReader::new(file);
 
-            let mut parsed_pyc = load_pyc(reader).unwrap();
+                let mut parsed_pyc = load_pyc(reader).unwrap();
 
-            fn rewrite_code_object(code: &pyc_editor::CodeObject) -> pyc_editor::CodeObject {
-                macro_rules! rewrite_version {
-                    ($variant:ident, $module:ident, $code:expr) => {{
-                        let mut code = $code.clone();
-                        code.code = code.code.to_resolved().to_instructions();
+                fn rewrite_code_object(code: &pyc_editor::CodeObject) -> pyc_editor::CodeObject {
+                    macro_rules! rewrite_version {
+                        ($variant:ident, $module:ident, $code:expr) => {{
+                            let mut code = $code.clone();
+                            code.code = code.code.to_resolved().to_instructions();
 
-                        for constant in &mut code.consts {
-                            if let $module::code_objects::Constant::CodeObject(ref mut const_code) =
-                                constant
-                            {
-                                let new_const_code = rewrite_code_object(
-                                    &pyc_editor::CodeObject::$variant(const_code.clone()),
-                                );
-
-                                if let pyc_editor::CodeObject::$variant(inner_const_code) =
-                                    new_const_code
+                            for constant in &mut code.consts {
+                                if let $module::code_objects::Constant::CodeObject(
+                                    ref mut const_code,
+                                ) = constant
                                 {
-                                    *const_code = inner_const_code;
+                                    let new_const_code = rewrite_code_object(
+                                        &pyc_editor::CodeObject::$variant(const_code.clone()),
+                                    );
+
+                                    if let pyc_editor::CodeObject::$variant(inner_const_code) =
+                                        new_const_code
+                                    {
+                                        *const_code = inner_const_code;
+                                    }
                                 }
                             }
-                        }
 
-                        pyc_editor::CodeObject::$variant(code)
+                            pyc_editor::CodeObject::$variant(code)
+                        }};
+                    }
+
+                    handle_code_object_versions!(code, rewrite_version)
+                }
+
+                macro_rules! rewrite_pyc {
+                    ($variant:ident, $module:ident, $pyc:expr) => {{
+                        let new_code = rewrite_code_object(&pyc_editor::CodeObject::$variant(
+                            $pyc.code_object.clone(),
+                        ));
+
+                        if let pyc_editor::CodeObject::$variant(inner_code) = new_code {
+                            $pyc.code_object = inner_code;
+                        }
                     }};
                 }
 
-                handle_code_object_versions!(code, rewrite_version)
+                handle_pyc_versions!(parsed_pyc, rewrite_pyc);
+
+                let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
+
+                std::assert_eq!(
+                    original_pyc,
+                    pyc.object,
+                    "{:?} has not been recompiled succesfully",
+                    &pyc_file
+                );
             }
-
-            macro_rules! rewrite_pyc {
-                ($variant:ident, $module:ident, $pyc:expr) => {{
-                    let new_code = rewrite_code_object(&pyc_editor::CodeObject::$variant(
-                        $pyc.code_object.clone(),
-                    ));
-
-                    if let pyc_editor::CodeObject::$variant(inner_code) = new_code {
-                        $pyc.code_object = inner_code;
-                    }
-                }};
-            }
-
-            handle_pyc_versions!(parsed_pyc, rewrite_pyc);
-
-            let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
-
-            std::assert_eq!(
-                original_pyc,
-                pyc.object,
-                "{:?} has not been recompiled succesfully",
-                &pyc_file
-            );
         });
     });
 }

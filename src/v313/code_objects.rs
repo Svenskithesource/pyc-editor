@@ -8,7 +8,7 @@ use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
-use crate::{error::Error, v312::instructions::Instructions};
+use crate::{error::Error, v313::instructions::Instructions};
 use std::{fmt, ops::BitOr};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

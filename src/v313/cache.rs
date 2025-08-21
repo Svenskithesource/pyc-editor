@@ -1,4 +1,4 @@
-use crate::v312::opcodes::Opcode;
+use crate::v313::opcodes::Opcode;
 
 /// Cache layout of the LOAD_GLOBAL instruction
 /// See https://github.com/python/cpython/blob/3.12/Include/internal/pycore_code.h#L20

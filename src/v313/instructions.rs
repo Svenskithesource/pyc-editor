@@ -6,7 +6,7 @@ use std::{
 use crate::{
     error::Error,
     traits::{GenericInstruction, InstructionAccess},
-    v312::{
+    v313::{
         cache::get_cache_count,
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},
         ext_instructions::ExtInstructions,

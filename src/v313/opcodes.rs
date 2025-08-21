@@ -2,7 +2,7 @@
 
 use crate::define_opcodes;
 use crate::traits::GenericOpcode;
-use crate::v312::instructions::Instruction;
+use crate::v313::instructions::Instruction;
 use paste::paste;
 
 // From https://github.com/python/cpython/blob/3.12/Include/opcode.h

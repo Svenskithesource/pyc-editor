@@ -615,7 +615,7 @@ impl Instructions {
                 index: jump_index,
                 direction: JumpDirection::Forward,
             }) => {
-                let index = index + jump_index + 1;
+                let index = get_real_jump_index(self, index as usize)? as u32 + jump_index + 1;
                 self.0
                     .get(index as usize)
                     .cloned()
@@ -625,7 +625,7 @@ impl Instructions {
                 index: jump_index,
                 direction: JumpDirection::Backward,
             }) => {
-                let index = index - jump_index + 1;
+                let index = get_real_jump_index(self, index as usize)? as u32 + jump_index + 1;
                 self.0
                     .get(index as usize)
                     .cloned()

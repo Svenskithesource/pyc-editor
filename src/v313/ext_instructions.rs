@@ -1048,28 +1048,20 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::BINARY_OP_ADD_FLOAT => ExtInstruction::BinaryOpAddFloat(value.1),
             Opcode::BINARY_OP_ADD_INT => ExtInstruction::BinaryOpAddInt(value.1),
             Opcode::BINARY_OP_ADD_UNICODE => ExtInstruction::BinaryOpAddUnicode(value.1),
-            Opcode::BINARY_OP_MULTIPLY_FLOAT => {
-                ExtInstruction::BinaryOpMultiplyFloat(value.1)
-            }
+            Opcode::BINARY_OP_MULTIPLY_FLOAT => ExtInstruction::BinaryOpMultiplyFloat(value.1),
             Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1),
-            Opcode::BINARY_OP_SUBTRACT_FLOAT => {
-                ExtInstruction::BinaryOpSubtractFloat(value.1)
-            }
+            Opcode::BINARY_OP_SUBTRACT_FLOAT => ExtInstruction::BinaryOpSubtractFloat(value.1),
             Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1),
             Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1),
             Opcode::BINARY_SUBSCR_GETITEM => ExtInstruction::BinarySubscrGetitem(value.1),
             Opcode::BINARY_SUBSCR_LIST_INT => ExtInstruction::BinarySubscrListInt(value.1),
             Opcode::BINARY_SUBSCR_STR_INT => ExtInstruction::BinarySubscrStrInt(value.1),
             Opcode::BINARY_SUBSCR_TUPLE_INT => ExtInstruction::BinarySubscrTupleInt(value.1),
-            Opcode::CALL_ALLOC_AND_ENTER_INIT => {
-                ExtInstruction::CallAllocAndEnterInit(value.1)
-            }
+            Opcode::CALL_ALLOC_AND_ENTER_INIT => ExtInstruction::CallAllocAndEnterInit(value.1),
             Opcode::CALL_BOUND_METHOD_EXACT_ARGS => {
                 ExtInstruction::CallBoundMethodExactArgs(value.1)
             }
-            Opcode::CALL_BOUND_METHOD_GENERAL => {
-                ExtInstruction::CallBoundMethodGeneral(value.1)
-            }
+            Opcode::CALL_BOUND_METHOD_GENERAL => ExtInstruction::CallBoundMethodGeneral(value.1),
             Opcode::CALL_BUILTIN_CLASS => ExtInstruction::CallBuiltinClass(value.1),
             Opcode::CALL_BUILTIN_FAST => ExtInstruction::CallBuiltinFast(value.1),
             Opcode::CALL_BUILTIN_FAST_WITH_KEYWORDS => {
@@ -1088,9 +1080,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::CALL_METHOD_DESCRIPTOR_NOARGS => {
                 ExtInstruction::CallMethodDescriptorNoargs(value.1)
             }
-            Opcode::CALL_METHOD_DESCRIPTOR_O => {
-                ExtInstruction::CallMethodDescriptorO(value.1)
-            }
+            Opcode::CALL_METHOD_DESCRIPTOR_O => ExtInstruction::CallMethodDescriptorO(value.1),
             Opcode::CALL_NON_PY_GENERAL => ExtInstruction::CallNonPyGeneral(value.1),
             Opcode::CALL_PY_EXACT_ARGS => ExtInstruction::CallPyExactArgs(value.1),
             Opcode::CALL_PY_GENERAL => ExtInstruction::CallPyGeneral(value.1),
@@ -1122,15 +1112,9 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN => {
                 ExtInstruction::LoadAttrGetattributeOverridden(value.1)
             }
-            Opcode::LOAD_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::LoadAttrInstanceValue(value.1)
-            }
-            Opcode::LOAD_ATTR_METHOD_LAZY_DICT => {
-                ExtInstruction::LoadAttrMethodLazyDict(value.1)
-            }
-            Opcode::LOAD_ATTR_METHOD_NO_DICT => {
-                ExtInstruction::LoadAttrMethodNoDict(value.1)
-            }
+            Opcode::LOAD_ATTR_INSTANCE_VALUE => ExtInstruction::LoadAttrInstanceValue(value.1),
+            Opcode::LOAD_ATTR_METHOD_LAZY_DICT => ExtInstruction::LoadAttrMethodLazyDict(value.1),
+            Opcode::LOAD_ATTR_METHOD_NO_DICT => ExtInstruction::LoadAttrMethodNoDict(value.1),
             Opcode::LOAD_ATTR_METHOD_WITH_VALUES => {
                 ExtInstruction::LoadAttrMethodWithValues(value.1)
             }
@@ -1150,9 +1134,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::LOAD_SUPER_ATTR_METHOD => ExtInstruction::LoadSuperAttrMethod(value.1),
             Opcode::RESUME_CHECK => ExtInstruction::ResumeCheck(value.1),
             Opcode::SEND_GEN => ExtInstruction::SendGen(value.1),
-            Opcode::STORE_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::StoreAttrInstanceValue(value.1)
-            }
+            Opcode::STORE_ATTR_INSTANCE_VALUE => ExtInstruction::StoreAttrInstanceValue(value.1),
             Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1),
             Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1),
             Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1),
@@ -1165,21 +1147,13 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::TO_BOOL_STR => ExtInstruction::ToBoolStr(value.1),
             Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1),
             Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1),
-            Opcode::UNPACK_SEQUENCE_TWO_TUPLE => {
-                ExtInstruction::UnpackSequenceTwoTuple(value.1)
-            }
+            Opcode::UNPACK_SEQUENCE_TWO_TUPLE => ExtInstruction::UnpackSequenceTwoTuple(value.1),
             Opcode::INSTRUMENTED_RESUME => ExtInstruction::InstrumentedResume(value.1),
             Opcode::INSTRUMENTED_END_FOR => ExtInstruction::InstrumentedEndFor(value.1),
             Opcode::INSTRUMENTED_END_SEND => ExtInstruction::InstrumentedEndSend(value.1),
-            Opcode::INSTRUMENTED_RETURN_VALUE => {
-                ExtInstruction::InstrumentedReturnValue(value.1)
-            }
-            Opcode::INSTRUMENTED_RETURN_CONST => {
-                ExtInstruction::InstrumentedReturnConst(value.1)
-            }
-            Opcode::INSTRUMENTED_YIELD_VALUE => {
-                ExtInstruction::InstrumentedYieldValue(value.1)
-            }
+            Opcode::INSTRUMENTED_RETURN_VALUE => ExtInstruction::InstrumentedReturnValue(value.1),
+            Opcode::INSTRUMENTED_RETURN_CONST => ExtInstruction::InstrumentedReturnConst(value.1),
+            Opcode::INSTRUMENTED_YIELD_VALUE => ExtInstruction::InstrumentedYieldValue(value.1),
             Opcode::INSTRUMENTED_LOAD_SUPER_ATTR => {
                 ExtInstruction::InstrumentedLoadSuperAttr(value.1)
             }
@@ -1192,9 +1166,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::INSTRUMENTED_CALL_FUNCTION_EX => {
                 ExtInstruction::InstrumentedCallFunctionEx(value.1)
             }
-            Opcode::INSTRUMENTED_INSTRUCTION => {
-                ExtInstruction::InstrumentedInstruction(value.1)
-            }
+            Opcode::INSTRUMENTED_INSTRUCTION => ExtInstruction::InstrumentedInstruction(value.1),
             Opcode::INSTRUMENTED_JUMP_FORWARD => {
                 ExtInstruction::InstrumentedJumpForward(RelativeJump {
                     index: value.1,

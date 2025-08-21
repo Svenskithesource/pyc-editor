@@ -557,7 +557,17 @@ impl Instructions {
                 | Instruction::PopJumpIfTrue(_)
                 | Instruction::Send(_)
                 | Instruction::PopJumpIfNotNone(_)
-                | Instruction::PopJumpIfNone(_) => {
+                | Instruction::PopJumpIfNone(_)
+                | Instruction::ForIterRange(_)
+                | Instruction::ForIterList(_)
+                | Instruction::ForIterGen(_)
+                | Instruction::ForIterTuple(_)
+                | Instruction::InstrumentedForIter(_)
+                | Instruction::InstrumentedPopJumpIfNone(_)
+                | Instruction::InstrumentedPopJumpIfNotNone(_)
+                | Instruction::InstrumentedJumpForward(_)
+                | Instruction::InstrumentedPopJumpIfFalse(_)
+                | Instruction::InstrumentedPopJumpIfTrue(_) => {
                     let arg = self.get_full_arg(index);
 
                     let arg = match arg {
@@ -570,7 +580,9 @@ impl Instructions {
                         direction: JumpDirection::Forward,
                     })
                 }
-                Instruction::JumpBackwardNoInterrupt(_) | Instruction::JumpBackward(_) => {
+                Instruction::JumpBackwardNoInterrupt(_)
+                | Instruction::JumpBackward(_)
+                | Instruction::InstrumentedJumpBackward(_) => {
                     let arg = self.get_full_arg(index);
 
                     let arg = match arg {

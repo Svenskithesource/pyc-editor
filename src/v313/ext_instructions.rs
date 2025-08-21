@@ -5,7 +5,10 @@ use std::{
 
 use store_interval_tree::{Interval, IntervalTree};
 
-use crate::v313::{code_objects::{CompareOperation, ConvertFormat}, instructions};
+use crate::v313::{
+    code_objects::{CompareOperation, ConvertFormat},
+    instructions,
+};
 use crate::{
     error::Error,
     traits::{GenericInstruction, InstructionAccess},
@@ -14,10 +17,9 @@ use crate::{
         cache::get_cache_count,
         code_objects::{
             AttrNameIndex, AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex,
-            CompareOps, ConstIndex, DynamicIndex, FunctionAttributeFlags, GlobalNameIndex,
-            Intrinsic1Functions, Intrinsic2Functions, Jump, JumpDirection, NameIndex, OpInversion,
-            RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount, SuperAttrNameIndex,
-            VarNameIndex,
+            ConstIndex, DynamicIndex, FunctionAttributeFlags, GlobalNameIndex, Intrinsic1Functions,
+            Intrinsic2Functions, Jump, JumpDirection, NameIndex, OpInversion, RaiseForms,
+            RelativeJump, Reraise, ResumeWhere, SliceCount, SuperAttrNameIndex, VarNameIndex,
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,

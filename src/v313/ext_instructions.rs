@@ -888,7 +888,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::BEFORE_ASYNC_WITH => ExtInstruction::BeforeAsyncWith(value.1.into()),
             Opcode::BEFORE_WITH => ExtInstruction::BeforeWith(value.1.into()),
             Opcode::BINARY_OP_INPLACE_ADD_UNICODE => {
-                ExtInstruction::BinaryOpInplaceAddUnicode(value.1.into())
+                ExtInstruction::BinaryOpInplaceAddUnicode(value.1)
             }
             Opcode::BINARY_SLICE => ExtInstruction::BinarySlice(value.1.into()),
             Opcode::BINARY_SUBSCR => ExtInstruction::BinarySubscr(value.1.into()),
@@ -932,31 +932,31 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::UNARY_NOT => ExtInstruction::UnaryNot(value.1.into()),
             Opcode::WITH_EXCEPT_START => ExtInstruction::WithExceptStart(value.1.into()),
             Opcode::BINARY_OP => ExtInstruction::BinaryOp(value.1.into()),
-            Opcode::BUILD_CONST_KEY_MAP => ExtInstruction::BuildConstKeyMap(value.1.into()),
-            Opcode::BUILD_LIST => ExtInstruction::BuildList(value.1.into()),
-            Opcode::BUILD_MAP => ExtInstruction::BuildMap(value.1.into()),
-            Opcode::BUILD_SET => ExtInstruction::BuildSet(value.1.into()),
+            Opcode::BUILD_CONST_KEY_MAP => ExtInstruction::BuildConstKeyMap(value.1),
+            Opcode::BUILD_LIST => ExtInstruction::BuildList(value.1),
+            Opcode::BUILD_MAP => ExtInstruction::BuildMap(value.1),
+            Opcode::BUILD_SET => ExtInstruction::BuildSet(value.1),
             Opcode::BUILD_SLICE => ExtInstruction::BuildSlice(value.1.into()),
-            Opcode::BUILD_STRING => ExtInstruction::BuildString(value.1.into()),
-            Opcode::BUILD_TUPLE => ExtInstruction::BuildTuple(value.1.into()),
-            Opcode::CALL => ExtInstruction::Call(value.1.into()),
+            Opcode::BUILD_STRING => ExtInstruction::BuildString(value.1),
+            Opcode::BUILD_TUPLE => ExtInstruction::BuildTuple(value.1),
+            Opcode::CALL => ExtInstruction::Call(value.1),
             Opcode::CALL_FUNCTION_EX => ExtInstruction::CallFunctionEx(value.1.into()),
             Opcode::CALL_INTRINSIC_1 => ExtInstruction::CallIntrinsic1(value.1.into()),
             Opcode::CALL_INTRINSIC_2 => ExtInstruction::CallIntrinsic2(value.1.into()),
-            Opcode::CALL_KW => ExtInstruction::CallKw(value.1.into()),
+            Opcode::CALL_KW => ExtInstruction::CallKw(value.1),
             Opcode::COMPARE_OP => ExtInstruction::CompareOp(value.1.into()),
             Opcode::CONTAINS_OP => ExtInstruction::ContainsOp(value.1.into()),
             Opcode::CONVERT_VALUE => ExtInstruction::ConvertValue(value.1.into()),
-            Opcode::COPY => ExtInstruction::Copy(value.1.into()),
-            Opcode::COPY_FREE_VARS => ExtInstruction::CopyFreeVars(value.1.into()),
+            Opcode::COPY => ExtInstruction::Copy(value.1),
+            Opcode::COPY_FREE_VARS => ExtInstruction::CopyFreeVars(value.1),
             Opcode::DELETE_ATTR => ExtInstruction::DeleteAttr(value.1.into()),
             Opcode::DELETE_DEREF => ExtInstruction::DeleteDeref(value.1.into()),
             Opcode::DELETE_FAST => ExtInstruction::DeleteFast(value.1.into()),
             Opcode::DELETE_GLOBAL => ExtInstruction::DeleteGlobal(value.1.into()),
             Opcode::DELETE_NAME => ExtInstruction::DeleteName(value.1.into()),
-            Opcode::DICT_MERGE => ExtInstruction::DictMerge(value.1.into()),
-            Opcode::DICT_UPDATE => ExtInstruction::DictUpdate(value.1.into()),
-            Opcode::ENTER_EXECUTOR => ExtInstruction::EnterExecutor(value.1.into()),
+            Opcode::DICT_MERGE => ExtInstruction::DictMerge(value.1),
+            Opcode::DICT_UPDATE => ExtInstruction::DictUpdate(value.1),
+            Opcode::ENTER_EXECUTOR => ExtInstruction::EnterExecutor(value.1),
             Opcode::EXTENDED_ARG => return Err(Error::InvalidConversion),
             Opcode::FOR_ITER => ExtInstruction::ForIter(RelativeJump {
                 index: value.1,
@@ -980,8 +980,8 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
                 index: value.1,
                 direction: JumpDirection::Forward,
             }),
-            Opcode::LIST_APPEND => ExtInstruction::ListAppend(value.1.into()),
-            Opcode::LIST_EXTEND => ExtInstruction::ListExtend(value.1.into()),
+            Opcode::LIST_APPEND => ExtInstruction::ListAppend(value.1),
+            Opcode::LIST_EXTEND => ExtInstruction::ListExtend(value.1),
             Opcode::LOAD_ATTR => ExtInstruction::LoadAttr(value.1.into()),
             Opcode::LOAD_CONST => ExtInstruction::LoadConst(value.1.into()),
             Opcode::LOAD_DEREF => ExtInstruction::LoadDeref(value.1.into()),
@@ -999,8 +999,8 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             Opcode::LOAD_NAME => ExtInstruction::LoadName(value.1.into()),
             Opcode::LOAD_SUPER_ATTR => ExtInstruction::LoadSuperAttr(value.1.into()),
             Opcode::MAKE_CELL => ExtInstruction::MakeCell(value.1.into()),
-            Opcode::MAP_ADD => ExtInstruction::MapAdd(value.1.into()),
-            Opcode::MATCH_CLASS => ExtInstruction::MatchClass(value.1.into()),
+            Opcode::MAP_ADD => ExtInstruction::MapAdd(value.1),
+            Opcode::MATCH_CLASS => ExtInstruction::MatchClass(value.1),
             Opcode::POP_JUMP_IF_FALSE => ExtInstruction::PopJumpIfFalse(RelativeJump {
                 index: value.1,
                 direction: JumpDirection::Forward,
@@ -1024,11 +1024,11 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
                 index: value.1,
                 direction: JumpDirection::Forward,
             }),
-            Opcode::SET_ADD => ExtInstruction::SetAdd(value.1.into()),
+            Opcode::SET_ADD => ExtInstruction::SetAdd(value.1),
             Opcode::SET_FUNCTION_ATTRIBUTE => ExtInstruction::SetFunctionAttribute(
                 FunctionAttributeFlags::from_bits_retain(value.1),
             ),
-            Opcode::SET_UPDATE => ExtInstruction::SetUpdate(value.1.into()),
+            Opcode::SET_UPDATE => ExtInstruction::SetUpdate(value.1),
             Opcode::STORE_ATTR => ExtInstruction::StoreAttr(value.1.into()),
             Opcode::STORE_DEREF => ExtInstruction::StoreDeref(value.1.into()),
             Opcode::STORE_FAST => ExtInstruction::StoreFast(value.1.into()),
@@ -1040,68 +1040,68 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
             }
             Opcode::STORE_GLOBAL => ExtInstruction::StoreGlobal(value.1.into()),
             Opcode::STORE_NAME => ExtInstruction::StoreName(value.1.into()),
-            Opcode::SWAP => ExtInstruction::Swap(value.1.into()),
-            Opcode::UNPACK_EX => ExtInstruction::UnpackEx(value.1.into()),
-            Opcode::UNPACK_SEQUENCE => ExtInstruction::UnpackSequence(value.1.into()),
-            Opcode::YIELD_VALUE => ExtInstruction::YieldValue(value.1.into()),
+            Opcode::SWAP => ExtInstruction::Swap(value.1),
+            Opcode::UNPACK_EX => ExtInstruction::UnpackEx(value.1),
+            Opcode::UNPACK_SEQUENCE => ExtInstruction::UnpackSequence(value.1),
+            Opcode::YIELD_VALUE => ExtInstruction::YieldValue(value.1),
             Opcode::RESUME => ExtInstruction::Resume(value.1.into()),
-            Opcode::BINARY_OP_ADD_FLOAT => ExtInstruction::BinaryOpAddFloat(value.1.into()),
-            Opcode::BINARY_OP_ADD_INT => ExtInstruction::BinaryOpAddInt(value.1.into()),
-            Opcode::BINARY_OP_ADD_UNICODE => ExtInstruction::BinaryOpAddUnicode(value.1.into()),
+            Opcode::BINARY_OP_ADD_FLOAT => ExtInstruction::BinaryOpAddFloat(value.1),
+            Opcode::BINARY_OP_ADD_INT => ExtInstruction::BinaryOpAddInt(value.1),
+            Opcode::BINARY_OP_ADD_UNICODE => ExtInstruction::BinaryOpAddUnicode(value.1),
             Opcode::BINARY_OP_MULTIPLY_FLOAT => {
-                ExtInstruction::BinaryOpMultiplyFloat(value.1.into())
+                ExtInstruction::BinaryOpMultiplyFloat(value.1)
             }
-            Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1.into()),
+            Opcode::BINARY_OP_MULTIPLY_INT => ExtInstruction::BinaryOpMultiplyInt(value.1),
             Opcode::BINARY_OP_SUBTRACT_FLOAT => {
-                ExtInstruction::BinaryOpSubtractFloat(value.1.into())
+                ExtInstruction::BinaryOpSubtractFloat(value.1)
             }
-            Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1.into()),
-            Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1.into()),
-            Opcode::BINARY_SUBSCR_GETITEM => ExtInstruction::BinarySubscrGetitem(value.1.into()),
-            Opcode::BINARY_SUBSCR_LIST_INT => ExtInstruction::BinarySubscrListInt(value.1.into()),
-            Opcode::BINARY_SUBSCR_STR_INT => ExtInstruction::BinarySubscrStrInt(value.1.into()),
-            Opcode::BINARY_SUBSCR_TUPLE_INT => ExtInstruction::BinarySubscrTupleInt(value.1.into()),
+            Opcode::BINARY_OP_SUBTRACT_INT => ExtInstruction::BinaryOpSubtractInt(value.1),
+            Opcode::BINARY_SUBSCR_DICT => ExtInstruction::BinarySubscrDict(value.1),
+            Opcode::BINARY_SUBSCR_GETITEM => ExtInstruction::BinarySubscrGetitem(value.1),
+            Opcode::BINARY_SUBSCR_LIST_INT => ExtInstruction::BinarySubscrListInt(value.1),
+            Opcode::BINARY_SUBSCR_STR_INT => ExtInstruction::BinarySubscrStrInt(value.1),
+            Opcode::BINARY_SUBSCR_TUPLE_INT => ExtInstruction::BinarySubscrTupleInt(value.1),
             Opcode::CALL_ALLOC_AND_ENTER_INIT => {
-                ExtInstruction::CallAllocAndEnterInit(value.1.into())
+                ExtInstruction::CallAllocAndEnterInit(value.1)
             }
             Opcode::CALL_BOUND_METHOD_EXACT_ARGS => {
-                ExtInstruction::CallBoundMethodExactArgs(value.1.into())
+                ExtInstruction::CallBoundMethodExactArgs(value.1)
             }
             Opcode::CALL_BOUND_METHOD_GENERAL => {
-                ExtInstruction::CallBoundMethodGeneral(value.1.into())
+                ExtInstruction::CallBoundMethodGeneral(value.1)
             }
-            Opcode::CALL_BUILTIN_CLASS => ExtInstruction::CallBuiltinClass(value.1.into()),
-            Opcode::CALL_BUILTIN_FAST => ExtInstruction::CallBuiltinFast(value.1.into()),
+            Opcode::CALL_BUILTIN_CLASS => ExtInstruction::CallBuiltinClass(value.1),
+            Opcode::CALL_BUILTIN_FAST => ExtInstruction::CallBuiltinFast(value.1),
             Opcode::CALL_BUILTIN_FAST_WITH_KEYWORDS => {
-                ExtInstruction::CallBuiltinFastWithKeywords(value.1.into())
+                ExtInstruction::CallBuiltinFastWithKeywords(value.1)
             }
-            Opcode::CALL_BUILTIN_O => ExtInstruction::CallBuiltinO(value.1.into()),
-            Opcode::CALL_ISINSTANCE => ExtInstruction::CallIsinstance(value.1.into()),
-            Opcode::CALL_LEN => ExtInstruction::CallLen(value.1.into()),
-            Opcode::CALL_LIST_APPEND => ExtInstruction::CallListAppend(value.1.into()),
+            Opcode::CALL_BUILTIN_O => ExtInstruction::CallBuiltinO(value.1),
+            Opcode::CALL_ISINSTANCE => ExtInstruction::CallIsinstance(value.1),
+            Opcode::CALL_LEN => ExtInstruction::CallLen(value.1),
+            Opcode::CALL_LIST_APPEND => ExtInstruction::CallListAppend(value.1),
             Opcode::CALL_METHOD_DESCRIPTOR_FAST => {
-                ExtInstruction::CallMethodDescriptorFast(value.1.into())
+                ExtInstruction::CallMethodDescriptorFast(value.1)
             }
             Opcode::CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS => {
-                ExtInstruction::CallMethodDescriptorFastWithKeywords(value.1.into())
+                ExtInstruction::CallMethodDescriptorFastWithKeywords(value.1)
             }
             Opcode::CALL_METHOD_DESCRIPTOR_NOARGS => {
-                ExtInstruction::CallMethodDescriptorNoargs(value.1.into())
+                ExtInstruction::CallMethodDescriptorNoargs(value.1)
             }
             Opcode::CALL_METHOD_DESCRIPTOR_O => {
-                ExtInstruction::CallMethodDescriptorO(value.1.into())
+                ExtInstruction::CallMethodDescriptorO(value.1)
             }
-            Opcode::CALL_NON_PY_GENERAL => ExtInstruction::CallNonPyGeneral(value.1.into()),
-            Opcode::CALL_PY_EXACT_ARGS => ExtInstruction::CallPyExactArgs(value.1.into()),
-            Opcode::CALL_PY_GENERAL => ExtInstruction::CallPyGeneral(value.1.into()),
-            Opcode::CALL_STR_1 => ExtInstruction::CallStr1(value.1.into()),
-            Opcode::CALL_TUPLE_1 => ExtInstruction::CallTuple1(value.1.into()),
-            Opcode::CALL_TYPE_1 => ExtInstruction::CallType1(value.1.into()),
-            Opcode::COMPARE_OP_FLOAT => ExtInstruction::CompareOpFloat(value.1.into()),
-            Opcode::COMPARE_OP_INT => ExtInstruction::CompareOpInt(value.1.into()),
-            Opcode::COMPARE_OP_STR => ExtInstruction::CompareOpStr(value.1.into()),
-            Opcode::CONTAINS_OP_DICT => ExtInstruction::ContainsOpDict(value.1.into()),
-            Opcode::CONTAINS_OP_SET => ExtInstruction::ContainsOpSet(value.1.into()),
+            Opcode::CALL_NON_PY_GENERAL => ExtInstruction::CallNonPyGeneral(value.1),
+            Opcode::CALL_PY_EXACT_ARGS => ExtInstruction::CallPyExactArgs(value.1),
+            Opcode::CALL_PY_GENERAL => ExtInstruction::CallPyGeneral(value.1),
+            Opcode::CALL_STR_1 => ExtInstruction::CallStr1(value.1),
+            Opcode::CALL_TUPLE_1 => ExtInstruction::CallTuple1(value.1),
+            Opcode::CALL_TYPE_1 => ExtInstruction::CallType1(value.1),
+            Opcode::COMPARE_OP_FLOAT => ExtInstruction::CompareOpFloat(value.1),
+            Opcode::COMPARE_OP_INT => ExtInstruction::CompareOpInt(value.1),
+            Opcode::COMPARE_OP_STR => ExtInstruction::CompareOpStr(value.1),
+            Opcode::CONTAINS_OP_DICT => ExtInstruction::ContainsOpDict(value.1),
+            Opcode::CONTAINS_OP_SET => ExtInstruction::ContainsOpSet(value.1),
             Opcode::FOR_ITER_GEN => ExtInstruction::ForIterGen(RelativeJump {
                 index: value.1,
                 direction: JumpDirection::Forward,
@@ -1118,82 +1118,82 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
                 index: value.1,
                 direction: JumpDirection::Forward,
             }),
-            Opcode::LOAD_ATTR_CLASS => ExtInstruction::LoadAttrClass(value.1.into()),
+            Opcode::LOAD_ATTR_CLASS => ExtInstruction::LoadAttrClass(value.1),
             Opcode::LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN => {
-                ExtInstruction::LoadAttrGetattributeOverridden(value.1.into())
+                ExtInstruction::LoadAttrGetattributeOverridden(value.1)
             }
             Opcode::LOAD_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::LoadAttrInstanceValue(value.1.into())
+                ExtInstruction::LoadAttrInstanceValue(value.1)
             }
             Opcode::LOAD_ATTR_METHOD_LAZY_DICT => {
-                ExtInstruction::LoadAttrMethodLazyDict(value.1.into())
+                ExtInstruction::LoadAttrMethodLazyDict(value.1)
             }
             Opcode::LOAD_ATTR_METHOD_NO_DICT => {
-                ExtInstruction::LoadAttrMethodNoDict(value.1.into())
+                ExtInstruction::LoadAttrMethodNoDict(value.1)
             }
             Opcode::LOAD_ATTR_METHOD_WITH_VALUES => {
-                ExtInstruction::LoadAttrMethodWithValues(value.1.into())
+                ExtInstruction::LoadAttrMethodWithValues(value.1)
             }
-            Opcode::LOAD_ATTR_MODULE => ExtInstruction::LoadAttrModule(value.1.into()),
+            Opcode::LOAD_ATTR_MODULE => ExtInstruction::LoadAttrModule(value.1),
             Opcode::LOAD_ATTR_NONDESCRIPTOR_NO_DICT => {
-                ExtInstruction::LoadAttrNondescriptorNoDict(value.1.into())
+                ExtInstruction::LoadAttrNondescriptorNoDict(value.1)
             }
             Opcode::LOAD_ATTR_NONDESCRIPTOR_WITH_VALUES => {
-                ExtInstruction::LoadAttrNondescriptorWithValues(value.1.into())
+                ExtInstruction::LoadAttrNondescriptorWithValues(value.1)
             }
-            Opcode::LOAD_ATTR_PROPERTY => ExtInstruction::LoadAttrProperty(value.1.into()),
-            Opcode::LOAD_ATTR_SLOT => ExtInstruction::LoadAttrSlot(value.1.into()),
-            Opcode::LOAD_ATTR_WITH_HINT => ExtInstruction::LoadAttrWithHint(value.1.into()),
-            Opcode::LOAD_GLOBAL_BUILTIN => ExtInstruction::LoadGlobalBuiltin(value.1.into()),
-            Opcode::LOAD_GLOBAL_MODULE => ExtInstruction::LoadGlobalModule(value.1.into()),
-            Opcode::LOAD_SUPER_ATTR_ATTR => ExtInstruction::LoadSuperAttrAttr(value.1.into()),
-            Opcode::LOAD_SUPER_ATTR_METHOD => ExtInstruction::LoadSuperAttrMethod(value.1.into()),
-            Opcode::RESUME_CHECK => ExtInstruction::ResumeCheck(value.1.into()),
-            Opcode::SEND_GEN => ExtInstruction::SendGen(value.1.into()),
+            Opcode::LOAD_ATTR_PROPERTY => ExtInstruction::LoadAttrProperty(value.1),
+            Opcode::LOAD_ATTR_SLOT => ExtInstruction::LoadAttrSlot(value.1),
+            Opcode::LOAD_ATTR_WITH_HINT => ExtInstruction::LoadAttrWithHint(value.1),
+            Opcode::LOAD_GLOBAL_BUILTIN => ExtInstruction::LoadGlobalBuiltin(value.1),
+            Opcode::LOAD_GLOBAL_MODULE => ExtInstruction::LoadGlobalModule(value.1),
+            Opcode::LOAD_SUPER_ATTR_ATTR => ExtInstruction::LoadSuperAttrAttr(value.1),
+            Opcode::LOAD_SUPER_ATTR_METHOD => ExtInstruction::LoadSuperAttrMethod(value.1),
+            Opcode::RESUME_CHECK => ExtInstruction::ResumeCheck(value.1),
+            Opcode::SEND_GEN => ExtInstruction::SendGen(value.1),
             Opcode::STORE_ATTR_INSTANCE_VALUE => {
-                ExtInstruction::StoreAttrInstanceValue(value.1.into())
+                ExtInstruction::StoreAttrInstanceValue(value.1)
             }
-            Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1.into()),
-            Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1.into()),
-            Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1.into()),
-            Opcode::STORE_SUBSCR_LIST_INT => ExtInstruction::StoreSubscrListInt(value.1.into()),
-            Opcode::TO_BOOL_ALWAYS_TRUE => ExtInstruction::ToBoolAlwaysTrue(value.1.into()),
-            Opcode::TO_BOOL_BOOL => ExtInstruction::ToBoolBool(value.1.into()),
-            Opcode::TO_BOOL_INT => ExtInstruction::ToBoolInt(value.1.into()),
-            Opcode::TO_BOOL_LIST => ExtInstruction::ToBoolList(value.1.into()),
-            Opcode::TO_BOOL_NONE => ExtInstruction::ToBoolNone(value.1.into()),
-            Opcode::TO_BOOL_STR => ExtInstruction::ToBoolStr(value.1.into()),
-            Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1.into()),
-            Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1.into()),
+            Opcode::STORE_ATTR_SLOT => ExtInstruction::StoreAttrSlot(value.1),
+            Opcode::STORE_ATTR_WITH_HINT => ExtInstruction::StoreAttrWithHint(value.1),
+            Opcode::STORE_SUBSCR_DICT => ExtInstruction::StoreSubscrDict(value.1),
+            Opcode::STORE_SUBSCR_LIST_INT => ExtInstruction::StoreSubscrListInt(value.1),
+            Opcode::TO_BOOL_ALWAYS_TRUE => ExtInstruction::ToBoolAlwaysTrue(value.1),
+            Opcode::TO_BOOL_BOOL => ExtInstruction::ToBoolBool(value.1),
+            Opcode::TO_BOOL_INT => ExtInstruction::ToBoolInt(value.1),
+            Opcode::TO_BOOL_LIST => ExtInstruction::ToBoolList(value.1),
+            Opcode::TO_BOOL_NONE => ExtInstruction::ToBoolNone(value.1),
+            Opcode::TO_BOOL_STR => ExtInstruction::ToBoolStr(value.1),
+            Opcode::UNPACK_SEQUENCE_LIST => ExtInstruction::UnpackSequenceList(value.1),
+            Opcode::UNPACK_SEQUENCE_TUPLE => ExtInstruction::UnpackSequenceTuple(value.1),
             Opcode::UNPACK_SEQUENCE_TWO_TUPLE => {
-                ExtInstruction::UnpackSequenceTwoTuple(value.1.into())
+                ExtInstruction::UnpackSequenceTwoTuple(value.1)
             }
-            Opcode::INSTRUMENTED_RESUME => ExtInstruction::InstrumentedResume(value.1.into()),
-            Opcode::INSTRUMENTED_END_FOR => ExtInstruction::InstrumentedEndFor(value.1.into()),
-            Opcode::INSTRUMENTED_END_SEND => ExtInstruction::InstrumentedEndSend(value.1.into()),
+            Opcode::INSTRUMENTED_RESUME => ExtInstruction::InstrumentedResume(value.1),
+            Opcode::INSTRUMENTED_END_FOR => ExtInstruction::InstrumentedEndFor(value.1),
+            Opcode::INSTRUMENTED_END_SEND => ExtInstruction::InstrumentedEndSend(value.1),
             Opcode::INSTRUMENTED_RETURN_VALUE => {
-                ExtInstruction::InstrumentedReturnValue(value.1.into())
+                ExtInstruction::InstrumentedReturnValue(value.1)
             }
             Opcode::INSTRUMENTED_RETURN_CONST => {
-                ExtInstruction::InstrumentedReturnConst(value.1.into())
+                ExtInstruction::InstrumentedReturnConst(value.1)
             }
             Opcode::INSTRUMENTED_YIELD_VALUE => {
-                ExtInstruction::InstrumentedYieldValue(value.1.into())
+                ExtInstruction::InstrumentedYieldValue(value.1)
             }
             Opcode::INSTRUMENTED_LOAD_SUPER_ATTR => {
-                ExtInstruction::InstrumentedLoadSuperAttr(value.1.into())
+                ExtInstruction::InstrumentedLoadSuperAttr(value.1)
             }
             Opcode::INSTRUMENTED_FOR_ITER => ExtInstruction::InstrumentedForIter(RelativeJump {
                 index: value.1,
                 direction: JumpDirection::Forward,
             }),
-            Opcode::INSTRUMENTED_CALL => ExtInstruction::InstrumentedCall(value.1.into()),
-            Opcode::INSTRUMENTED_CALL_KW => ExtInstruction::InstrumentedCallKw(value.1.into()),
+            Opcode::INSTRUMENTED_CALL => ExtInstruction::InstrumentedCall(value.1),
+            Opcode::INSTRUMENTED_CALL_KW => ExtInstruction::InstrumentedCallKw(value.1),
             Opcode::INSTRUMENTED_CALL_FUNCTION_EX => {
-                ExtInstruction::InstrumentedCallFunctionEx(value.1.into())
+                ExtInstruction::InstrumentedCallFunctionEx(value.1)
             }
             Opcode::INSTRUMENTED_INSTRUCTION => {
-                ExtInstruction::InstrumentedInstruction(value.1.into())
+                ExtInstruction::InstrumentedInstruction(value.1)
             }
             Opcode::INSTRUMENTED_JUMP_FORWARD => {
                 ExtInstruction::InstrumentedJumpForward(RelativeJump {
@@ -1231,7 +1231,7 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
                     direction: JumpDirection::Forward,
                 })
             }
-            Opcode::INSTRUMENTED_LINE => ExtInstruction::InstrumentedLine(value.1.into()),
+            Opcode::INSTRUMENTED_LINE => ExtInstruction::InstrumentedLine(value.1),
             Opcode::INVALID_OPCODE(opcode) => ExtInstruction::InvalidOpcode((opcode, value.1)),
         })
     }

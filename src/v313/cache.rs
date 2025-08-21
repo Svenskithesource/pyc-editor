@@ -89,6 +89,7 @@ pub fn get_cache_count(opcode: Opcode) -> Option<usize> {
         Opcode::LOAD_ATTR => std::mem::size_of::<LoadAttrCache>(),
         Opcode::STORE_ATTR => std::mem::size_of::<StoreAttrCache>(),
         Opcode::CALL => std::mem::size_of::<CallCache>(),
+        Opcode::TO_BOOL => std::mem::size_of::<ToBoolCache>(),
         _ => return None,
     };
 

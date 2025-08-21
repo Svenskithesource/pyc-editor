@@ -1328,6 +1328,17 @@ pub enum ConvertFormat {
     Invalid(u32),
 }
 
+impl fmt::Display for ConvertFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConvertFormat::Str => write!(f, "str"),
+            ConvertFormat::Repr => write!(f, "repr"),
+            ConvertFormat::Ascii => write!(f, "ascii"),
+            ConvertFormat::Invalid(v) => write!(f, "Invalid({})", v),
+        }
+    }
+}
+
 impl From<u32> for ConvertFormat {
     fn from(value: u32) -> Self {
         match value {

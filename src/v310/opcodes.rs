@@ -161,6 +161,15 @@ impl GenericOpcode for Opcode {
         )
     }
 
+    fn is_jump_forwards(&self) -> bool {
+        true
+    }
+
+    /// Impossible to jump backwards in 3.10
+    fn is_jump_backwards(&self) -> bool {
+        false
+    }
+
     /// Relative or absolute jump
     fn is_jump(&self) -> bool {
         self.is_absolute_jump() | self.is_relative_jump()

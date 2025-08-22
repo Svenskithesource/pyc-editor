@@ -250,6 +250,38 @@ impl GenericOpcode for Opcode {
         )
     }
 
+    fn is_jump_forwards(&self) -> bool {
+        matches!(
+            self,
+            Opcode::FOR_ITER
+                | Opcode::JUMP_FORWARD
+                | Opcode::POP_JUMP_IF_FALSE
+                | Opcode::POP_JUMP_IF_TRUE
+                | Opcode::SEND
+                | Opcode::POP_JUMP_IF_NOT_NONE
+                | Opcode::POP_JUMP_IF_NONE
+                | Opcode::FOR_ITER_RANGE
+                | Opcode::FOR_ITER_LIST
+                | Opcode::FOR_ITER_GEN
+                | Opcode::FOR_ITER_TUPLE
+                | Opcode::INSTRUMENTED_FOR_ITER
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_NONE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_NOT_NONE
+                | Opcode::INSTRUMENTED_JUMP_FORWARD
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_FALSE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_TRUE
+        )
+    }
+
+    fn is_jump_backwards(&self) -> bool {
+        matches!(
+            self,
+            Opcode::JUMP_BACKWARD_NO_INTERRUPT
+                | Opcode::JUMP_BACKWARD
+                | Opcode::INSTRUMENTED_JUMP_BACKWARD
+        )
+    }
+
     /// Relative or absolute jump
     fn is_jump(&self) -> bool {
         self.is_absolute_jump() | self.is_relative_jump()

@@ -508,7 +508,9 @@ impl ExtInstructions {
                     std::ops::Bound::Excluded(index as u32),
                     std::ops::Bound::Unbounded,
                 )) {
-                    if *new <= u8::MAX.into() && *new + extended_arg_count > u8::MAX.into() {
+                    if get_extended_args_count(*new)
+                        != get_extended_args_count(*new + extended_arg_count)
+                    {
                         absolute_jumps_to_update.push(*original);
                     }
 
@@ -519,8 +521,8 @@ impl ExtInstructions {
                     let interval_clone = (*entry.interval()).clone();
                     let entry_value = entry.value();
 
-                    if *entry_value <= u8::MAX.into()
-                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    if get_extended_args_count(*entry_value)
+                        != get_extended_args_count(*entry_value + extended_arg_count)
                     {
                         relative_jumps_to_update.push(interval_clone);
                     }
@@ -594,8 +596,8 @@ impl ExtInstructions {
                     let interval_clone = (*entry.interval()).clone();
                     let entry_value = entry.value();
 
-                    if *entry_value <= u8::MAX.into()
-                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    if get_extended_args_count(*entry_value)
+                        != get_extended_args_count(*entry_value + extended_arg_count)
                     {
                         relative_jumps_to_update.push(interval_clone);
                     }

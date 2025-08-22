@@ -674,14 +674,12 @@ impl ExtInstructions {
                 // Calculate how many extended args an instruction will need
                 let extended_arg_count = get_extended_args_count(arg) as u32;
 
-                let index = get_real_jump_index(self, index).expect("Index is always valid here");
-
                 for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
                     let interval_clone = (*entry.interval()).clone();
                     let entry_value = entry.value();
 
-                    if *entry_value <= u8::MAX.into()
-                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    if get_extended_args_count(*entry_value)
+                        != get_extended_args_count(*entry_value + extended_arg_count)
                     {
                         relative_jumps_to_update.push(interval_clone);
                     }
@@ -698,7 +696,8 @@ impl ExtInstructions {
             relative_jumps_to_update.clear();
 
             for (index, instruction) in self.iter().enumerate() {
-                let index = get_real_jump_index(self, index).expect("Index is always valid here");
+                let real_index =
+                    get_real_jump_index(self, index).expect("Index is always valid here");
 
                 let arg = match instruction {
                     ExtInstruction::ForIter(jump)
@@ -726,15 +725,15 @@ impl ExtInstructions {
                                 index: _,
                                 direction: JumpDirection::Forward,
                             } => Interval::new(
-                                std::ops::Bound::Excluded(index as u32),
-                                std::ops::Bound::Excluded(index as u32 + jump.index + 1),
+                                std::ops::Bound::Excluded(real_index as u32),
+                                std::ops::Bound::Excluded(real_index as u32 + jump.index + 1),
                             ),
                             RelativeJump {
                                 index: _,
                                 direction: JumpDirection::Backward,
                             } => Interval::new(
-                                std::ops::Bound::Included(index as u32 - jump.index + 1),
-                                std::ops::Bound::Included(index as u32),
+                                std::ops::Bound::Included(real_index as u32 - jump.index + 1),
+                                std::ops::Bound::Included(real_index as u32),
                             ),
                         };
 
@@ -757,8 +756,8 @@ impl ExtInstructions {
                     let interval_clone = (*entry.interval()).clone();
                     let entry_value = entry.value();
 
-                    if *entry_value <= u8::MAX.into()
-                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    if get_extended_args_count(*entry_value)
+                        != get_extended_args_count(*entry_value + extended_arg_count)
                     {
                         relative_jumps_to_update.push(interval_clone);
                     }

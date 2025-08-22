@@ -22,6 +22,8 @@ pub trait GenericOpcode {
     fn is_jump(&self) -> bool;
     fn is_absolute_jump(&self) -> bool;
     fn is_relative_jump(&self) -> bool;
+    fn is_jump_forwards(&self) -> bool;
+    fn is_jump_backwards(&self) -> bool;
 }
 
 /// Generic instruction functions used by all versions
@@ -43,5 +45,13 @@ pub trait GenericInstruction {
 
     fn is_relative_jump(&self) -> bool {
         self.get_opcode().is_relative_jump()
+    }
+
+    fn is_jump_forwards(&self) -> bool {
+        self.get_opcode().is_jump_forwards()
+    }
+
+    fn is_jump_backwards(&self) -> bool {
+        self.get_opcode().is_jump_backwards()
     }
 }

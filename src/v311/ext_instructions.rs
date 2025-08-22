@@ -604,8 +604,8 @@ impl ExtInstructions {
                     let interval_clone = (*entry.interval()).clone();
                     let entry_value = entry.value();
 
-                    if *entry_value <= u8::MAX.into()
-                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    if get_extended_args_count(*entry_value)
+                        != get_extended_args_count(*entry_value + extended_arg_count)
                     {
                         relative_jumps_to_update.push(interval_clone);
                     }
@@ -675,8 +675,8 @@ impl ExtInstructions {
                     let interval_clone = (*entry.interval()).clone();
                     let entry_value = entry.value();
 
-                    if *entry_value <= u8::MAX.into()
-                        && *entry_value + extended_arg_count > u8::MAX.into()
+                    if get_extended_args_count(*entry_value)
+                        != get_extended_args_count(*entry_value + extended_arg_count)
                     {
                         relative_jumps_to_update.push(interval_clone);
                     }

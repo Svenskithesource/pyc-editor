@@ -305,4 +305,8 @@ impl GenericOpcode for Opcode {
     fn is_jump(&self) -> bool {
         self.is_absolute_jump() | self.is_relative_jump()
     }
+
+    fn is_extended_arg(&self) -> bool {
+        matches!(self, Opcode::EXTENDED_ARG)
+    }
 }

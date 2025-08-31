@@ -1181,9 +1181,8 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
     }
 }
 
-impl GenericInstruction for ExtInstruction {
+impl GenericInstruction<u32> for ExtInstruction {
     type Opcode = Opcode;
-    type Arg = u32;
 
     fn get_opcode(&self) -> Self::Opcode {
         match self {
@@ -1395,7 +1394,7 @@ impl GenericInstruction for ExtInstruction {
         }
     }
 
-    fn get_raw_value(&self) -> Self::Arg {
+    fn get_raw_value(&self) -> u32 {
         match &self {
             ExtInstruction::Cache(n)
             | ExtInstruction::PopTop(n)

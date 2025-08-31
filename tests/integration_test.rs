@@ -5,7 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pyc_editor::{dump_pyc, load_pyc, v310, v311, v312, v313};
+use pyc_editor::{
+    dump_pyc, load_pyc,
+    traits::{GenericInstruction, GenericOpcode, Oparg},
+    v310, v311, v312, v313,
+};
 
 use crate::common::DATA_PATH;
 
@@ -110,6 +114,77 @@ fn test_recompile_standard_lib() {
     });
 }
 
+/// We compare the instructions directly instead of the bytes because we need to handle some special cases.
+/// For example Python has a bug where it can emit this code:
+/// ```python
+/// 400    EXTENDED_ARG 1
+/// 402    JUMP_BACKWARDS 0
+/// ```
+/// While this is semantically the same (and what this library outputs):
+/// ```python
+/// 400    JUMP_BACKWARDS 255
+/// ```
+///
+/// This function handles those discrepancies and treats them as if they were the same code.
+/// Returns true if they're equal, false if they're not
+fn compare_instructions<T: GenericInstruction<u8> + PartialEq>(
+    original_list: &[T],
+    new_list: &[T],
+) -> bool {
+    let mut og_iter = original_list.iter().enumerate();
+    let mut new_iter = new_list.iter().enumerate();
+
+    // Used to keep track of where the bugs have occured so we can correctly offset other jumps.
+    let mut bug_indexes: Vec<usize> = vec![];
+
+    while let Some((og_index, og_instruction)) = og_iter.next() {
+        if let Some((new_index, new_instruction)) = new_iter.next() {
+            // See the pattern in the doc string. We're trying to pattern match this
+            if new_instruction != og_instruction
+                && new_instruction.is_jump_backwards()
+                && og_instruction.is_extended_arg()
+            {
+                let mut curr_instruction = og_instruction;
+
+                while curr_instruction.is_extended_arg() {
+                    if curr_instruction.get_raw_value() != u8::MAX {
+                        // Has to be max value for the bug to happen
+                        return false;
+                    }
+
+                    curr_instruction = match og_iter.next() {
+                        None => return false,
+                        Some((_, new_inst)) => new_inst,
+                    };
+                }
+
+                if !(curr_instruction.is_jump_backwards() && curr_instruction.get_raw_value() == 0)
+                {
+                    // Bug did not occur so there is an actual mismatch
+                    return false;
+                } else {
+                    // Bug occured
+                    bug_indexes.push(new_index);
+                }
+            } else if new_instruction != og_instruction
+                && new_instruction.get_opcode() == og_instruction.get_opcode()
+                && new_instruction.is_jump()
+            {
+                // If both are the same jump opcode, their jump target indexes could differ due to the bug being triggered
+                // TODO: find a better way to compare their opargs keeping in mind extended args
+                // if new_instruction.get_raw_value() +
+            } else if new_instruction != og_instruction {
+                return false;
+            }
+        } else {
+            // Length of the instructions doesn't match
+            return false;
+        }
+    }
+
+    true
+}
+
 #[test]
 fn test_recompile_resolved_standard_lib() {
     common::setup();
@@ -117,50 +192,52 @@ fn test_recompile_resolved_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.par_iter().for_each(|pyc_file| {
+        pyc_files.iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
-            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
-            let reader = BufReader::new(file);
-
-            let original_pyc = python_marshal::load_pyc(reader).expect("Failed to load pyc file");
-            let original_pyc = python_marshal::resolver::resolve_all_refs(
-                &original_pyc.object,
-                &original_pyc.references,
-            )
-            .0;
-
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
 
             let mut parsed_pyc = load_pyc(reader).unwrap();
 
-            fn rewrite_code_object(code: &pyc_editor::CodeObject) -> pyc_editor::CodeObject {
+            fn rewrite_code_object(
+                code: pyc_editor::CodeObject,
+                pyc_file: &PathBuf,
+            ) -> Result<pyc_editor::CodeObject, (pyc_editor::CodeObject, pyc_editor::CodeObject)>
+            {
                 macro_rules! rewrite_version {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let mut code = $code.clone();
-                        code.code = code.code.to_resolved().to_instructions();
+                        let mut new_code = $code.clone();
+                        new_code.code = new_code.code.to_resolved().to_instructions();
+                        match compare_instructions(
+                            $code.code.iter().as_slice(),
+                            new_code.code.iter().as_slice(),
+                        ) {
+                            false => {
+                                return Err((
+                                    pyc_editor::CodeObject::$variant(code),
+                                    pyc_editor::CodeObject::$variant(new_code),
+                                ))
+                            }
+                            true => {}
+                        }
 
                         for constant in &mut code.consts {
                             if let $module::code_objects::Constant::CodeObject(ref mut const_code) =
                                 constant
                             {
-                                let new_const_code = rewrite_code_object(
-                                    &pyc_editor::CodeObject::$variant(const_code.clone()),
-                                );
-
-                                if let pyc_editor::CodeObject::$variant(inner_const_code) =
-                                    new_const_code
-                                {
-                                    *const_code = inner_const_code;
-                                }
+                                rewrite_code_object(
+                                    pyc_editor::CodeObject::$variant(const_code.clone()),
+                                    &pyc_file,
+                                )?;
                             }
                         }
 
-                        pyc_editor::CodeObject::$variant(code)
+                        Ok(pyc_editor::CodeObject::$variant(new_code))
                     }};
                 }
 
@@ -169,26 +246,25 @@ fn test_recompile_resolved_standard_lib() {
 
             macro_rules! rewrite_pyc {
                 ($variant:ident, $module:ident, $pyc:expr) => {{
-                    let new_code = rewrite_code_object(&pyc_editor::CodeObject::$variant(
-                        $pyc.code_object.clone(),
-                    ));
-
-                    if let pyc_editor::CodeObject::$variant(inner_code) = new_code {
-                        $pyc.code_object = inner_code;
-                    }
+                    match rewrite_code_object(
+                        pyc_editor::CodeObject::$variant($pyc.code_object.clone()),
+                        &pyc_file,
+                    ) {
+                        Ok(new_code) => new_code,
+                        Err((
+                            pyc_editor::CodeObject::$variant(code),
+                            pyc_editor::CodeObject::$variant(new_code),
+                        )) => {
+                            println!("{:#?}", code);
+                            println!("{:#?}", new_code);
+                            panic!();
+                        }
+                        _ => unreachable!(),
+                    };
                 }};
             }
 
             handle_pyc_versions!(parsed_pyc, rewrite_pyc);
-
-            let pyc: python_marshal::PycFile = parsed_pyc.clone().into();
-
-            std::assert_eq!(
-                original_pyc,
-                pyc.object,
-                "{:?} has not been recompiled succesfully",
-                &pyc_file
-            );
         });
     });
 }

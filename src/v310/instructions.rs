@@ -148,15 +148,14 @@ pub enum Instruction {
     InvalidOpcode((u8, u8)), // (opcode, arg)
 }
 
-impl GenericInstruction for Instruction {
+impl GenericInstruction<u8> for Instruction {
     type Opcode = Opcode;
-    type Arg = u8;
 
     fn get_opcode(&self) -> Self::Opcode {
         Opcode::from_instruction(self)
     }
 
-    fn get_raw_value(&self) -> Self::Arg {
+    fn get_raw_value(&self) -> u8 {
         match &self {
             Instruction::PopTop(arg)
             | Instruction::RotTwo(arg)

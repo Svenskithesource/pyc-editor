@@ -131,7 +131,7 @@ fn compare_instructions<T: SimpleInstructionAccess<I>, I>(original_list: T, new_
 
     // Used to keep track of where the bugs have occured so we can correctly offset other jumps.
     let mut bug_indexes: Vec<usize> = vec![];
-    // We can only check for mismatches after we made the full bug index tree. So we're saving a list of comparing later.
+    // We can only check for mismatches after we made the full bug index list. So we're saving a list for comparing later.
     let mut possible_mismatches: Vec<(usize, usize)> = vec![]; // (index of original list, index of new list)
 
     while let Some((og_index, og_instruction)) = og_iter.next() {

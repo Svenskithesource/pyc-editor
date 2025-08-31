@@ -173,7 +173,7 @@ impl Oparg<u32> for u32 {
 }
 
 /// Generic instruction functions used by all versions
-pub trait GenericInstruction<OpargType>
+pub trait GenericInstruction<OpargType>: PartialEq
 where
     OpargType: PartialEq,
 {

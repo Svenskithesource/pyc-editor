@@ -1,12 +1,12 @@
+use core::panic;
+use pyc_editor::{
+    dump_pyc, load_pyc, prelude::*, traits::GenericInstruction, v310, v311, v312, v313,
+};
 use python_marshal::magic::PyVersion;
 use rayon::prelude::*;
 use std::{
     io::{BufReader, Write},
     path::{Path, PathBuf},
-};
-
-use pyc_editor::{
-    dump_pyc, load_pyc, prelude::*, traits::GenericInstruction, v310, v311, v312, v313,
 };
 
 use crate::common::DATA_PATH;
@@ -125,15 +125,14 @@ fn test_recompile_standard_lib() {
 ///
 /// This function handles those discrepancies and treats them as if they were the same code.
 /// Returns true if they're equal, false if they're not
-fn compare_instructions<T: GenericInstruction<u8> + PartialEq>(
-    original_list: &[T],
-    new_list: &[T],
-) -> bool {
-    let mut og_iter = original_list.iter().enumerate();
-    let mut new_iter = new_list.iter().enumerate();
+fn compare_instructions<T: SimpleInstructionAccess<I>, I>(original_list: T, new_list: T) -> bool {
+    let mut og_iter = original_list.as_ref().iter().enumerate();
+    let mut new_iter = new_list.as_ref().iter().enumerate();
 
     // Used to keep track of where the bugs have occured so we can correctly offset other jumps.
     let mut bug_indexes: Vec<usize> = vec![];
+    // We can only check for mismatches after we made the full bug index tree. So we're saving a list of comparing later.
+    let mut possible_mismatches: Vec<(usize, usize)> = vec![]; // (index of original list, index of new list)
 
     while let Some((og_index, og_instruction)) = og_iter.next() {
         if let Some((new_index, new_instruction)) = new_iter.next() {
@@ -145,21 +144,25 @@ fn compare_instructions<T: GenericInstruction<u8> + PartialEq>(
                 let mut curr_instruction = og_instruction;
 
                 while curr_instruction.is_extended_arg() {
-                    if curr_instruction.get_raw_value() != u8::MAX {
-                        // Has to be max value for the bug to happen
-                        return false;
-                    }
+                    let prev_instruction = curr_instruction;
 
                     curr_instruction = match og_iter.next() {
                         None => return false,
                         Some((_, new_inst)) => new_inst,
                     };
+
+                    if curr_instruction.is_extended_arg()
+                        && prev_instruction.get_raw_value() != u8::MAX
+                    {
+                        // Has to be max value for the bug to happen
+                        return false;
+                    }
                 }
 
                 if !(curr_instruction.is_jump_backwards() && curr_instruction.get_raw_value() == 0)
                 {
-                    // Bug did not occur so there is an actual mismatch
-                    return false;
+                    // Bug did not occur so there could be an actual mismatch or a difference in indexes due to previous bugs
+                    possible_mismatches.push((og_index, new_index));
                 } else {
                     // Bug occured
                     bug_indexes.push(new_index);
@@ -169,13 +172,52 @@ fn compare_instructions<T: GenericInstruction<u8> + PartialEq>(
                 && new_instruction.is_jump()
             {
                 // If both are the same jump opcode, their jump target indexes could differ due to the bug being triggered
-                // TODO: find a better way to compare their opargs keeping in mind extended args
-                // if new_instruction.get_raw_value() +
+                possible_mismatches.push((og_index, new_index));
             } else if new_instruction != og_instruction {
                 return false;
             }
         } else {
             // Length of the instructions doesn't match
+            return false;
+        }
+    }
+
+    // Check if they're actual mismatches or caused by bugs
+    for (og_index, new_index) in possible_mismatches {
+        let bug_count = if new_list.as_ref().get(new_index).unwrap().is_absolute_jump() {
+            bug_indexes
+                .iter()
+                .filter(|bug_index| **bug_index < new_index)
+                .count()
+        } else if new_list.as_ref().get(new_index).unwrap().is_jump_forwards() {
+            bug_indexes
+                .iter()
+                .filter(|bug_index| {
+                    new_index < **bug_index
+                        && **bug_index
+                            < new_index + new_list.get_full_arg(new_index).unwrap() as usize + 1
+                })
+                .count()
+        } else if new_list
+            .as_ref()
+            .get(new_index)
+            .unwrap()
+            .is_jump_backwards()
+        {
+            bug_indexes
+                .iter()
+                .filter(|bug_index| {
+                    new_index - new_list.get_full_arg(new_index).unwrap() as usize + 1 < **bug_index
+                        && **bug_index < new_index
+                })
+                .count()
+        } else {
+            unreachable!("It should always be a jump. We have covered all jump types.")
+        };
+
+        if new_list.get_full_arg(new_index).unwrap() + bug_count as u32
+            != original_list.get_full_arg(og_index).unwrap()
+        {
             return false;
         }
     }
@@ -190,11 +232,11 @@ fn test_recompile_resolved_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
             let reader = BufReader::new(file);
@@ -203,7 +245,6 @@ fn test_recompile_resolved_standard_lib() {
 
             fn rewrite_code_object(
                 code: pyc_editor::CodeObject,
-                pyc_file: &PathBuf,
             ) -> Result<pyc_editor::CodeObject, (pyc_editor::CodeObject, pyc_editor::CodeObject)>
             {
                 macro_rules! rewrite_version {
@@ -228,10 +269,9 @@ fn test_recompile_resolved_standard_lib() {
                             if let $module::code_objects::Constant::CodeObject(ref mut const_code) =
                                 constant
                             {
-                                rewrite_code_object(
-                                    pyc_editor::CodeObject::$variant(const_code.clone()),
-                                    &pyc_file,
-                                )?;
+                                rewrite_code_object(pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ))?;
                             }
                         }
 
@@ -244,10 +284,9 @@ fn test_recompile_resolved_standard_lib() {
 
             macro_rules! rewrite_pyc {
                 ($variant:ident, $module:ident, $pyc:expr) => {{
-                    match rewrite_code_object(
-                        pyc_editor::CodeObject::$variant($pyc.code_object.clone()),
-                        &pyc_file,
-                    ) {
+                    match rewrite_code_object(pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    )) {
                         Ok(new_code) => new_code,
                         Err((
                             pyc_editor::CodeObject::$variant(code),

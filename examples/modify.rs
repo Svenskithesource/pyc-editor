@@ -10,19 +10,16 @@ fn main() {
 
     let mut pyc_file = load_pyc(data.as_slice()).expect("Invalid pyc file");
 
-    match pyc_file {
-        PycFile::V310(ref mut pyc) => {
-            // Change print(a + b) to print(a - b)
-            let add = pyc
-                .code_object
-                .code
-                .iter_mut()
-                .find(|i| i.get_opcode() == Opcode::BINARY_ADD)
-                .expect("Add opcode not found");
+    if let PycFile::V310(ref mut pyc) = pyc_file {
+        // Change print(a + b) to print(a - b)
+        let add = pyc
+            .code_object
+            .code
+            .iter_mut()
+            .find(|i| i.get_opcode() == Opcode::BINARY_ADD)
+            .expect("Add opcode not found");
 
-            *add = Instruction::BinarySubtract(0);
-        }
-        _ => {}
+        *add = Instruction::BinarySubtract(0);
     }
 
     dbg!(&pyc_file); // Addition is changed to subtraction

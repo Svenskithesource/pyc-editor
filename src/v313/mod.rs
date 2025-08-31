@@ -12,7 +12,7 @@ mod tests {
     use crate::v312;
     use crate::v312::code_objects::CompareOperation::Equal;
     use crate::v312::code_objects::{
-        Constant, FrozenConstant, JumpDirection, LinetableEntry, NameIndex, RelativeJump,
+        Constant, FrozenConstant, LinetableEntry, NameIndex,
     };
     use crate::v312::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v312::instructions::{
@@ -134,7 +134,7 @@ mod tests {
 
         assert_eq!(
             instructions.get_jump_target(11).unwrap().1,
-            Instruction::ReturnValue(0.into())
+            Instruction::ReturnValue(0)
         );
 
         assert_eq!(instructions, resolved.to_instructions());

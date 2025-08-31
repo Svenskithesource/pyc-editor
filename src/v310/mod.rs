@@ -137,7 +137,7 @@ mod tests {
 
         assert_eq!(
             instructions.get_absolute_jump_target(jump).unwrap().1,
-            Instruction::ReturnValue(0.into())
+            Instruction::ReturnValue(0)
         );
 
         assert_eq!(resolved.len(), 259);
@@ -192,7 +192,7 @@ mod tests {
 
         assert_eq!(
             instructions.get_jump_target(11).unwrap().1,
-            Instruction::ReturnValue(0.into())
+            Instruction::ReturnValue(0)
         );
 
         assert_eq!(instructions, resolved.to_instructions());

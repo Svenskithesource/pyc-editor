@@ -11,9 +11,7 @@ mod tests {
 
     use crate::v312;
     use crate::v312::code_objects::CompareOperation::Equal;
-    use crate::v312::code_objects::{
-        Constant, FrozenConstant, JumpDirection, LinetableEntry, NameIndex, RelativeJump,
-    };
+    use crate::v312::code_objects::{Constant, FrozenConstant, LinetableEntry, NameIndex};
     use crate::v312::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v312::instructions::{
         get_line_number, starts_line_number, Instruction, Instructions,
@@ -74,9 +72,9 @@ mod tests {
             .find(|(_, instruction)| instruction.get_opcode() == Opcode::POP_JUMP_IF_TRUE)
             .expect("There must be a jump")
         {
-            (index, ExtInstruction::PopJumpIfTrue(jump)) => {
+            (index, ExtInstruction::PopJumpIfTrue(_)) => {
                 let target = resolved
-                    .get_jump_target(index as u32, (*jump).into())
+                    .get_jump_target(index as u32)
                     .expect("Should never fail");
 
                 assert_eq!(og_target, target);
@@ -125,27 +123,15 @@ mod tests {
 
         let resolved = instructions.to_resolved();
 
-        let resolved_jump: RelativeJump = RelativeJump {
-            index: resolved.get(11).unwrap().get_raw_value(),
-            direction: JumpDirection::Forward,
-        };
-        let jump: RelativeJump = RelativeJump {
-            index: instructions.get_full_arg(11).unwrap(),
-            direction: JumpDirection::Forward,
-        };
-
         assert_eq!(resolved.len(), 17);
 
         assert_eq!(
-            resolved
-                .get_jump_target(11, resolved_jump.into())
-                .unwrap()
-                .1,
+            resolved.get_jump_target(11).unwrap().1,
             ExtInstruction::ReturnValue(0.into())
         );
 
         assert_eq!(
-            instructions.get_jump_target(11, jump.into()).unwrap().1,
+            instructions.get_jump_target(11).unwrap().1,
             Instruction::ReturnValue(0.into())
         );
 

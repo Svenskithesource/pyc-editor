@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     ops::{Deref, DerefMut},
 };
 
@@ -170,29 +170,12 @@ pub enum ExtInstruction {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtInstructions(Vec<ExtInstruction>);
 
-impl InstructionAccess for [ExtInstruction]
+impl<T> InstructionAccess<u32, ExtInstruction> for T
+where
+    T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
 {
     type Instruction = ExtInstruction;
     type Jump = Jump;
-
-    fn to_bytes(&self) -> Vec<u8> {
-        self.to_instructions().to_bytes()
-    }
-
-    /// Returns a hashmap of jump indexes and their jump target
-    fn get_jump_map(&self) -> HashMap<u32, u32> {
-        let mut jump_map: HashMap<u32, u32> = HashMap::new();
-
-        for index in 0..self.len() {
-            let jump_target = self.get_jump_target(index as u32);
-
-            if let Some((jump_index, _)) = jump_target {
-                jump_map.insert(index as u32, jump_index);
-            }
-        }
-
-        jump_map
-    }
 
     fn get_jump_value(&self, index: u32) -> Option<Jump> {
         match self.get(index as usize)? {
@@ -228,22 +211,11 @@ impl InstructionAccess for [ExtInstruction]
             }
         }
     }
-
-    /// Returns a list of all indexes that jump to the given index
-    fn get_jump_xrefs(&self, index: u32) -> Vec<u32> {
-        let jump_map = self.get_jump_map();
-
-        jump_map
-            .iter()
-            .filter(|(_, to)| **to == index)
-            .map(|(from, _)| *from)
-            .collect()
-    }
 }
 
-impl<T> ExtInstructionAccess for T
+impl<T> ExtInstructionAccess<Instruction> for T
 where
-    T: Deref<Target = [ExtInstruction]>,
+    T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
 {
     type Instructions = Instructions;
 
@@ -678,6 +650,12 @@ impl DerefMut for ExtInstructions {
     /// Allow the user to get a mutable reference slice for making modifications to existing instructions.
     fn deref_mut(&mut self) -> &mut [ExtInstruction] {
         self.0.deref_mut()
+    }
+}
+
+impl AsRef<[ExtInstruction]> for ExtInstructions {
+    fn as_ref(&self) -> &[ExtInstruction] {
+        &self.0
     }
 }
 

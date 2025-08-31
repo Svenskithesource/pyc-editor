@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use pyc_editor::prelude::*;
 use pyc_editor::v310::{
     ext_instructions::{ExtInstruction, ExtInstructions},
     instructions::{Instruction, Instructions},

@@ -6,9 +6,7 @@ use std::{
 };
 
 use pyc_editor::{
-    dump_pyc, load_pyc,
-    traits::{GenericInstruction, GenericOpcode, Oparg},
-    v310, v311, v312, v313,
+    dump_pyc, load_pyc, prelude::*, traits::GenericInstruction, v310, v311, v312, v313,
 };
 
 use crate::common::DATA_PATH;

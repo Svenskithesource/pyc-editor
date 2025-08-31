@@ -1,11 +1,10 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use crate::{
     error::Error,
-    traits::{GenericInstruction, InstructionAccess},
+    traits::{
+        GenericInstruction, InstructionAccess, InstructionMutAccess, SimpleInstructionAccess,
+    },
     v312::{
         cache::get_cache_count,
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},
@@ -459,19 +458,87 @@ pub fn get_real_jump_index(instructions: &[Instruction], index: usize) -> Option
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instructions(Vec<Instruction>);
 
-impl InstructionAccess for Instructions {
+impl<T> InstructionAccess<u8, Instruction> for T
+where
+    T: Deref<Target = [Instruction]> + AsRef<[Instruction]>,
+{
     type Instruction = Instruction;
+    type Jump = Jump;
 
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut bytearray = Vec::with_capacity(self.0.len() * 2);
+    fn get_jump_value(&self, index: u32) -> Option<Jump> {
+        match self.get(index as usize)? {
+            Instruction::ForIter(_)
+            | Instruction::JumpForward(_)
+            | Instruction::PopJumpIfFalse(_)
+            | Instruction::PopJumpIfTrue(_)
+            | Instruction::Send(_)
+            | Instruction::PopJumpIfNotNone(_)
+            | Instruction::PopJumpIfNone(_)
+            | Instruction::ForIterRange(_)
+            | Instruction::ForIterList(_)
+            | Instruction::ForIterGen(_)
+            | Instruction::ForIterTuple(_)
+            | Instruction::InstrumentedForIter(_)
+            | Instruction::InstrumentedPopJumpIfNone(_)
+            | Instruction::InstrumentedPopJumpIfNotNone(_)
+            | Instruction::InstrumentedJumpForward(_)
+            | Instruction::InstrumentedPopJumpIfFalse(_)
+            | Instruction::InstrumentedPopJumpIfTrue(_) => {
+                let arg = self.get_full_arg(index as usize);
 
-        for instruction in self.0.iter() {
-            bytearray.push(instruction.get_opcode().into());
-            bytearray.push(instruction.get_raw_value())
+                Some(Jump::Relative(RelativeJump {
+                    index: arg?,
+                    direction: JumpDirection::Forward,
+                }))
+            }
+            Instruction::JumpBackwardNoInterrupt(_)
+            | Instruction::JumpBackward(_)
+            | Instruction::InstrumentedJumpBackward(_) => {
+                let arg = self.get_full_arg(index as usize);
+
+                Some(Jump::Relative(RelativeJump {
+                    index: arg?,
+                    direction: JumpDirection::Backward,
+                }))
+            }
+            _ => None,
         }
-
-        bytearray
     }
+
+    /// Returns the index and the instruction of the jump target. None if the index is invalid.
+    fn get_jump_target(&self, index: u32) -> Option<(u32, Instruction)> {
+        let jump = self.get_jump_value(index)?;
+
+        match jump {
+            Jump::Relative(RelativeJump {
+                index: jump_index,
+                direction: JumpDirection::Forward,
+            }) => {
+                let index = get_real_jump_index(self, index as usize)? as u32 + jump_index + 1;
+                self.get(index as usize)
+                    .cloned()
+                    .map(|target| (index, target))
+            }
+            Jump::Relative(RelativeJump {
+                index: jump_index,
+                direction: JumpDirection::Backward,
+            }) => {
+                let index = get_real_jump_index(self, index as usize)? as u32 - jump_index + 1;
+                self.get(index as usize)
+                    .cloned()
+                    .map(|target| (index, target))
+            }
+        }
+    }
+}
+
+impl InstructionMutAccess for Instructions {
+    type Instruction = Instruction;
+}
+
+impl<T> SimpleInstructionAccess<Instruction> for T where
+    T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
+{
 }
 
 impl Instructions {
@@ -483,141 +550,9 @@ impl Instructions {
         Instructions(instructions)
     }
 
-    /// Calculates the full argument for an index (keeping in mind extended args). None if the index is not within bounds.
-    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
-    pub fn get_full_arg(&self, index: usize) -> Option<u32> {
-        if self.len() > index {
-            let mut curr_index = index;
-            let mut extended_args = vec![];
-
-            while curr_index > 0 {
-                curr_index -= 1;
-
-                match &self[curr_index] {
-                    Instruction::ExtendedArg(arg) => {
-                        extended_args.push(arg);
-                    }
-                    _ => break,
-                }
-            }
-
-            let mut extended_arg = 0;
-
-            for arg in extended_args.iter().rev() {
-                // We collected them in the reverse order
-                let arg = **arg as u32 | extended_arg;
-                extended_arg = arg << 8;
-            }
-
-            Some(self[index].get_raw_value() as u32 | extended_arg)
-        } else {
-            None
-        }
-    }
-
     /// Returns the instructions but with the extended_args resolved
     pub fn to_resolved(&self) -> ExtInstructions {
         ExtInstructions::from(self.0.as_slice())
-    }
-
-    /// Returns a hashmap of jump indexes and their jump target
-    pub fn get_jump_map(&self) -> HashMap<u32, u32> {
-        let mut jump_map: HashMap<u32, u32> = HashMap::new();
-
-        for (index, instruction) in self.iter().enumerate() {
-            let jump: Jump = match instruction {
-                Instruction::ForIter(_)
-                | Instruction::JumpForward(_)
-                | Instruction::PopJumpIfFalse(_)
-                | Instruction::PopJumpIfTrue(_)
-                | Instruction::Send(_)
-                | Instruction::PopJumpIfNotNone(_)
-                | Instruction::PopJumpIfNone(_)
-                | Instruction::ForIterRange(_)
-                | Instruction::ForIterList(_)
-                | Instruction::ForIterGen(_)
-                | Instruction::ForIterTuple(_)
-                | Instruction::InstrumentedForIter(_)
-                | Instruction::InstrumentedPopJumpIfNone(_)
-                | Instruction::InstrumentedPopJumpIfNotNone(_)
-                | Instruction::InstrumentedJumpForward(_)
-                | Instruction::InstrumentedPopJumpIfFalse(_)
-                | Instruction::InstrumentedPopJumpIfTrue(_) => {
-                    let arg = self.get_full_arg(index);
-
-                    let arg = match arg {
-                        Some(arg) => arg,
-                        None => continue,
-                    };
-
-                    Jump::Relative(RelativeJump {
-                        index: arg,
-                        direction: JumpDirection::Forward,
-                    })
-                }
-                Instruction::JumpBackwardNoInterrupt(_)
-                | Instruction::JumpBackward(_)
-                | Instruction::InstrumentedJumpBackward(_) => {
-                    let arg = self.get_full_arg(index);
-
-                    let arg = match arg {
-                        Some(arg) => arg,
-                        None => continue,
-                    };
-
-                    Jump::Relative(RelativeJump {
-                        index: arg,
-                        direction: JumpDirection::Backward,
-                    })
-                }
-                _ => continue,
-            };
-
-            let jump_target = self.get_jump_target(index as u32, jump);
-
-            if let Some((jump_index, _)) = jump_target {
-                jump_map.insert(index as u32, jump_index);
-            }
-        }
-
-        jump_map
-    }
-
-    /// Returns the index and the instruction of the jump target. None if the index is invalid.
-    pub fn get_jump_target(&self, index: u32, jump: Jump) -> Option<(u32, Instruction)> {
-        match jump {
-            Jump::Relative(RelativeJump {
-                index: jump_index,
-                direction: JumpDirection::Forward,
-            }) => {
-                let index = get_real_jump_index(self, index as usize)? as u32 + jump_index + 1;
-                self.0
-                    .get(index as usize)
-                    .cloned()
-                    .map(|target| (index, target))
-            }
-            Jump::Relative(RelativeJump {
-                index: jump_index,
-                direction: JumpDirection::Backward,
-            }) => {
-                let index = get_real_jump_index(self, index as usize)? as u32 - jump_index + 1;
-                self.0
-                    .get(index as usize)
-                    .cloned()
-                    .map(|target| (index, target))
-            }
-        }
-    }
-
-    /// Returns a list of all indexes that jump to the given index
-    pub fn get_jump_xrefs(&self, index: u32) -> Vec<u32> {
-        let jump_map = self.get_jump_map();
-
-        jump_map
-            .iter()
-            .filter(|(_, to)| **to == index)
-            .map(|(from, _)| *from)
-            .collect()
     }
 
     pub fn append_instructions(&mut self, instructions: &[Instruction]) {
@@ -645,6 +580,12 @@ impl DerefMut for Instructions {
     /// Allow the user to get a mutable reference slice for making modifications to existing instructions.
     fn deref_mut(&mut self) -> &mut [Instruction] {
         self.0.deref_mut()
+    }
+}
+
+impl AsRef<[Instruction]> for Instructions {
+    fn as_ref(&self) -> &[Instruction] {
+        &self.0
     }
 }
 

@@ -10,9 +10,7 @@ mod tests {
 
     use crate::v310;
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::{
-        AbsoluteJump, Constant, FrozenConstant, LinetableEntry, RelativeJump,
-    };
+    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, LinetableEntry};
     use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v310::instructions::{
         get_line_number, starts_line_number, Instruction, Instructions,
@@ -185,21 +183,15 @@ mod tests {
 
         let resolved = instructions.to_resolved();
 
-        let resolved_jump: RelativeJump = resolved.get(11).unwrap().get_raw_value().into();
-        let jump: RelativeJump = instructions.get_full_arg(11).unwrap().into();
-
         assert_eq!(resolved.len(), 17);
 
         assert_eq!(
-            resolved
-                .get_jump_target(11, resolved_jump.into())
-                .unwrap()
-                .1,
+            resolved.get_jump_target(11).unwrap().1,
             ExtInstruction::ReturnValue(0.into())
         );
 
         assert_eq!(
-            instructions.get_jump_target(11, jump.into()).unwrap().1,
+            instructions.get_jump_target(11).unwrap().1,
             Instruction::ReturnValue(0.into())
         );
 

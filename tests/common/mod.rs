@@ -6,26 +6,26 @@ use python_marshal::magic::PyVersion;
 
 pub const DATA_PATH: &str = "tests/data";
 pub const PYTHON_VERSIONS: &[PyVersion] = &[
-    // PyVersion {
-    //     major: 3,
-    //     minor: 10,
-    //     patch: 1,
-    // },
-    // PyVersion {
-    //     major: 3,
-    //     minor: 11,
-    //     patch: 1,
-    // },
-    // PyVersion {
-    //     major: 3,
-    //     minor: 12,
-    //     patch: 1,
-    // },
     PyVersion {
         major: 3,
-        minor: 13,
+        minor: 10,
         patch: 1,
     },
+    PyVersion {
+        major: 3,
+        minor: 11,
+        patch: 1,
+    },
+    PyVersion {
+        major: 3,
+        minor: 12,
+        patch: 1,
+    },
+    // PyVersion {
+    //     major: 3,
+    //     minor: 13,
+    //     patch: 1,
+    // },
 ];
 
 fn init_repo(version: &PyVersion) {

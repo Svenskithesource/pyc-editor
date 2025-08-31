@@ -1,11 +1,13 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     ops::{Deref, DerefMut},
 };
 
 use crate::{
     error::Error,
-    traits::{GenericInstruction, InstructionAccess},
+    traits::{
+        GenericInstruction, InstructionAccess, InstructionMutAccess, SimpleInstructionAccess,
+    },
     v310::{
         code_objects::{AbsoluteJump, Jump, LinetableEntry, RelativeJump},
         ext_instructions::ExtInstructions,
@@ -294,33 +296,142 @@ impl GenericInstruction for Instruction {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instructions(Vec<Instruction>);
 
-impl InstructionAccess for Instructions {
+impl InstructionAccess for [Instruction]
+{
     type Instruction = Instruction;
+    type Jump = Jump;
 
     fn to_bytes(&self) -> Vec<u8> {
-        let mut bytearray = Vec::with_capacity(self.0.len() * 2);
+        let mut bytearray = Vec::with_capacity(self.len() * 2);
 
-        for instruction in self.0.iter() {
+        for instruction in self.iter() {
             bytearray.push(instruction.get_opcode().into());
             bytearray.push(instruction.get_raw_value())
         }
 
         bytearray
     }
-}
 
-impl Instructions {
-    pub fn with_capacity(capacity: usize) -> Self {
-        Instructions(Vec::with_capacity(capacity))
+    fn get_jump_value(&self, index: u32) -> Option<Jump> {
+        match self.get(index as usize)? {
+            Instruction::JumpAbsolute(_)
+            | Instruction::PopJumpIfTrue(_)
+            | Instruction::PopJumpIfFalse(_)
+            | Instruction::JumpIfNotExcMatch(_)
+            | Instruction::JumpIfTrueOrPop(_)
+            | Instruction::JumpIfFalseOrPop(_) => {
+                let arg = self.get_full_arg(index as usize);
+
+                let arg = match arg {
+                    Some(arg) => arg,
+                    None => return None,
+                };
+
+                Some(Jump::Absolute(AbsoluteJump { index: arg }))
+            }
+            Instruction::ForIter(_)
+            | Instruction::JumpForward(_)
+            | Instruction::SetupFinally(_)
+            | Instruction::SetupWith(_)
+            | Instruction::SetupAsyncWith(_) => {
+                let arg = self.get_full_arg(index as usize);
+
+                let arg = match arg {
+                    Some(arg) => arg,
+                    None => return None,
+                };
+
+                Some(Jump::Relative(RelativeJump { index: arg }))
+            }
+            _ => None,
+        }
     }
 
-    pub fn new(instructions: Vec<Instruction>) -> Self {
-        Instructions(instructions)
+    /// Returns the index and the instruction of the jump target. None if the index is invalid.
+    fn get_jump_target(&self, index: u32) -> Option<(u32, Instruction)> {
+        let jump = self.get_jump_value(index)?;
+
+        match jump {
+            Jump::Absolute(absolute_jump) => self
+                .get(absolute_jump.index as usize)
+                .cloned()
+                .map(|target| (absolute_jump.index, target)),
+            Jump::Relative(RelativeJump { index: jump_index }) => {
+                let index = index + jump_index + 1;
+                self.get(index as usize)
+                    .cloned()
+                    .map(|target| (index, target))
+            }
+        }
+    }
+
+    /// Returns a list of all indexes that jump to the given index
+    fn get_jump_xrefs(&self, index: u32) -> Vec<u32> {
+        let jump_map = self.get_jump_map();
+
+        jump_map
+            .iter()
+            .filter(|(_, to)| **to == index)
+            .map(|(from, _)| *from)
+            .collect()
+    }
+
+    /// Returns a hashmap of jump indexes and their jump target
+    fn get_jump_map(&self) -> HashMap<u32, u32> {
+        let mut jump_map: HashMap<u32, u32> = HashMap::new();
+
+        for index in 0..self.len() {
+            let jump_target = self.get_jump_target(index as u32);
+
+            if let Some((jump_index, _)) = jump_target {
+                jump_map.insert(index as u32, jump_index);
+            }
+        }
+
+        jump_map
+    }
+}
+
+impl<T> InstructionMutAccess for T
+where
+    T: DerefMut<Target = [Instruction]>,
+{
+    type Instruction = Instruction;
+}
+
+impl<T> SimpleInstructionAccess for T
+where
+    T: Deref<Target = [Instruction]>,
+{
+    type Instruction = Instruction;
+
+    fn find_ext_arg_jumps(instructions: &[Instruction]) -> Vec<u32> {
+        let mut jumps: Vec<u32> = vec![];
+
+        for (index, instruction) in instructions.iter().enumerate() {
+            if instruction.is_jump() {
+                let jump_target = instructions.get_jump_target(index as u32);
+
+                // Jump target is valid
+                if let Some(jump) = jump_target {
+                    // The jump target has a value bigger than 1 byte, this means we skipped an extended arg
+                    if instructions
+                        .get_full_arg(jump.0 as usize)
+                        .expect("We know the index is valid")
+                        > u8::MAX.into()
+                    {
+                        jumps.push(index as u32);
+                    }
+                }
+            }
+        }
+
+        jumps
     }
 
     /// Calculates the full argument for an index (keeping in mind extended args). None if the index is not within bounds.
     /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
-    pub fn get_full_arg(&self, index: usize) -> Option<u32> {
+    fn get_full_arg(&self, index: usize) -> Option<u32> {
         if self.len() > index {
             let mut curr_index = index;
             let mut extended_args = vec![];
@@ -349,58 +460,20 @@ impl Instructions {
             None
         }
     }
+}
+
+impl Instructions {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Instructions(Vec::with_capacity(capacity))
+    }
+
+    pub fn new(instructions: Vec<Instruction>) -> Self {
+        Instructions(instructions)
+    }
 
     /// Returns the instructions but with the extended_args resolved
     pub fn to_resolved(&self) -> ExtInstructions {
         ExtInstructions::from(self.0.as_slice())
-    }
-
-    /// Returns a hashmap of jump indexes and their jump target
-    pub fn get_jump_map(&self) -> HashMap<u32, u32> {
-        let mut jump_map: HashMap<u32, u32> = HashMap::new();
-
-        for (index, instruction) in self.iter().enumerate() {
-            let jump: Jump = match instruction {
-                Instruction::JumpAbsolute(_)
-                | Instruction::PopJumpIfTrue(_)
-                | Instruction::PopJumpIfFalse(_)
-                | Instruction::JumpIfNotExcMatch(_)
-                | Instruction::JumpIfTrueOrPop(_)
-                | Instruction::JumpIfFalseOrPop(_) => {
-                    let arg = self.get_full_arg(index);
-
-                    let arg = match arg {
-                        Some(arg) => arg,
-                        None => continue,
-                    };
-
-                    Jump::Absolute(AbsoluteJump { index: arg })
-                }
-                Instruction::ForIter(_)
-                | Instruction::JumpForward(_)
-                | Instruction::SetupFinally(_)
-                | Instruction::SetupWith(_)
-                | Instruction::SetupAsyncWith(_) => {
-                    let arg = self.get_full_arg(index);
-
-                    let arg = match arg {
-                        Some(arg) => arg,
-                        None => continue,
-                    };
-
-                    Jump::Relative(RelativeJump { index: arg })
-                }
-                _ => continue,
-            };
-
-            let jump_target = self.get_jump_target(index as u32, jump);
-
-            if let Some((jump_index, _)) = jump_target {
-                jump_map.insert(index as u32, jump_index);
-            }
-        }
-
-        jump_map
     }
 
     /// Returns the index and the instruction of the jump target. None if the index is invalid.
@@ -410,31 +483,6 @@ impl Instructions {
             .get(jump.index as usize)
             .cloned()
             .map(|target| (jump.index, target))
-    }
-
-    /// Returns the index and the instruction of the jump target. None if the index is invalid.
-    pub fn get_jump_target(&self, index: u32, jump: Jump) -> Option<(u32, Instruction)> {
-        match jump {
-            Jump::Absolute(absolute_jump) => self.get_absolute_jump_target(absolute_jump),
-            Jump::Relative(RelativeJump { index: jump_index }) => {
-                let index = index + jump_index + 1;
-                self.0
-                    .get(index as usize)
-                    .cloned()
-                    .map(|target| (index, target))
-            }
-        }
-    }
-
-    /// Returns a list of all indexes that jump to the given index
-    pub fn get_jump_xrefs(&self, index: u32) -> Vec<u32> {
-        let jump_map = self.get_jump_map();
-
-        jump_map
-            .iter()
-            .filter(|(_, to)| **to == index)
-            .map(|(from, _)| *from)
-            .collect()
     }
 
     pub fn append_instructions(&mut self, instructions: &[Instruction]) {

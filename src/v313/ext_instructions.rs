@@ -4,7 +4,7 @@ use store_interval_tree::{Interval, IntervalTree};
 
 use crate::{
     error::Error,
-    traits::{GenericInstruction, InstructionAccess},
+    traits::{GenericInstruction, InstructionAccess, SimpleInstructionAccess},
     utils::get_extended_args_count,
     v313::{
         cache::get_cache_count,
@@ -572,7 +572,11 @@ impl ExtInstructions {
     }
 
     /// Resolve instructions into extended instructions.
-    pub fn from_instructions(instructions: &[Instruction]) -> Self {
+    pub fn from_instructions(instructions: &[Instruction]) -> Result<Self, Error> {
+        if !instructions.find_ext_arg_jumps().is_empty() {
+            return Err(Error::ExtendedArgJump);
+        }
+        
         let mut extended_arg = 0; // Used to keep track of extended arguments between instructions
         let mut relative_jump_indexes: IntervalTree<u32, u32> = IntervalTree::new();
 
@@ -713,7 +717,7 @@ impl ExtInstructions {
             extended_arg = 0;
         }
 
-        ext_instructions
+        Ok(ext_instructions)
     }
 
     pub fn append_instructions(&mut self, instructions: &[ExtInstruction]) {
@@ -851,9 +855,11 @@ impl From<ExtInstructions> for Vec<u8> {
     }
 }
 
-impl From<&[Instruction]> for ExtInstructions {
-    fn from(code: &[Instruction]) -> Self {
-        ExtInstructions::from_instructions(code)
+impl TryFrom<&[Instruction]> for ExtInstructions {
+    type Error = Error;
+    
+    fn try_from(value: &[Instruction]) -> Result<Self, Self::Error> {
+        ExtInstructions::from_instructions(value)
     }
 }
 

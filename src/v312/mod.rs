@@ -65,7 +65,7 @@ mod tests {
 
         let og_target = (304u32, ExtInstruction::LoadName(NameIndex { index: 1 }));
 
-        let resolved = instructions.to_instructions().to_resolved();
+        let resolved = instructions.to_instructions().to_resolved().unwrap();
         match resolved
             .iter()
             .enumerate()
@@ -121,7 +121,7 @@ mod tests {
 
         instructions.append_instruction(Instruction::ReturnValue(0));
 
-        let resolved = instructions.to_resolved();
+        let resolved = instructions.to_resolved().unwrap();
 
         assert_eq!(resolved.len(), 17);
 

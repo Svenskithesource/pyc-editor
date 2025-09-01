@@ -9,6 +9,7 @@ pub enum Error {
     InvalidConstant(python_marshal::Object),
     UnsupportedVersion(python_marshal::magic::PyVersion),
     PythonMarshalError(python_marshal::error::Error),
+    ExtendedArgJump,
     RecursiveReference(&'static str),
 }
 
@@ -25,6 +26,7 @@ impl fmt::Display for Error {
             Error::InvalidConstant(obj) => write!(f, "Invalid constant: {:?}", obj),
             Error::UnsupportedVersion(ver) => write!(f, "Unsupported Python version: {:?}", ver),
             Error::PythonMarshalError(err) => write!(f, "Python marshal error: {}", err),
+            Error::ExtendedArgJump => write!(f, "There is a jump skipping over an extended arg. We cannot convert to resolved instructions because of this."),
             Error::RecursiveReference(s) => write!(f, "Recursive reference: {}", s),
         }
     }

@@ -51,17 +51,17 @@ where
     /// This finds jumps that jump to instructions after an extended arg. This is a very unique case.
     /// This kind of bytecode should never be emitted by the Python compiler but it's possible for custom bytecode to have this.
     /// Returns a list of indexes of jump instructions that have a jump target like this.
-    fn find_ext_arg_jumps(instructions: &Self) -> Vec<u32> {
+    fn find_ext_arg_jumps(&self) -> Vec<u32> {
         let mut jumps: Vec<u32> = vec![];
 
-        for (index, instruction) in instructions.as_ref().iter().enumerate() {
+        for (index, instruction) in self.as_ref().iter().enumerate() {
             if instruction.is_jump() {
-                let jump_target = instructions.get_jump_target(index as u32);
+                let jump_target = self.get_jump_target(index as u32);
 
                 // Jump target is valid
                 if let Some(jump) = jump_target {
                     // The jump target has a value bigger than 1 byte, this means we skipped an extended arg
-                    if instructions
+                    if self
                         .get_full_arg(jump.0 as usize)
                         .expect("We know the index is valid")
                         > u8::MAX.into()
@@ -205,5 +205,21 @@ where
 
     fn is_extended_arg(&self) -> bool {
         self.get_opcode().is_extended_arg()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::traits::SimpleInstructionAccess;
+
+    #[test]
+    fn test_invalid_extended_arg_jump() {
+        let instructions = crate::v311::instructions::Instructions::new(vec![
+            crate::v311::instructions::Instruction::JumpForward(1),
+            crate::v311::instructions::Instruction::ExtendedArg(1),
+            crate::v311::instructions::Instruction::Nop(1),
+        ]);
+
+        assert_eq!(instructions.find_ext_arg_jumps().iter().count(), 1)
     }
 }

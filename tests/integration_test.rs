@@ -251,7 +251,7 @@ fn test_recompile_resolved_standard_lib() {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let mut code = $code.clone();
                         let mut new_code = $code.clone();
-                        new_code.code = new_code.code.to_resolved().to_instructions();
+                        new_code.code = new_code.code.to_resolved().unwrap().to_instructions();
                         match compare_instructions(
                             $code.code.iter().as_slice(),
                             new_code.code.iter().as_slice(),

@@ -551,8 +551,8 @@ impl Instructions {
     }
 
     /// Returns the instructions but with the extended_args resolved
-    pub fn to_resolved(&self) -> ExtInstructions {
-        ExtInstructions::from(self.0.as_slice())
+    pub fn to_resolved(&self) -> Result<ExtInstructions, Error> {
+        ExtInstructions::try_from(self.0.as_slice())
     }
 
     pub fn append_instructions(&mut self, instructions: &[Instruction]) {

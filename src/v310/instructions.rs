@@ -3,7 +3,8 @@ use std::ops::{Deref, DerefMut};
 use crate::{
     error::Error,
     traits::{
-        GenericInstruction, InstructionAccess, InstructionMutAccess, SimpleInstructionAccess,
+        ExtInstructionsOwned, GenericInstruction, InstructionAccess, InstructionsOwned,
+        SimpleInstructionAccess,
     },
     v310::{
         code_objects::{AbsoluteJump, Jump, LinetableEntry, RelativeJump},
@@ -343,8 +344,12 @@ where
     }
 }
 
-impl InstructionMutAccess for Instructions {
+impl InstructionsOwned<Instruction> for Instructions {
     type Instruction = Instruction;
+
+    fn push(&mut self, item: Self::Instruction) {
+        self.0.push(item);
+    }
 }
 
 impl<T> SimpleInstructionAccess<Instruction> for T where
@@ -375,17 +380,6 @@ impl Instructions {
             .get(jump.index as usize)
             .cloned()
             .map(|target| (jump.index, target))
-    }
-
-    pub fn append_instructions(&mut self, instructions: &[Instruction]) {
-        for instruction in instructions {
-            self.0.push(*instruction);
-        }
-    }
-
-    /// Append an instruction at the end
-    pub fn append_instruction(&mut self, instruction: Instruction) {
-        self.0.push(instruction);
     }
 }
 

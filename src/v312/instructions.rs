@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use crate::{
     error::Error,
     traits::{
-        GenericInstruction, InstructionAccess, InstructionMutAccess, SimpleInstructionAccess,
+        GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess
     },
     v312::{
         cache::get_cache_count,
@@ -532,8 +532,12 @@ where
     }
 }
 
-impl InstructionMutAccess for Instructions {
+impl InstructionsOwned<Instruction> for Instructions {
     type Instruction = Instruction;
+
+    fn push(&mut self, item: Self::Instruction) {
+        self.0.push(item);
+    }
 }
 
 impl<T> SimpleInstructionAccess<Instruction> for T where
@@ -553,17 +557,6 @@ impl Instructions {
     /// Returns the instructions but with the extended_args resolved
     pub fn to_resolved(&self) -> Result<ExtInstructions, Error> {
         ExtInstructions::try_from(self.0.as_slice())
-    }
-
-    pub fn append_instructions(&mut self, instructions: &[Instruction]) {
-        for instruction in instructions {
-            self.0.push(*instruction);
-        }
-    }
-
-    /// Append an instruction at the end
-    pub fn append_instruction(&mut self, instruction: Instruction) {
-        self.0.push(instruction);
     }
 }
 

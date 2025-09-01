@@ -129,14 +129,56 @@ pub trait ExtInstructionAccess<I> {
     }
 }
 
-pub trait InstructionMutAccess
+pub trait InstructionsOwned<T>
 where
     Self: DerefMut<Target = [Self::Instruction]>,
+    T: Copy,
 {
     type Instruction;
 
+    fn push(&mut self, item: T);
+
     fn get_instructions_mut(&mut self) -> &mut [Self::Instruction] {
         self.deref_mut()
+    }
+
+    /// Append multiple instructions at the end
+    fn append_instructions(&mut self, instructions: &[T]) {
+        for instruction in instructions {
+            self.push(*instruction);
+        }
+    }
+    /// Append an instruction at the end
+    fn append_instruction(&mut self, instruction: T) {
+        self.push(instruction);
+    }
+}
+
+pub trait ExtInstructionsOwned<T>
+where
+    Self: DerefMut<Target = [Self::Instruction]>,
+    Self::Instruction: Copy,
+{
+    type Instruction;
+
+    /// Delete instruction at index
+    fn delete_instruction(&mut self, index: usize);
+
+    /// Delete instructions in range (ex. 1..10)
+    fn delete_instructions(&mut self, range: std::ops::Range<usize>) {
+        range
+            .into_iter()
+            .for_each(|index| self.delete_instruction(index));
+    }
+
+    /// Insert instruction at a specific index. It automatically fixes jump offsets in other instructions.
+    fn insert_instruction(&mut self, index: usize, instruction: Self::Instruction);
+
+    /// Insert a slice of instructions at an index
+    fn insert_instructions(&mut self, index: usize, instructions: &[Self::Instruction]) {
+        for (idx, instruction) in instructions.iter().enumerate() {
+            self.insert_instruction(index + idx, *instruction);
+        }
     }
 }
 

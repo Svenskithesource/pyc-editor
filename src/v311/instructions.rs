@@ -499,18 +499,7 @@ where
     }
 }
 
-impl InstructionsOwned<Instruction> for Instructions {
-    type Instruction = Instruction;
 
-    fn push(&mut self, item: Self::Instruction) {
-        self.0.push(item);
-    }
-}
-
-impl<T> SimpleInstructionAccess<Instruction> for T where
-    T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
-{
-}
 
 impl Instructions {
     pub fn with_capacity(capacity: usize) -> Self {

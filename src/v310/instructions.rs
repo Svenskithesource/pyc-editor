@@ -6,7 +6,7 @@ use crate::{
     traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess},
     v310::{
         code_objects::{AbsoluteJump, Jump, LinetableEntry, RelativeJump},
-        ext_instructions::ExtInstructions,
+        ext_instructions::{ExtInstruction, ExtInstructions},
         opcodes::Opcode,
     },
 };
@@ -340,19 +340,6 @@ where
             }
         }
     }
-}
-
-impl InstructionsOwned<Instruction> for Instructions {
-    type Instruction = Instruction;
-
-    fn push(&mut self, item: Self::Instruction) {
-        self.0.push(item);
-    }
-}
-
-impl<T> SimpleInstructionAccess<Instruction> for T where
-    T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
-{
 }
 
 impl Instructions {

@@ -155,6 +155,25 @@ macro_rules! define_default_traits {
                 crate::$variant::instructions::Instructions::new(value.to_vec())
             }
         }
+
+        impl InstructionsOwned<crate::$variant::instructions::Instruction>
+            for crate::$variant::instructions::Instructions
+        {
+            type Instruction = crate::$variant::instructions::Instruction;
+
+            fn push(&mut self, item: Self::Instruction) {
+                self.0.push(item);
+            }
+        }
+
+        impl<T>
+            SimpleInstructionAccess<
+                crate::$variant::instructions::Instruction,
+            > for T
+        where
+            T: Deref<Target = [Instruction]> + AsRef<[Instruction]>,
+        {
+        }
     };
 
     ($variant:ident, ExtInstruction) => {

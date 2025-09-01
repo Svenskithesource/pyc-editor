@@ -3,12 +3,13 @@ use std::ops::{Deref, DerefMut};
 use store_interval_tree::{Interval, IntervalTree};
 
 use crate::{
+    define_default_traits,
     error::Error,
     traits::{
         ExtInstructionAccess, ExtInstructionsOwned, GenericInstruction, InstructionAccess,
         InstructionsOwned, SimpleInstructionAccess,
     },
-    utils::get_extended_args_count,
+    utils::{get_extended_args_count, UnusedArgument},
     v311::{
         code_objects::{
             AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex, CompareOperation,
@@ -20,16 +21,6 @@ use crate::{
         opcodes::Opcode,
     },
 };
-
-/// Used to represent opargs for opcodes that don't require arguments
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct UnusedArgument(u32);
-
-impl From<u32> for UnusedArgument {
-    fn from(value: u32) -> Self {
-        UnusedArgument(value)
-    }
-}
 
 /// Low level representation of a Python bytecode instruction with resolved arguments (extended arg is resolved)
 /// We have arguments for every opcode, even if those aren't used. This is so we can have a full representation of the instructions, even if they're invalid.
@@ -714,47 +705,6 @@ impl ExtInstructions {
     }
 }
 
-impl Deref for ExtInstructions {
-    type Target = [ExtInstruction];
-
-    /// Allow the user to get a reference slice to the instructions
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
-impl DerefMut for ExtInstructions {
-    /// Allow the user to get a mutable reference slice for making modifications to existing instructions.
-    fn deref_mut(&mut self) -> &mut [ExtInstruction] {
-        self.0.deref_mut()
-    }
-}
-
-impl AsRef<[ExtInstruction]> for ExtInstructions {
-    fn as_ref(&self) -> &[ExtInstruction] {
-        &self.0
-    }
-}
-
-impl From<ExtInstructions> for Vec<u8> {
-    fn from(val: ExtInstructions) -> Self {
-        val.to_bytes()
-    }
-}
-
-impl TryFrom<&[Instruction]> for ExtInstructions {
-    type Error = Error;
-
-    fn try_from(value: &[Instruction]) -> Result<Self, Self::Error> {
-        ExtInstructions::from_instructions(value)
-    }
-}
-
-impl From<&[ExtInstruction]> for ExtInstructions {
-    fn from(value: &[ExtInstruction]) -> Self {
-        ExtInstructions::new(value.to_vec())
-    }
-}
 impl TryFrom<(Opcode, u32)> for ExtInstruction {
     type Error = Error;
     fn try_from(value: (Opcode, u32)) -> Result<Self, Self::Error> {
@@ -1434,3 +1384,5 @@ pub fn get_extended_args(arg: u32) -> Vec<Instruction> {
         ext_args.iter().rev().cloned().collect()
     }
 }
+
+define_default_traits!(v311, ExtInstruction);

@@ -12,6 +12,16 @@ pub fn get_extended_args_count(arg: u32) -> u8 {
     }
 }
 
+/// Used to represent opargs for opcodes that don't require arguments
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct UnusedArgument(pub u32);
+
+impl From<u32> for UnusedArgument {
+    fn from(value: u32) -> Self {
+        UnusedArgument(value)
+    }
+}
+
 #[macro_export]
 macro_rules! define_opcodes {
     (
@@ -80,5 +90,122 @@ macro_rules! define_opcodes {
 
     (@instruction $variant:ident) => {
         paste! { Instruction::[<$variant:camel>](_) }
+    };
+}
+
+#[macro_export]
+macro_rules! define_default_traits {
+    ($variant:ident, Instruction) => {
+        impl Deref for crate::$variant::instructions::Instructions {
+            type Target = [crate::$variant::instructions::Instruction];
+
+            /// Allow the user to get a reference slice to the instructions
+            fn deref(&self) -> &Self::Target {
+                self.0.deref()
+            }
+        }
+
+        impl DerefMut for crate::$variant::instructions::Instructions {
+            /// Allow the user to get a mutable reference slice for making modifications to existing instructions.
+            fn deref_mut(&mut self) -> &mut [crate::$variant::instructions::Instruction] {
+                self.0.deref_mut()
+            }
+        }
+
+        impl AsRef<[crate::$variant::instructions::Instruction]>
+            for crate::$variant::instructions::Instructions
+        {
+            fn as_ref(&self) -> &[crate::$variant::instructions::Instruction] {
+                &self.0
+            }
+        }
+
+        impl From<crate::$variant::instructions::Instructions> for Vec<u8> {
+            fn from(val: crate::$variant::instructions::Instructions) -> Self {
+                val.to_bytes()
+            }
+        }
+
+        impl TryFrom<&[u8]> for crate::$variant::instructions::Instructions {
+            type Error = Error;
+            fn try_from(code: &[u8]) -> Result<Self, Self::Error> {
+                if code.len() % 2 != 0 {
+                    return Err(Error::InvalidBytecodeLength);
+                }
+
+                let mut instructions =
+                    crate::$variant::instructions::Instructions(Vec::with_capacity(code.len() / 2));
+
+                for chunk in code.chunks(2) {
+                    if chunk.len() != 2 {
+                        return Err(Error::InvalidBytecodeLength);
+                    }
+                    let opcode = Opcode::from(chunk[0]);
+                    let arg = chunk[1];
+
+                    instructions.append_instruction((opcode, arg).into());
+                }
+
+                Ok(instructions)
+            }
+        }
+
+        impl From<&[Instruction]> for Instructions {
+            fn from(value: &[Instruction]) -> Self {
+                crate::$variant::instructions::Instructions::new(value.to_vec())
+            }
+        }
+    };
+
+    ($variant:ident, ExtInstruction) => {
+        impl Deref for crate::$variant::ext_instructions::ExtInstructions {
+            type Target = [crate::$variant::ext_instructions::ExtInstruction];
+
+            /// Allow the user to get a reference slice to the instructions
+            fn deref(&self) -> &Self::Target {
+                self.0.deref()
+            }
+        }
+
+        impl DerefMut for crate::$variant::ext_instructions::ExtInstructions {
+            /// Allow the user to get a mutable reference slice for making modifications to existing instructions.
+            fn deref_mut(&mut self) -> &mut [crate::$variant::ext_instructions::ExtInstruction] {
+                self.0.deref_mut()
+            }
+        }
+
+        impl AsRef<[crate::$variant::ext_instructions::ExtInstruction]>
+            for crate::$variant::ext_instructions::ExtInstructions
+        {
+            fn as_ref(&self) -> &[crate::$variant::ext_instructions::ExtInstruction] {
+                &self.0
+            }
+        }
+
+        impl From<crate::$variant::ext_instructions::ExtInstructions> for Vec<u8> {
+            fn from(val: crate::$variant::ext_instructions::ExtInstructions) -> Self {
+                val.to_bytes()
+            }
+        }
+
+        impl TryFrom<&[crate::$variant::instructions::Instruction]>
+            for crate::$variant::ext_instructions::ExtInstructions
+        {
+            type Error = Error;
+
+            fn try_from(
+                value: &[crate::$variant::instructions::Instruction],
+            ) -> Result<Self, Self::Error> {
+                crate::$variant::ext_instructions::ExtInstructions::from_instructions(value)
+            }
+        }
+
+        impl From<&[crate::$variant::ext_instructions::ExtInstruction]>
+            for crate::$variant::ext_instructions::ExtInstructions
+        {
+            fn from(value: &[crate::$variant::ext_instructions::ExtInstruction]) -> Self {
+                crate::$variant::ext_instructions::ExtInstructions::new(value.to_vec())
+            }
+        }
     };
 }

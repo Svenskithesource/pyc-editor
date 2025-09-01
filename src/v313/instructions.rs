@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::{
+    define_default_traits,
     error::Error,
     traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess},
     v313::{
@@ -581,67 +582,6 @@ impl Instructions {
     }
 }
 
-impl Deref for Instructions {
-    type Target = [Instruction];
-
-    /// Allow the user to get a reference slice to the instructions
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
-impl DerefMut for Instructions {
-    /// Allow the user to get a mutable reference slice for making modifications to existing instructions.
-    fn deref_mut(&mut self) -> &mut [Instruction] {
-        self.0.deref_mut()
-    }
-}
-
-impl AsRef<[Instruction]> for Instructions {
-    fn as_ref(&self) -> &[Instruction] {
-        &self.0
-    }
-}
-
-impl From<Instructions> for Vec<u8> {
-    fn from(val: Instructions) -> Self {
-        val.to_bytes()
-    }
-}
-
-impl TryFrom<&[u8]> for Instructions {
-    type Error = Error;
-    fn try_from(code: &[u8]) -> Result<Self, Self::Error> {
-        if code.len() % 2 != 0 {
-            return Err(Error::InvalidBytecodeLength);
-        }
-
-        let mut instructions = Instructions(Vec::with_capacity(code.len() / 2));
-
-        for chunk in code.chunks(2) {
-            if chunk.len() != 2 {
-                return Err(Error::InvalidBytecodeLength);
-            }
-            let opcode = Opcode::from(chunk[0]);
-            let arg = chunk[1];
-
-            instructions.append_instruction((opcode, arg).into());
-        }
-
-        Ok(instructions)
-    }
-}
-
-impl From<&[Instruction]> for Instructions {
-    fn from(value: &[Instruction]) -> Self {
-        let mut instructions = Instructions(Vec::with_capacity(value.len()));
-
-        instructions.append_instructions(value);
-
-        instructions
-    }
-}
-
 /// Returns the line number of an instruction at `index` if it starts this line.
 /// The index needs to be the instruction index, not the byte index.
 pub fn starts_line_number(lines: &[LinetableEntry], index: u32) -> Option<u32> {
@@ -667,3 +607,5 @@ pub fn get_line_number(lines: &[LinetableEntry], index: u32) -> Option<u32> {
         .find(|entry| entry.start <= index * 2 && entry.end > index * 2)
         .and_then(|entry| entry.line_number)
 }
+
+define_default_traits!(v313, Instruction);

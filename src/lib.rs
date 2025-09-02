@@ -2,9 +2,13 @@ pub mod error;
 pub mod prelude;
 pub mod traits;
 mod utils;
+#[cfg(feature = "v310")]
 pub mod v310;
+#[cfg(feature = "v311")]
 pub mod v311;
+#[cfg(feature = "v312")]
 pub mod v312;
+#[cfg(feature = "v313")]
 pub mod v313;
 
 use error::Error;
@@ -13,15 +17,20 @@ use std::io::Read;
 
 #[derive(Debug, Clone)]
 pub enum PycFile {
+    #[cfg(feature = "v310")]
     V310(v310::code_objects::Pyc),
+    #[cfg(feature = "v311")]
     V311(v311::code_objects::Pyc),
+    #[cfg(feature = "v312")]
     V312(v312::code_objects::Pyc),
+    #[cfg(feature = "v313")]
     V313(v313::code_objects::Pyc),
 }
 
 impl From<PycFile> for python_marshal::PycFile {
     fn from(val: PycFile) -> Self {
         match val.clone() {
+            #[cfg(feature = "v310")]
             PycFile::V310(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
@@ -31,6 +40,7 @@ impl From<PycFile> for python_marshal::PycFile {
                     references: Vec::new(), // All references are resolved in this editor.
                 }
             }
+            #[cfg(feature = "v311")]
             PycFile::V311(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
@@ -40,6 +50,7 @@ impl From<PycFile> for python_marshal::PycFile {
                     references: Vec::new(), // All references are resolved in this editor.
                 }
             }
+            #[cfg(feature = "v312")]
             PycFile::V312(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
@@ -49,6 +60,7 @@ impl From<PycFile> for python_marshal::PycFile {
                     references: Vec::new(), // All references are resolved in this editor.
                 }
             }
+            #[cfg(feature = "v313")]
             PycFile::V313(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
@@ -64,9 +76,13 @@ impl From<PycFile> for python_marshal::PycFile {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CodeObject {
+    #[cfg(feature = "v310")]
     V310(v310::code_objects::Code),
+    #[cfg(feature = "v311")]
     V311(v311::code_objects::Code),
+    #[cfg(feature = "v312")]
     V312(v312::code_objects::Code),
+    #[cfg(feature = "v313")]
     V313(v313::code_objects::Code),
 }
 
@@ -74,6 +90,7 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
     let pyc_file = python_marshal::load_pyc(data)?;
 
     match pyc_file.python_version {
+        #[cfg(feature = "v310")]
         PyVersion {
             major: 3,
             minor: 10,
@@ -82,6 +99,7 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
             let pyc = v310::code_objects::Pyc::try_from(pyc_file)?;
             Ok(PycFile::V310(pyc))
         }
+        #[cfg(feature = "v311")]
         PyVersion {
             major: 3,
             minor: 11,
@@ -90,6 +108,7 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
             let pyc = v311::code_objects::Pyc::try_from(pyc_file)?;
             Ok(PycFile::V311(pyc))
         }
+        #[cfg(feature = "v312")]
         PyVersion {
             major: 3,
             minor: 12,
@@ -98,6 +117,7 @@ pub fn load_pyc(data: impl Read) -> Result<PycFile, Error> {
             let pyc = v312::code_objects::Pyc::try_from(pyc_file)?;
             Ok(PycFile::V312(pyc))
         }
+        #[cfg(feature = "v313")]
         PyVersion {
             major: 3,
             minor: 13,
@@ -123,6 +143,7 @@ pub fn dump_pyc(pyc_file: PycFile) -> Result<Vec<u8>, Error> {
 
 pub fn load_code(mut data: impl Read, python_version: PyVersion) -> Result<CodeObject, Error> {
     match python_version {
+        #[cfg(feature = "v310")]
         PyVersion {
             major: 3,
             minor: 10,
@@ -133,6 +154,7 @@ pub fn load_code(mut data: impl Read, python_version: PyVersion) -> Result<CodeO
             let code = python_marshal::load_bytes(&buf, python_version)?;
             Ok(CodeObject::V310(code.try_into()?))
         }
+        #[cfg(feature = "v311")]
         PyVersion {
             major: 3,
             minor: 11,
@@ -143,6 +165,7 @@ pub fn load_code(mut data: impl Read, python_version: PyVersion) -> Result<CodeO
             let code = python_marshal::load_bytes(&buf, python_version)?;
             Ok(CodeObject::V311(code.try_into()?))
         }
+        #[cfg(feature = "v312")]
         PyVersion {
             major: 3,
             minor: 12,
@@ -153,6 +176,7 @@ pub fn load_code(mut data: impl Read, python_version: PyVersion) -> Result<CodeO
             let code = python_marshal::load_bytes(&buf, python_version)?;
             Ok(CodeObject::V312(code.try_into()?))
         }
+        #[cfg(feature = "v313")]
         PyVersion {
             major: 3,
             minor: 13,
@@ -173,9 +197,13 @@ pub fn dump_code(
     marshal_version: u8,
 ) -> Result<Vec<u8>, Error> {
     let object = match code_object {
+        #[cfg(feature = "v310")]
         CodeObject::V310(code) => python_marshal::Object::Code(code.into()),
+        #[cfg(feature = "v311")]
         CodeObject::V311(code) => python_marshal::Object::Code(code.into()),
+        #[cfg(feature = "v312")]
         CodeObject::V312(code) => python_marshal::Object::Code(code.into()),
+        #[cfg(feature = "v313")]
         CodeObject::V313(code) => python_marshal::Object::Code(code.into()),
     };
 

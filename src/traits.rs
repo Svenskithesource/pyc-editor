@@ -250,7 +250,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "v311"))]
 mod test {
     use crate::traits::SimpleInstructionAccess;
 

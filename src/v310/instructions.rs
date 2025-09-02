@@ -6,7 +6,7 @@ use crate::{
     traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess},
     v310::{
         code_objects::{AbsoluteJump, Jump, LinetableEntry, RelativeJump},
-        ext_instructions::{ExtInstruction, ExtInstructions},
+        ext_instructions::ExtInstructions,
         opcodes::Opcode,
     },
 };

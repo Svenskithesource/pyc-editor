@@ -3,6 +3,7 @@
 
 ## Supported versions
 This library currently supports 3.10, 3.11, 3.12, and 3.13, with more versions planned for the future.
+Each version has its own feature, so to use a version make sure to enable this feature.
 
 ## Installation
 Use `cargo add pyc_editor` to add this library to your project.

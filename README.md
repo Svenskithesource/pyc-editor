@@ -1,6 +1,8 @@
 # pyc_editor
 `pyc_editor` is a library for reading, modifying, and writing Python `.pyc` files in Rust. It can be used for disassembling bytecode or modifying it. The library will automatically modify the instructions based on what changes you make, so you can safely edit the bytecode without worrying about offsets. It is still under heavy development, so expect breaking changes in the future.
-NOTE: This library only supports Python 3.10 so far.
+
+## Supported versions
+This library currently supports 3.10, 3.11, 3.12, and 3.13, with more versions planned for the future.
 
 ## Installation
 Use `cargo add pyc_editor` to add this library to your project.

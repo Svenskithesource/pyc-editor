@@ -1,5 +1,7 @@
 use std::{collections::HashMap, ops::DerefMut};
 
+use crate::utils::StackEffect;
+
 pub trait InstructionAccess<OpargType, I>
 where
     Self: AsRef<[Self::Instruction]>,
@@ -190,6 +192,11 @@ pub trait GenericOpcode: PartialEq + Into<u8> {
     fn is_jump_forwards(&self) -> bool;
     fn is_jump_backwards(&self) -> bool;
     fn is_extended_arg(&self) -> bool;
+
+    /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
+    /// If jump is false, it will return the stack effect of not jumping.
+    /// And if jump is None, it will return the maximal stack effect of both cases.
+    fn stack_effect(&self, oparg: i32, jump: Option<bool>) -> StackEffect;
 }
 
 pub trait Oparg<T> {

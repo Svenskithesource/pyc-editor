@@ -290,4 +290,8 @@ impl GenericOpcode for Opcode {
     fn is_extended_arg(&self) -> bool {
         matches!(self, Opcode::EXTENDED_ARG)
     }
+
+    fn stack_effect(&self, oparg: i32, jump: Option<bool>) -> i32 {
+        
+    }
 }

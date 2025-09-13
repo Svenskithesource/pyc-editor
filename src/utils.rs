@@ -22,6 +22,35 @@ impl From<u32> for UnusedArgument {
     }
 }
 
+/// Used to represent stack operations
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StackEffect {
+    pub pushes: u32,
+    pub pops: u32,
+}
+
+impl StackEffect {
+    /// Creates a StackEffect with equal pushes and pops.
+    pub fn balanced(count: u32) -> Self {
+        StackEffect { pushes: count, pops: count }
+    }
+
+    /// Creates a StackEffect when only pushing
+    pub fn push(count: u32) -> Self {
+        StackEffect { pushes: count, pops: 0 }
+    }
+
+    /// Creates a StackEffect when only pushing
+    pub fn pop(count: u32) -> Self {
+        StackEffect { pushes: 0, pops: count }
+    }
+
+    /// For when there is no stack access
+    pub fn zero() -> Self {
+        StackEffect { pushes: 0, pops: 0 }
+    }
+}
+
 #[macro_export]
 macro_rules! define_opcodes {
     (
@@ -166,12 +195,8 @@ macro_rules! define_default_traits {
             }
         }
 
-        impl<T>
-            SimpleInstructionAccess<
-                crate::$variant::instructions::Instruction,
-            > for T
-        where
-            T: Deref<Target = [Instruction]> + AsRef<[Instruction]>,
+        impl<T> SimpleInstructionAccess<crate::$variant::instructions::Instruction> for T where
+            T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
         {
         }
     };

@@ -258,7 +258,7 @@ impl GenericOpcode for Opcode {
         matches!(self, Opcode::EXTENDED_ARG | Opcode::EXTENDED_ARG_QUICK)
     }
 
-    fn stack_effect(&self, oparg: i32, jump: Option<bool>) -> StackEffect {
+    fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect {
         match self {
             // No stack effect
             Opcode::NOP | Opcode::EXTENDED_ARG | Opcode::RESUME | Opcode::CACHE => {
@@ -275,7 +275,7 @@ impl GenericOpcode for Opcode {
             | Opcode::UNARY_NOT
             | Opcode::UNARY_INVERT => StackEffect::balanced(1), // Pops operand, pushes result
 
-            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect { pops: 2, pushes: 1 },
+            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect { pops: (oparg - 1) + 2, pushes: (oparg - 1) + 1 },
             Opcode::MAP_ADD => StackEffect { pops: 3, pushes: 1 }, // Pops key and value
 
             Opcode::BINARY_SUBSCR => StackEffect { pops: 2, pushes: 1 }, // Pops object and key, pushes result
@@ -417,8 +417,8 @@ impl GenericOpcode for Opcode {
             Opcode::END_ASYNC_FOR => StackEffect::pop(2), // Cleans up async for loop stack
             Opcode::FORMAT_VALUE => {
                 // If there's a fmt_spec on the stack, we go from 2->1, else 1->1.
-                const FVS_MASK: i32 = 0x4;
-                const FVS_HAVE_SPEC: i32 = 0x4;
+                const FVS_MASK: u32 = 0x4;
+                const FVS_HAVE_SPEC: u32 = 0x4;
                 if (oparg & FVS_MASK) == FVS_HAVE_SPEC {
                     StackEffect { pops: 2, pushes: 1 } // value + format_spec -> formatted
                 } else {
@@ -440,7 +440,7 @@ impl GenericOpcode for Opcode {
             Opcode::PUSH_NULL => StackEffect::push(1), // Pushes copied value or NULL
             Opcode::BINARY_OP => StackEffect { pops: 2, pushes: 1 }, // Pops two operands, pushes result
 
-            _ => todo!(),
+            _ => unimplemented!("stack_effect not implemented for {:?}", self),
         }
     }
 }

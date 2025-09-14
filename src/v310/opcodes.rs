@@ -180,7 +180,7 @@ impl GenericOpcode for Opcode {
         matches!(self, Opcode::EXTENDED_ARG)
     }
 
-    fn stack_effect(&self, oparg: i32, jump: Option<bool>) -> StackEffect {
+    fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect {
         // See https://github.com/python/cpython/blob/3.10/Python/compile.c#L956
         match &self {
             Opcode::NOP | Opcode::EXTENDED_ARG => StackEffect::zero(),
@@ -198,7 +198,7 @@ impl GenericOpcode for Opcode {
             Opcode::DUP_TOP => StackEffect { pops: 1, pushes: 2 },
             Opcode::DUP_TOP_TWO => StackEffect { pops: 1, pushes: 3 },
 
-            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect { pops: 2, pushes: 1},
+            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect { pops: (oparg - 1) + 2, pushes: (oparg - 1) + 1},
 
             Opcode::MAP_ADD => StackEffect::pop(2),
 
@@ -391,8 +391,8 @@ impl GenericOpcode for Opcode {
             Opcode::END_ASYNC_FOR => StackEffect::pop(7), // Cleans up async for loop stack
             Opcode::FORMAT_VALUE => {
                 // If there's a fmt_spec on the stack, we go from 2->1, else 1->1.
-                const FVS_MASK: i32 = 0x4;
-                const FVS_HAVE_SPEC: i32 = 0x4;
+                const FVS_MASK: u32 = 0x4;
+                const FVS_HAVE_SPEC: u32 = 0x4;
                 if (oparg & FVS_MASK) == FVS_HAVE_SPEC {
                     StackEffect { pops: 2, pushes: 1 } // value + format_spec -> formatted
                 } else {

@@ -196,7 +196,7 @@ pub trait GenericOpcode: PartialEq + Into<u8> {
     /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
     /// If jump is false, it will return the stack effect of not jumping.
     /// And if jump is None, it will return the maximal stack effect of both cases.
-    fn stack_effect(&self, oparg: i32, jump: Option<bool>) -> StackEffect;
+    fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect;
 }
 
 pub trait Oparg<T> {

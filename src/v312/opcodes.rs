@@ -596,6 +596,8 @@ impl GenericOpcode for Opcode {
 
             Opcode::SWAP => StackEffect::balanced(oparg),
 
+            Opcode::INVALID_OPCODE(_) => StackEffect::zero(),
+
             _ => unimplemented!("stack_effect not implemented for {:?}", self),
         }
     }

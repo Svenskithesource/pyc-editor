@@ -275,7 +275,10 @@ impl GenericOpcode for Opcode {
             | Opcode::UNARY_NOT
             | Opcode::UNARY_INVERT => StackEffect::balanced(1), // Pops operand, pushes result
 
-            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect { pops: (oparg - 1) + 2, pushes: (oparg - 1) + 1 },
+            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect {
+                pops: (oparg - 1) + 2,
+                pushes: (oparg - 1) + 1,
+            },
             Opcode::MAP_ADD => StackEffect { pops: 3, pushes: 1 }, // Pops key and value
 
             Opcode::BINARY_SUBSCR => StackEffect { pops: 2, pushes: 1 }, // Pops object and key, pushes result
@@ -439,6 +442,8 @@ impl GenericOpcode for Opcode {
             Opcode::COPY => StackEffect { pops: 1, pushes: 2 },
             Opcode::PUSH_NULL => StackEffect::push(1), // Pushes copied value or NULL
             Opcode::BINARY_OP => StackEffect { pops: 2, pushes: 1 }, // Pops two operands, pushes result
+
+            Opcode::INVALID_OPCODE(_) => StackEffect::zero(),
 
             _ => unimplemented!("stack_effect not implemented for {:?}", self),
         }

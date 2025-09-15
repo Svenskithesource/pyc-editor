@@ -419,6 +419,8 @@ impl GenericOpcode for Opcode {
             Opcode::ROT_N => StackEffect::zero(), // Rotates top N items without changing count
 
             Opcode::INVALID_OPCODE(_) => StackEffect::zero(), // Unknown opcode, assume no effect
+
+            _ => unimplemented!("stack_effect not implemented for {:?}", self),
         }
     }
 }

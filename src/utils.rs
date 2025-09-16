@@ -1,3 +1,6 @@
+use crate::traits::{GenericInstruction, SimpleInstructionAccess};
+use crate::Error;
+
 /// The amount of extended_args necessary to represent the arg.
 /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.
 pub fn get_extended_args_count(arg: u32) -> u8 {
@@ -32,22 +35,36 @@ pub struct StackEffect {
 impl StackEffect {
     /// Creates a StackEffect with equal pushes and pops.
     pub fn balanced(count: u32) -> Self {
-        StackEffect { pushes: count, pops: count }
+        StackEffect {
+            pushes: count,
+            pops: count,
+        }
     }
 
     /// Creates a StackEffect when only pushing
     pub fn push(count: u32) -> Self {
-        StackEffect { pushes: count, pops: 0 }
+        StackEffect {
+            pushes: count,
+            pops: 0,
+        }
     }
 
     /// Creates a StackEffect when only pushing
     pub fn pop(count: u32) -> Self {
-        StackEffect { pushes: 0, pops: count }
+        StackEffect {
+            pushes: 0,
+            pops: count,
+        }
     }
 
     /// For when there is no stack access
     pub fn zero() -> Self {
         StackEffect { pushes: 0, pops: 0 }
+    }
+
+    /// Calculates the net total for the stackeffect
+    pub fn net_total(&self) -> i32 {
+        self.pushes as i32 - self.pops as i32
     }
 }
 

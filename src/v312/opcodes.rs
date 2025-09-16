@@ -288,6 +288,33 @@ impl GenericOpcode for Opcode {
         self.is_absolute_jump() | self.is_relative_jump()
     }
 
+    fn is_conditional_jump(&self) -> bool {
+        matches!(
+            self,
+            Opcode::POP_JUMP_IF_FALSE
+                | Opcode::POP_JUMP_IF_TRUE
+                | Opcode::POP_JUMP_IF_NOT_NONE
+                | Opcode::POP_JUMP_IF_NONE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_FALSE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_TRUE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_NONE
+                | Opcode::INSTRUMENTED_POP_JUMP_IF_NOT_NONE
+                | Opcode::FOR_ITER
+                | Opcode::FOR_ITER_GEN
+                | Opcode::FOR_ITER_LIST
+                | Opcode::FOR_ITER_RANGE
+                | Opcode::FOR_ITER_TUPLE
+                | Opcode::INSTRUMENTED_FOR_ITER
+        )
+    }
+
+    fn stops_execution(&self) -> bool {
+        matches!(
+            self,
+            Opcode::RETURN_VALUE | Opcode::RETURN_CONST | Opcode::RAISE_VARARGS | Opcode::RERAISE
+        )
+    }
+
     fn is_extended_arg(&self) -> bool {
         matches!(self, Opcode::EXTENDED_ARG)
     }

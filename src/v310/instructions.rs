@@ -153,8 +153,6 @@ impl GenericInstruction<u8> for Instruction {
         Opcode::from_instruction(self)
     }
 
-    
-
     fn get_raw_value(&self) -> u8 {
         match &self {
             Instruction::PopTop(arg)

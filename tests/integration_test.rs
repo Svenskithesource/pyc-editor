@@ -2,7 +2,9 @@ use core::panic;
 use pyc_editor::{
     dump_pyc, load_pyc, prelude::*, traits::GenericInstruction, v310, v311, v312, v313,
 };
+
 use python_marshal::magic::PyVersion;
+use python_marshal::CodeFlags;
 use rayon::prelude::*;
 use std::{
     io::{BufReader, Write},
@@ -332,6 +334,72 @@ fn test_line_number_standard_lib() {
                         for index in 0..$code.code.len() {
                             $module::instructions::get_line_number(&co_lines, index as u32);
                         }
+
+                        for constant in &$code.consts {
+                            if let $module::code_objects::Constant::CodeObject(ref const_code) =
+                                constant
+                            {
+                                recursive_code_object(&pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ));
+                            }
+                        }
+                    }};
+                }
+
+                handle_code_object_versions!(code, recursive_version);
+            }
+
+            macro_rules! call_recursive {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    recursive_code_object(&pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    ));
+                }};
+            }
+
+            handle_pyc_versions!(parsed_pyc, call_recursive, immutable);
+        });
+    });
+}
+
+#[test]
+fn test_stacksize_standard_lib() {
+    common::setup();
+    LOGGER_INIT.call_once(|| {
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let parsed_pyc = load_pyc(reader).unwrap();
+
+            fn recursive_code_object(code: &pyc_editor::CodeObject) {
+                macro_rules! recursive_version {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        // dbg!(&$code.name);
+                        // dbg!(&$code.flags);
+                        let is_generator = $code.flags.intersects(
+                            CodeFlags::GENERATOR
+                                | CodeFlags::COROUTINE
+                                | CodeFlags::ASYNC_GENERATOR
+                                | CodeFlags::ITERABLE_COROUTINE,
+                        );
+                        assert_eq!(
+                            $code
+                                .code
+                                .max_stack_size(is_generator)
+                                .expect("Must be valid"),
+                            $code.stacksize
+                        );
 
                         for constant in &$code.consts {
                             if let $module::code_objects::Constant::CodeObject(ref const_code) =

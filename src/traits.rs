@@ -1,13 +1,16 @@
 use std::{collections::HashMap, ops::DerefMut};
 
-use crate::utils::StackEffect;
+use crate::{
+    error::Error,
+    utils::{self, StackEffect},
+};
 
 pub trait InstructionAccess<OpargType, I>
 where
     Self: AsRef<[Self::Instruction]>,
     OpargType: PartialEq,
 {
-    type Instruction: GenericInstruction<OpargType>;
+    type Instruction: GenericInstruction<OpargType> + std::fmt::Debug;
     type Jump;
 
     fn get_instructions(&self) -> &[Self::Instruction] {
@@ -15,6 +18,7 @@ where
     }
 
     /// Returns the index and the instruction of the jump target. None if the index is not a valid jump.
+    // TODO: Create a bounded version of this function
     fn get_jump_target(&self, index: u32) -> Option<(u32, Self::Instruction)>;
 
     /// Returns a list of all indexes that jump to the given index
@@ -108,6 +112,37 @@ where
         }
     }
 
+    /// The same as `get_full_arg` but you can specify a lower limit while searching for extended args.
+    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
+    fn get_full_arg_bounded(&self, index: usize, lower_bound: usize) -> Option<u32> {
+        if self.as_ref().len() > index {
+            let mut curr_index = index;
+            let mut extended_args = vec![];
+
+            while curr_index > lower_bound {
+                curr_index -= 1;
+
+                if self.as_ref()[curr_index].is_extended_arg() {
+                    extended_args.push(self.as_ref()[curr_index].get_raw_value());
+                } else {
+                    break;
+                }
+            }
+
+            let mut extended_arg = 0;
+
+            for arg in extended_args.iter().rev() {
+                // We collected them in the reverse order
+                let arg = *arg as u32 | extended_arg;
+                extended_arg = arg << 8;
+            }
+
+            Some(self.as_ref()[index].get_raw_value() as u32 | extended_arg)
+        } else {
+            None
+        }
+    }
+
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytearray = Vec::with_capacity(self.as_ref().len() * 2);
 
@@ -117,6 +152,90 @@ where
         }
 
         bytearray
+    }
+
+    /// Calculates the maximum stack size the instructions will use. is_generator is used to determine the original stack size.
+    fn max_stack_size(&self, is_generator: bool) -> Result<u32, Error> {
+        // Contains starting indexes of blocks that need to be processed along with their starting stack size.
+        let mut block_queue = vec![(if is_generator { 1 } else { 0 }, 0)];
+        let mut max_stack_size: u32 = 0;
+        let mut visited: Vec<(u32, usize)> = Vec::new();
+
+        while let Some((stack_size, start_index)) = block_queue.pop() {
+            if visited.contains(&(stack_size, start_index)) {
+                // already analyzed
+                continue;
+            }
+
+            // dbg!("new block");
+
+            visited.push((stack_size, start_index));
+
+            let mut curr_stack_size = stack_size;
+
+            if curr_stack_size >= max_stack_size {
+                max_stack_size = curr_stack_size;
+            }
+
+            for instruction_index in start_index..self.as_ref().len() {
+                let instruction = self.as_ref().get(instruction_index).unwrap();
+                let arg = self
+                    .get_full_arg_bounded(instruction_index, start_index)
+                    .unwrap();
+
+                if instruction.is_jump() || instruction.stops_execution() {
+                    // Not the last instruction
+                    if instruction_index != self.as_ref().len() - 1
+                        && instruction.is_conditional_jump()
+                        && !instruction.stops_execution()
+                    {
+                        // Block for not taking the jump
+                        let stack_effect = instruction.stack_effect(arg, Some(false)).net_total();
+
+                        // dbg!(curr_stack_size, stack_effect, instruction);
+                        let (stack_size, indx) = (
+                            curr_stack_size.checked_add_signed(stack_effect).ok_or(
+                                Error::InvalidStacksize(curr_stack_size as i32 + stack_effect),
+                            )?,
+                            instruction_index + 1,
+                        );
+
+                        block_queue.push((stack_size, indx));
+                    }
+
+                    if let Some((jump_index, _)) = self.get_jump_target(instruction_index as u32) {
+                        // Block for valid jump target
+                        let stack_effect = instruction.stack_effect(arg, Some(true)).net_total();
+
+                        // dbg!(curr_stack_size, stack_effect, instruction, jump_index);
+                        let (stack_size, indx) = (
+                            curr_stack_size.checked_add_signed(stack_effect).ok_or(
+                                Error::InvalidStacksize(curr_stack_size as i32 + stack_effect),
+                            )?,
+                            jump_index as usize,
+                        );
+
+                        block_queue.push((stack_size, indx));
+                    }
+
+                    // Process new block, as this one has ended
+                    break;
+                } else {
+                    let stack_effect = instruction.stack_effect(arg, None).net_total();
+
+                    // dbg!(curr_stack_size, stack_effect, instruction);
+                    curr_stack_size = curr_stack_size.checked_add_signed(stack_effect).ok_or(
+                        Error::InvalidStacksize(curr_stack_size as i32 + stack_effect),
+                    )?;
+
+                    if curr_stack_size >= max_stack_size {
+                        max_stack_size = curr_stack_size;
+                    }
+                }
+            }
+        }
+
+        Ok(max_stack_size)
     }
 }
 
@@ -191,6 +310,8 @@ pub trait GenericOpcode: PartialEq + Into<u8> {
     fn is_relative_jump(&self) -> bool;
     fn is_jump_forwards(&self) -> bool;
     fn is_jump_backwards(&self) -> bool;
+    fn is_conditional_jump(&self) -> bool;
+    fn stops_execution(&self) -> bool;
     fn is_extended_arg(&self) -> bool;
 
     /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
@@ -232,6 +353,7 @@ where
 
     fn get_raw_value(&self) -> OpargType;
 
+    /// Relative or absolute jump
     fn is_jump(&self) -> bool {
         self.get_opcode().is_jump()
     }
@@ -252,14 +374,29 @@ where
         self.get_opcode().is_jump_backwards()
     }
 
+    fn is_conditional_jump(&self) -> bool {
+        self.get_opcode().is_conditional_jump()
+    }
+
+    fn stops_execution(&self) -> bool {
+        self.get_opcode().stops_execution()
+    }
+
     fn is_extended_arg(&self) -> bool {
         self.get_opcode().is_extended_arg()
+    }
+
+    /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
+    /// If jump is false, it will return the stack effect of not jumping.
+    /// And if jump is None, it will return the maximal stack effect of both cases.
+    fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect {
+        self.get_opcode().stack_effect(oparg, jump)
     }
 }
 
 #[cfg(all(test, feature = "v311"))]
 mod test {
-    use crate::traits::SimpleInstructionAccess;
+    use crate::{traits::SimpleInstructionAccess, v310::instructions};
 
     #[test]
     fn test_invalid_extended_arg_jump() {
@@ -270,5 +407,43 @@ mod test {
         ]);
 
         assert_eq!(instructions.find_ext_arg_jumps().iter().count(), 1)
+    }
+
+    #[test]
+    fn test_stack_size() {
+        let instructions = crate::v311::instructions::Instructions::new(vec![
+            crate::v311::instructions::Instruction::Resume(0),
+            crate::v311::instructions::Instruction::PushNull(0),
+            crate::v311::instructions::Instruction::LoadName(0),
+            crate::v311::instructions::Instruction::LoadConst(0),
+            crate::v311::instructions::Instruction::Precall(1),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Call(1),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::PopTop(0),
+            crate::v311::instructions::Instruction::LoadConst(1),
+            crate::v311::instructions::Instruction::StoreName(1),
+            crate::v311::instructions::Instruction::PushNull(0),
+            crate::v311::instructions::Instruction::LoadName(0),
+            crate::v311::instructions::Instruction::LoadConst(2),
+            crate::v311::instructions::Instruction::LoadName(1),
+            crate::v311::instructions::Instruction::FormatValue(2),
+            crate::v311::instructions::Instruction::BuildString(2),
+            crate::v311::instructions::Instruction::Precall(1),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Call(1),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::Cache(0),
+            crate::v311::instructions::Instruction::PopTop(0),
+            crate::v311::instructions::Instruction::LoadConst(3),
+            crate::v311::instructions::Instruction::ReturnValue(0),
+        ]);
+
+        assert_eq!(instructions.max_stack_size(false).unwrap(), 4);
     }
 }

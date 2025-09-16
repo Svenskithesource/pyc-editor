@@ -7,6 +7,7 @@ pub enum Error {
     InvalidLinetable,
     InvalidConversion,
     InvalidConstant(python_marshal::Object),
+    InvalidStacksize(i32),
     UnsupportedVersion(python_marshal::magic::PyVersion),
     PythonMarshalError(python_marshal::error::Error),
     ExtendedArgJump,
@@ -24,6 +25,7 @@ impl fmt::Display for Error {
                 "Invalid conversion from instruction to resolved instruction"
             ),
             Error::InvalidConstant(obj) => write!(f, "Invalid constant: {:?}", obj),
+            Error::InvalidStacksize(size) => write!(f, "Invalid stack size: {:?}", size),
             Error::UnsupportedVersion(ver) => write!(f, "Unsupported Python version: {:?}. Did you forget to enable the feature for this version?", ver),
             Error::PythonMarshalError(err) => write!(f, "Python marshal error: {}", err),
             Error::ExtendedArgJump => write!(f, "There is a jump skipping over an extended arg. We cannot convert to resolved instructions because of this."),

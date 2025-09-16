@@ -176,6 +176,28 @@ impl GenericOpcode for Opcode {
         self.is_absolute_jump() | self.is_relative_jump()
     }
 
+    fn is_conditional_jump(&self) -> bool {
+        matches!(
+            self,
+            Opcode::JUMP_IF_FALSE_OR_POP
+                | Opcode::JUMP_IF_TRUE_OR_POP
+                | Opcode::POP_JUMP_IF_FALSE
+                | Opcode::POP_JUMP_IF_TRUE
+                | Opcode::FOR_ITER
+                | Opcode::JUMP_IF_NOT_EXC_MATCH
+                | Opcode::SETUP_FINALLY
+                | Opcode::SETUP_WITH
+                | Opcode::SETUP_ASYNC_WITH
+        )
+    }
+
+    fn stops_execution(&self) -> bool {
+        matches!(
+            self,
+            Opcode::RETURN_VALUE | Opcode::RAISE_VARARGS | Opcode::RERAISE
+        )
+    }
+
     fn is_extended_arg(&self) -> bool {
         matches!(self, Opcode::EXTENDED_ARG)
     }
@@ -198,7 +220,10 @@ impl GenericOpcode for Opcode {
             Opcode::DUP_TOP => StackEffect { pops: 1, pushes: 2 },
             Opcode::DUP_TOP_TWO => StackEffect { pops: 1, pushes: 3 },
 
-            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect { pops: (oparg - 1) + 2, pushes: (oparg - 1) + 1},
+            Opcode::SET_ADD | Opcode::LIST_APPEND => StackEffect {
+                pops: (oparg - 1) + 2,
+                pushes: (oparg - 1) + 1,
+            },
 
             Opcode::MAP_ADD => StackEffect::pop(2),
 
@@ -257,25 +282,25 @@ impl GenericOpcode for Opcode {
             Opcode::IMPORT_STAR => StackEffect::pop(1),
             Opcode::SETUP_ANNOTATIONS => StackEffect::zero(),
             Opcode::YIELD_VALUE => StackEffect::pop(0),
-            Opcode::YIELD_FROM => StackEffect { pushes: 1, pops: 2}, // Pops the generator/iterator to delegate to
+            Opcode::YIELD_FROM => StackEffect { pushes: 1, pops: 2 }, // Pops the generator/iterator to delegate to
             Opcode::POP_BLOCK => StackEffect::zero(), // Just modifies the block stack, not value stack
             Opcode::POP_EXCEPT => StackEffect::pop(3), // Pops exception type, value, and traceback
 
             Opcode::STORE_NAME => StackEffect::pop(1), // Pops value to store
             Opcode::DELETE_NAME => StackEffect::zero(), // Just removes name from namespace
-            Opcode::UNPACK_SEQUENCE => StackEffect { 
-                pops: 1, 
-                pushes: oparg as u32 
+            Opcode::UNPACK_SEQUENCE => StackEffect {
+                pops: 1,
+                pushes: oparg as u32,
             }, // Pops sequence, pushes oparg items
             Opcode::UNPACK_EX => StackEffect {
                 pops: 1,
-                pushes: ((oparg & 0xff) + (oparg >> 8) + 1) as u32
+                pushes: ((oparg & 0xff) + (oparg >> 8) + 1) as u32,
             }, // Pops sequence, pushes low + high + 1 items
             Opcode::FOR_ITER => {
                 // At end of iterator: pops iterator, pushes nothing (-1)
                 // Continue iterating: pops iterator, pushes iterator + next value (+1)
                 match jump {
-                    Some(true) => StackEffect::pop(1), // End of iteration
+                    Some(true) => StackEffect::pop(1),       // End of iteration
                     _ => StackEffect { pops: 1, pushes: 2 }, // Continue iteration
                 }
             }
@@ -287,36 +312,32 @@ impl GenericOpcode for Opcode {
             Opcode::LOAD_CONST => StackEffect::push(1), // Pushes constant value
             Opcode::LOAD_NAME => StackEffect::push(1), // Pushes name value
             Opcode::BUILD_TUPLE | Opcode::BUILD_LIST | Opcode::BUILD_SET | Opcode::BUILD_STRING => {
-                StackEffect { 
-                    pops: oparg as u32, 
-                    pushes: 1 
+                StackEffect {
+                    pops: oparg as u32,
+                    pushes: 1,
                 } // Pops oparg items, pushes 1 container
             }
-            Opcode::BUILD_MAP => StackEffect { 
-                pops: (2 * oparg) as u32, 
-                pushes: 1 
+            Opcode::BUILD_MAP => StackEffect {
+                pops: (2 * oparg) as u32,
+                pushes: 1,
             }, // Pops 2*oparg items (key-value pairs), pushes 1 map
-            Opcode::BUILD_CONST_KEY_MAP => StackEffect { 
-                pops: (oparg + 1) as u32, 
-                pushes: 1 
+            Opcode::BUILD_CONST_KEY_MAP => StackEffect {
+                pops: (oparg + 1) as u32,
+                pushes: 1,
             }, // Pops oparg values + 1 key tuple, pushes 1 map
             Opcode::LOAD_ATTR => StackEffect::balanced(1), // Pops object, pushes attribute value
-            Opcode::COMPARE_OP | Opcode::IS_OP | Opcode::CONTAINS_OP => StackEffect { 
-                pops: 2, 
-                pushes: 1 
-            }, // Pops 2 operands, pushes comparison result
+            Opcode::COMPARE_OP | Opcode::IS_OP | Opcode::CONTAINS_OP => {
+                StackEffect { pops: 2, pushes: 1 }
+            } // Pops 2 operands, pushes comparison result
             Opcode::JUMP_IF_NOT_EXC_MATCH => StackEffect::pop(2), // Pops exception and match target
-            Opcode::IMPORT_NAME => StackEffect { 
-                pops: 2, 
-                pushes: 1 
-            }, // Pops level and fromlist, pushes module
+            Opcode::IMPORT_NAME => StackEffect { pops: 2, pushes: 1 }, // Pops level and fromlist, pushes module
             Opcode::IMPORT_FROM => StackEffect::push(1), // Keeps module on stack, pushes imported name
 
             Opcode::JUMP_FORWARD | Opcode::JUMP_ABSOLUTE => StackEffect::zero(), // No stack effect
 
             Opcode::JUMP_IF_TRUE_OR_POP | Opcode::JUMP_IF_FALSE_OR_POP => match jump {
                 Some(true) => StackEffect::zero(), // Jump taken, value stays on stack
-                _ => StackEffect::pop(1), // Jump not taken, value is popped
+                _ => StackEffect::pop(1),          // Jump not taken, value is popped
             },
 
             Opcode::POP_JUMP_IF_FALSE | Opcode::POP_JUMP_IF_TRUE => StackEffect::pop(1), // Always pops test value
@@ -325,7 +346,7 @@ impl GenericOpcode for Opcode {
 
             Opcode::SETUP_FINALLY => match jump {
                 Some(true) => StackEffect { pops: 0, pushes: 6 }, // Sets up exception handler with 6 values
-                _ => StackEffect::zero(), // Normal flow
+                _ => StackEffect::zero(),                         // Normal flow
             },
             Opcode::RERAISE => StackEffect::pop(3), // Pops exception type, value, traceback
 
@@ -337,17 +358,17 @@ impl GenericOpcode for Opcode {
 
             Opcode::RAISE_VARARGS => StackEffect::pop(oparg as u32), // Pops oparg exception arguments
 
-            Opcode::CALL_FUNCTION => StackEffect { 
-                pops: (oparg + 1) as u32, 
-                pushes: 1 
+            Opcode::CALL_FUNCTION => StackEffect {
+                pops: (oparg + 1) as u32,
+                pushes: 1,
             }, // Pops function + oparg arguments, pushes result
-            Opcode::CALL_METHOD => StackEffect { 
-                pops: (oparg + 2) as u32, 
-                pushes: 1 
+            Opcode::CALL_METHOD => StackEffect {
+                pops: (oparg + 2) as u32,
+                pushes: 1,
             }, // Pops self + method + oparg arguments, pushes result
-            Opcode::CALL_FUNCTION_KW => StackEffect { 
-                pops: (oparg + 2) as u32, 
-                pushes: 1 
+            Opcode::CALL_FUNCTION_KW => StackEffect {
+                pops: (oparg + 2) as u32,
+                pushes: 1,
             }, // Pops function + oparg arguments + kwargs tuple, pushes result
             Opcode::CALL_FUNCTION_EX => {
                 if (oparg & 0x01) != 0 {
@@ -356,9 +377,9 @@ impl GenericOpcode for Opcode {
                     StackEffect { pops: 2, pushes: 1 } // Function + args
                 }
             }
-            Opcode::MAKE_FUNCTION => StackEffect { 
-                pops: (2 + (oparg & 0b1111).count_ones()) as u32, 
-                pushes: 1 
+            Opcode::MAKE_FUNCTION => StackEffect {
+                pops: (2 + (oparg & 0b1111).count_ones()) as u32,
+                pushes: 1,
             }, // Pops name + code + obj for each flag, pushes function
             Opcode::BUILD_SLICE => {
                 if oparg == 3 {
@@ -385,8 +406,8 @@ impl GenericOpcode for Opcode {
                 }
             }
             Opcode::BEFORE_ASYNC_WITH => StackEffect::push(1), // Pushes result of __aenter__
-            Opcode::GET_AITER => StackEffect::balanced(1), // Transforms to async iterator
-            Opcode::GET_ANEXT => StackEffect { pops: 1, pushes: 2}, // Pushes next value from async iterator
+            Opcode::GET_AITER => StackEffect::balanced(1),     // Transforms to async iterator
+            Opcode::GET_ANEXT => StackEffect { pops: 1, pushes: 2 }, // Pushes next value from async iterator
             Opcode::GET_YIELD_FROM_ITER => StackEffect::balanced(1), // Ensures object is iterator
             Opcode::END_ASYNC_FOR => StackEffect::pop(7), // Cleans up async for loop stack
             Opcode::FORMAT_VALUE => {
@@ -399,28 +420,22 @@ impl GenericOpcode for Opcode {
                     StackEffect::balanced(1) // value -> formatted
                 }
             }
-            Opcode::LOAD_METHOD => StackEffect { pops: 1, pushes: 2}, // Pushes method of TOS
+            Opcode::LOAD_METHOD => StackEffect { pops: 1, pushes: 2 }, // Pushes method of TOS
             Opcode::LOAD_ASSERTION_ERROR => StackEffect::push(1), // Pushes AssertionError class
-            Opcode::LIST_TO_TUPLE => StackEffect::balanced(1), // Converts list to tuple
-            Opcode::GEN_START => StackEffect::pop(1), // Pops generator argument
+            Opcode::LIST_TO_TUPLE => StackEffect::balanced(1),    // Converts list to tuple
+            Opcode::GEN_START => StackEffect::pop(1),             // Pops generator argument
             Opcode::LIST_EXTEND | Opcode::SET_UPDATE | Opcode::DICT_MERGE | Opcode::DICT_UPDATE => {
-                StackEffect { pops: 2, pushes: 1} // Pops the iterable/mapping to extend/update with
+                StackEffect { pops: 2, pushes: 1 } // Pops the iterable/mapping to extend/update with
             }
             Opcode::COPY_DICT_WITHOUT_KEYS => StackEffect::balanced(2),
-            Opcode::MATCH_CLASS => StackEffect { 
-                pops: 3, 
-                pushes: 2 
-            },
-            Opcode::GET_LEN | Opcode::MATCH_MAPPING | Opcode::MATCH_SEQUENCE => StackEffect { pops: 1, pushes: 2}, // Pushes length or match result
-            Opcode::MATCH_KEYS => StackEffect { 
-                pops: 2, 
-                pushes: 4 
-            },
+            Opcode::MATCH_CLASS => StackEffect { pops: 3, pushes: 2 },
+            Opcode::GET_LEN | Opcode::MATCH_MAPPING | Opcode::MATCH_SEQUENCE => {
+                StackEffect { pops: 1, pushes: 2 }
+            } // Pushes length or match result
+            Opcode::MATCH_KEYS => StackEffect { pops: 2, pushes: 4 },
             Opcode::ROT_N => StackEffect::zero(), // Rotates top N items without changing count
 
             Opcode::INVALID_OPCODE(_) => StackEffect::zero(), // Unknown opcode, assume no effect
-
-            _ => unimplemented!("stack_effect not implemented for {:?}", self),
         }
     }
 }

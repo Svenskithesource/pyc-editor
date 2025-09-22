@@ -267,6 +267,7 @@ impl GenericOpcode for Opcode {
                 | Opcode::POP_JUMP_BACKWARD_IF_NONE
                 | Opcode::POP_JUMP_BACKWARD_IF_FALSE
                 | Opcode::POP_JUMP_BACKWARD_IF_TRUE
+                | Opcode::SEND // If the send call raises StopIteration, it jumps
         )
     }
 
@@ -410,9 +411,9 @@ impl GenericOpcode for Opcode {
             Opcode::CALL => StackEffect::pop(1), // Net effect varies, but typically pops 1
             Opcode::CALL_FUNCTION_EX => {
                 if (oparg & 0x01) != 0 {
-                    StackEffect { pops: 3, pushes: 1 } // Function + args + kwargs
+                    StackEffect { pops: 4, pushes: 1 } // Mapping + function + args + kwargs
                 } else {
-                    StackEffect { pops: 2, pushes: 1 } // Function + args
+                    StackEffect { pops: 3, pushes: 1 } // Function + args + kwargs
                 }
             }
             Opcode::MAKE_FUNCTION => StackEffect {

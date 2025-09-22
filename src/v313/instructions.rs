@@ -555,7 +555,6 @@ where
     }
 }
 
-
 impl Instructions {
     pub fn with_capacity(capacity: usize) -> Self {
         Instructions(Vec::with_capacity(capacity))

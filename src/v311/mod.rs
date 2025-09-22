@@ -8,6 +8,7 @@ mod tests {
     use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
     use python_marshal::{CodeFlags, PyString};
 
+    use crate::utils::ExceptionTableEntry;
     use crate::v311;
     use crate::v311::code_objects::CompareOperation::Equal;
     use crate::v311::code_objects::{Constant, FrozenConstant, LinetableEntry, NameIndex};
@@ -402,5 +403,58 @@ mod tests {
             get_line_number(&code_object.co_lines().unwrap(), 15).unwrap(),
             5
         )
+    }
+
+    #[test]
+    fn test_exception_table() {
+        let code_object = v311::code_objects::Code {
+            argcount: 0,
+            posonlyargcount: 0,
+            kwonlyargcount: 0,
+            stacksize: 4,
+            flags: CodeFlags::from_bits_retain(0x0),
+            code: v311::instructions::Instructions::new(vec![]),
+            consts: vec![],
+            names: vec![],
+            localsplusnames: vec![],
+            localspluskinds: vec![],
+            filename: PyString {
+                value: "test.py".into(),
+                kind: ShortAscii,
+            },
+            name: PyString {
+                value: "<module>".into(),
+                kind: ShortAsciiInterned,
+            },
+            qualname: PyString {
+                value: "<module>".into(),
+                kind: ShortAsciiInterned,
+            },
+            firstlineno: 0,
+            linetable: vec![],
+            exceptiontable: vec![130, 5, 9, 0, 137, 17, 29, 3],
+        };
+
+        assert_eq!(
+            code_object
+                .exception_table()
+                .expect("Should be a valid exception table"),
+            vec![
+                ExceptionTableEntry {
+                    start: 2,
+                    end: 7,
+                    target: 9,
+                    depth: 0,
+                    lasti: false,
+                },
+                ExceptionTableEntry {
+                    start: 9,
+                    end: 26,
+                    target: 29,
+                    depth: 1,
+                    lasti: true,
+                },
+            ]
+        );
     }
 }

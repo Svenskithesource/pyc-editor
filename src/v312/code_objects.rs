@@ -8,7 +8,7 @@ use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
-use crate::{error::Error, v312::instructions::Instructions};
+use crate::{error::Error, utils::ExceptionTableEntry, v312::instructions::Instructions};
 use std::{fmt, ops::BitOr};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -303,23 +303,26 @@ impl Code {
 
                 // No column info (13)
                 13 => {
-                    let (delta, bytes_read) = Self::read_svarint(&self.linetable[i..])?;
+                    let (delta, bytes_read) = Self::read_location_svarint(&self.linetable[i..])?;
                     i += bytes_read;
                     (delta, None, None)
                 }
 
                 // Long form (14)
                 14 => {
-                    let (delta_line, bytes_read1) = Self::read_svarint(&self.linetable[i..])?;
+                    let (delta_line, bytes_read1) =
+                        Self::read_location_svarint(&self.linetable[i..])?;
                     i += bytes_read1;
 
-                    let (_delta_end_line, bytes_read2) = Self::read_varint(&self.linetable[i..])?;
+                    let (_delta_end_line, bytes_read2) =
+                        Self::read_location_varint(&self.linetable[i..])?;
                     i += bytes_read2;
 
-                    let (start_col, bytes_read3) = Self::read_varint(&self.linetable[i..])?;
+                    let (start_col, bytes_read3) =
+                        Self::read_location_varint(&self.linetable[i..])?;
                     i += bytes_read3;
 
-                    let (end_col, bytes_read4) = Self::read_varint(&self.linetable[i..])?;
+                    let (end_col, bytes_read4) = Self::read_location_varint(&self.linetable[i..])?;
                     i += bytes_read4;
 
                     // For now, we ignore delta_end_line and just use delta_line
@@ -355,7 +358,7 @@ impl Code {
     }
 
     // Helper function to read variable-length unsigned integer (varint)
-    fn read_varint(data: &[u8]) -> Result<(u32, usize), Error> {
+    fn read_location_varint(data: &[u8]) -> Result<(u32, usize), Error> {
         let mut result = 0u32;
         let mut shift = 0;
         let mut i = 0;
@@ -380,8 +383,8 @@ impl Code {
     }
 
     // Helper function to read variable-length signed integer (svarint)
-    fn read_svarint(data: &[u8]) -> Result<(i32, usize), Error> {
-        let (unsigned_val, bytes_read) = Self::read_varint(data)?;
+    fn read_location_svarint(data: &[u8]) -> Result<(i32, usize), Error> {
+        let (unsigned_val, bytes_read) = Self::read_location_varint(data)?;
 
         // Convert unsigned to signed according to CPython spec
         let signed_val = if unsigned_val & 1 != 0 {
@@ -391,6 +394,61 @@ impl Code {
         };
 
         Ok((signed_val, bytes_read))
+    }
+
+    // Helper function to read variable-length unsigned integer (varint) for exception information
+    fn read_exception_varint(data: &[u8]) -> Result<(u32, usize), Error> {
+        let byte = data.first().ok_or(Error::InvalidExceptionTable)?;
+        let mut result = *byte as u32 & 0x3F;
+        let mut i = 1;
+
+        while i < data.len() - 1 && byte & 0x40 != 0 {
+            result <<= 6;
+            i += 1;
+
+            let byte = data[i];
+
+            if byte & 0x40 == 0 {
+                // Last chunk
+                break;
+            }
+        }
+
+        Ok((result, i))
+    }
+
+    pub fn exception_table(&self) -> Result<Vec<ExceptionTableEntry>, Error> {
+        let mut exception_entries = vec![];
+        let mut i = 0; // Offset in exception table
+
+        while i < self.exceptiontable.len() {
+            let (start, bytes_read) = Self::read_exception_varint(&self.exceptiontable[i..])?;
+            i += bytes_read;
+
+            let (length, bytes_read) = Self::read_exception_varint(&self.exceptiontable[i..])?;
+            i += bytes_read;
+
+            let end = start * 2 + length * 2;
+
+            let (target, bytes_read) = Self::read_exception_varint(&self.exceptiontable[i..])?;
+            i += bytes_read;
+
+            let (dl, bytes_read) = Self::read_exception_varint(&self.exceptiontable[i..])?;
+            i += bytes_read;
+
+            let depth = dl >> 1;
+            let lasti = (dl & 1) != 0;
+
+            exception_entries.push(ExceptionTableEntry {
+                start: start * 2,
+                end: end,
+                target: target * 2,
+                depth: depth,
+                lasti: lasti,
+            });
+        }
+
+        Ok(exception_entries)
     }
 }
 

@@ -32,6 +32,16 @@ pub struct StackEffect {
     pub pops: u32,
 }
 
+/// Offsets are for instructions (not bytes)
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExceptionTableEntry {
+    pub start: u32,
+    pub end: u32,
+    pub target: u32,
+    pub depth: u32,
+    pub lasti: bool,
+}
+
 impl StackEffect {
     /// Creates a StackEffect with equal pushes and pops.
     pub fn balanced(count: u32) -> Self {

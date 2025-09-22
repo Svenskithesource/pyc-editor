@@ -7,6 +7,7 @@ pub enum Error {
     InvalidLinetable,
     InvalidConversion,
     InvalidConstant(python_marshal::Object),
+    InvalidExceptionTable,
     InvalidStacksize(i32),
     UnsupportedVersion(python_marshal::magic::PyVersion),
     PythonMarshalError(python_marshal::error::Error),
@@ -25,6 +26,7 @@ impl fmt::Display for Error {
                 "Invalid conversion from instruction to resolved instruction"
             ),
             Error::InvalidConstant(obj) => write!(f, "Invalid constant: {:?}", obj),
+            Error::InvalidExceptionTable => write!(f, "Invalid exception table"),
             Error::InvalidStacksize(size) => write!(f, "Invalid stack size: {:?}", size),
             Error::UnsupportedVersion(ver) => write!(f, "Unsupported Python version: {:?}. Did you forget to enable the feature for this version?", ver),
             Error::PythonMarshalError(err) => write!(f, "Python marshal error: {}", err),

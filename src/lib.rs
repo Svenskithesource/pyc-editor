@@ -1,7 +1,7 @@
 pub mod error;
 pub mod prelude;
 pub mod traits;
-mod utils;
+pub mod utils;
 #[cfg(feature = "v310")]
 pub mod v310;
 #[cfg(feature = "v311")]

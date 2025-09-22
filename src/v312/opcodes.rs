@@ -305,6 +305,7 @@ impl GenericOpcode for Opcode {
                 | Opcode::FOR_ITER_RANGE
                 | Opcode::FOR_ITER_TUPLE
                 | Opcode::INSTRUMENTED_FOR_ITER
+                | Opcode::SEND // If the send call raises StopIteration, it jumps
         )
     }
 

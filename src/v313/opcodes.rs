@@ -324,6 +324,7 @@ impl GenericOpcode for Opcode {
                 | Opcode::INSTRUMENTED_POP_JUMP_IF_NONE
                 | Opcode::INSTRUMENTED_POP_JUMP_IF_NOT_NONE
                 | Opcode::INSTRUMENTED_FOR_ITER
+                | Opcode::SEND // If the send call raises StopIteration, it jumps
         )
     }
 

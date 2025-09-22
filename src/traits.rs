@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::DerefMut};
 
 use crate::{
     error::Error,
-    utils::{self, StackEffect},
+    utils::{self, ExceptionTableEntry, StackEffect},
 };
 
 pub trait InstructionAccess<OpargType, I>
@@ -154,12 +154,27 @@ where
         bytearray
     }
 
-    /// Calculates the maximum stack size the instructions will use. is_generator is used to determine the original stack size.
-    fn max_stack_size(&self, is_generator: bool) -> Result<u32, Error> {
+    /// Calculates the maximum stack size the instructions will use. `start_stacksize` is only used for generator code objects that start with a stacksize of 1.
+    /// For 3.11+ you should also pass the exception table for correct stack calculation.
+    fn max_stack_size(
+        &self,
+        start_stacksize: u32,
+        exception_table: Option<Vec<ExceptionTableEntry>>,
+    ) -> Result<u32, Error> {
         // Contains starting indexes of blocks that need to be processed along with their starting stack size.
-        let mut block_queue = vec![(if is_generator { 1 } else { 0 }, 0)];
+        let mut block_queue = vec![(start_stacksize, 0usize)];
         let mut max_stack_size: u32 = 0;
         let mut visited: Vec<(u32, usize)> = Vec::new();
+
+        if let Some(exception_entries) = exception_table {
+            for exception in exception_entries {
+                // dbg!(&exception);
+                block_queue.push((
+                    exception.depth + 1 + if exception.lasti { 1 } else { 0 },
+                    exception.target as usize,
+                ));
+            }
+        }
 
         while let Some((stack_size, start_index)) = block_queue.pop() {
             if visited.contains(&(stack_size, start_index)) {
@@ -167,7 +182,7 @@ where
                 continue;
             }
 
-            // dbg!("new block");
+            // dbg!("new block", stack_size, start_index);
 
             visited.push((stack_size, start_index));
 
@@ -444,6 +459,6 @@ mod test {
             crate::v311::instructions::Instruction::ReturnValue(0),
         ]);
 
-        assert_eq!(instructions.max_stack_size(false).unwrap(), 4);
+        assert_eq!(instructions.max_stack_size(0, None).unwrap(), 4);
     }
 }

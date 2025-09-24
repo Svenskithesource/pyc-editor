@@ -371,13 +371,16 @@ fn test_stacksize_standard_lib() {
         env_logger::init();
     });
 
+    // Cpython has a bug where it overcalculates the stacksize of these files, so we skip it.
+    static EXCEPTIONS: &[&str] =
+        &["tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_except_star.cpython-311.pyc", "tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-311.pyc"];
+
     common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
         pyc_files.iter().for_each(|pyc_file| {
-            // Cpython has a bug where it overcalculates the stacksize of this one file, so we skip it.
-            if !pyc_file.ends_with("tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_except_star.cpython-311.pyc") {
+            if EXCEPTIONS.iter().all(|exc| !pyc_file.ends_with(exc)) {
                 println!("Testing pyc file: {:?}", pyc_file);
                 let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
                 let reader = BufReader::new(file);
@@ -414,7 +417,10 @@ fn test_stacksize_standard_lib() {
                             assert_eq!(
                                 $code
                                     .code
-                                    .max_stack_size(if is_generator { 1 } else { 0 }, exception_table)
+                                    .max_stack_size(
+                                        if is_generator { 1 } else { 0 },
+                                        exception_table
+                                    )
                                     .expect("Must be valid"),
                                 $code.stacksize
                             );

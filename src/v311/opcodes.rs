@@ -458,7 +458,7 @@ impl GenericOpcode for Opcode {
             Opcode::LIST_EXTEND | Opcode::SET_UPDATE | Opcode::DICT_MERGE | Opcode::DICT_UPDATE => {
                 StackEffect { pops: 2, pushes: 1 } // Pops the iterable/mapping to extend/update with
             }
-            Opcode::MATCH_CLASS => StackEffect { pops: 3, pushes: 2 }, // Pops object and class pattern, pushes result
+            Opcode::MATCH_CLASS => StackEffect { pops: 3, pushes: 1 },
             Opcode::GET_LEN | Opcode::MATCH_MAPPING | Opcode::MATCH_SEQUENCE => {
                 StackEffect { pops: 1, pushes: 2 }
             }

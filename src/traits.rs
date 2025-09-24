@@ -156,10 +156,12 @@ where
 
     /// Calculates the maximum stack size the instructions will use. `start_stacksize` is only used for generator code objects that start with a stacksize of 1.
     /// For 3.11+ you should also pass the exception table for correct stack calculation.
+    /// For 3.13 you should put allow_zero to false since it's not allowed to put 0 as a stacksize in 3.13
     fn max_stack_size(
         &self,
         start_stacksize: u32,
         exception_table: Option<Vec<ExceptionTableEntry>>,
+        allow_zero: bool,
     ) -> Result<u32, Error> {
         // Contains starting indexes of blocks that need to be processed along with their starting stack size.
         let mut block_queue = vec![(start_stacksize, 0usize)];
@@ -168,7 +170,6 @@ where
 
         if let Some(exception_entries) = exception_table {
             for exception in exception_entries {
-                // dbg!(&exception);
                 block_queue.push((
                     exception.depth + 1 + if exception.lasti { 1 } else { 0 },
                     exception.target as usize,
@@ -181,8 +182,6 @@ where
                 // already analyzed
                 continue;
             }
-
-            // dbg!("new block", stack_size, start_index);
 
             visited.push((stack_size, start_index));
 
@@ -207,7 +206,6 @@ where
                         // Block for not taking the jump
                         let stack_effect = instruction.stack_effect(arg, Some(false)).net_total();
 
-                        // dbg!(curr_stack_size, stack_effect, instruction);
                         let (stack_size, indx) = (
                             curr_stack_size.checked_add_signed(stack_effect).ok_or(
                                 Error::InvalidStacksize(curr_stack_size as i32 + stack_effect),
@@ -222,7 +220,6 @@ where
                         // Block for valid jump target
                         let stack_effect = instruction.stack_effect(arg, Some(true)).net_total();
 
-                        // dbg!(curr_stack_size, stack_effect, instruction, jump_index);
                         let (stack_size, indx) = (
                             curr_stack_size.checked_add_signed(stack_effect).ok_or(
                                 Error::InvalidStacksize(curr_stack_size as i32 + stack_effect),
@@ -238,7 +235,6 @@ where
                 } else {
                     let stack_effect = instruction.stack_effect(arg, None).net_total();
 
-                    // dbg!(curr_stack_size, stack_effect, instruction);
                     curr_stack_size = curr_stack_size.checked_add_signed(stack_effect).ok_or(
                         Error::InvalidStacksize(curr_stack_size as i32 + stack_effect),
                     )?;
@@ -248,6 +244,10 @@ where
                     }
                 }
             }
+        }
+
+        if !allow_zero && max_stack_size == 0 {
+            max_stack_size = 1;
         }
 
         Ok(max_stack_size)
@@ -459,6 +459,6 @@ mod test {
             crate::v311::instructions::Instruction::ReturnValue(0),
         ]);
 
-        assert_eq!(instructions.max_stack_size(0, None).unwrap(), 4);
+        assert_eq!(instructions.max_stack_size(0, None, true).unwrap(), 4);
     }
 }

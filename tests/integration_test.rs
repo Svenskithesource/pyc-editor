@@ -372,8 +372,14 @@ fn test_stacksize_standard_lib() {
     });
 
     // Cpython has a bug where it overcalculates the stacksize of these files, so we skip it.
-    static EXCEPTIONS: &[&str] =
-        &["tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_except_star.cpython-311.pyc", "tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-311.pyc"];
+    static EXCEPTIONS: &[&str] = &[
+        "tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_except_star.cpython-311.pyc",
+        "tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-311.pyc",
+        "tests/data\\cpython-3.12.1/Lib\\test\\__pycache__\\test_except_star.cpython-312.pyc",
+        "tests/data\\cpython-3.12.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-312.pyc",
+        "tests/data\\cpython-3.13.1/Lib\\test\\__pycache__\\test_except_star.cpython-313.pyc",
+        "tests/data\\cpython-3.13.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-313.pyc",
+    ];
 
     common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
@@ -393,17 +399,33 @@ fn test_stacksize_standard_lib() {
                             None
                         };
 
-                        ($variant:ident, $code:expr) => {{
-                            // dbg!(&$code.exceptiontable);
+                        ($variant:ident, $code:expr) => {
                             Some($code.exception_table().expect("Exception table is valid"))
-                        }};
+                        };
+                    }
+
+                    macro_rules! get_generator_stacksize {
+                        (V313, $code:expr) => {
+                            0
+                        };
+
+                        ($variant:ident, $code:expr) => {
+                            1
+                        };
+                    }
+
+                    macro_rules! allow_zero {
+                        (V313, $code:expr) => {
+                            false
+                        };
+
+                        ($variant:ident, $code:expr) => {
+                            true
+                        };
                     }
 
                     macro_rules! recursive_version {
                         ($variant:ident, $module:ident, $code:expr) => {{
-                            // dbg!(&$code.name);
-                            // dbg!(&$code.flags);
-
                             let is_generator = $code.flags.intersects(
                                 CodeFlags::GENERATOR
                                     | CodeFlags::COROUTINE
@@ -418,8 +440,13 @@ fn test_stacksize_standard_lib() {
                                 $code
                                     .code
                                     .max_stack_size(
-                                        if is_generator { 1 } else { 0 },
-                                        exception_table
+                                        if is_generator {
+                                            get_generator_stacksize!($variant, $code)
+                                        } else {
+                                            0
+                                        },
+                                        exception_table,
+                                        allow_zero!($variant, $code)
                                     )
                                     .expect("Must be valid"),
                                 $code.stacksize

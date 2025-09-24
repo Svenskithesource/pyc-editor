@@ -398,23 +398,26 @@ impl Code {
 
     // Helper function to read variable-length unsigned integer (varint) for exception information
     fn read_exception_varint(data: &[u8]) -> Result<(u32, usize), Error> {
-        let byte = data.first().ok_or(Error::InvalidExceptionTable)?;
-        let mut result = *byte as u32 & 0x3F;
-        let mut i = 1;
+        let mut iter = data.iter();
+        let mut consumed = 0;
 
-        while i < data.len() - 1 && byte & 0x40 != 0 {
-            result <<= 6;
-            i += 1;
+        let first = *iter.next().ok_or(Error::InvalidExceptionTable)?; // return None if no bytes
+        consumed += 1;
 
-            let byte = data[i];
+        let mut val: u32 = (first & 63) as u32;
+        let mut b = first;
 
-            if byte & 0x40 == 0 {
-                // Last chunk
-                break;
-            }
+        while b & 64 != 0 {
+            let next_byte = *iter.next().ok_or(Error::InvalidExceptionTable)?; // return None if input ended early
+            consumed += 1;
+
+            val <<= 6;
+            val |= (next_byte & 63) as u32;
+
+            b = next_byte;
         }
 
-        Ok((result, i))
+        Ok((val, consumed))
     }
 
     pub fn exception_table(&self) -> Result<Vec<ExceptionTableEntry>, Error> {
@@ -428,7 +431,7 @@ impl Code {
             let (length, bytes_read) = Self::read_exception_varint(&self.exceptiontable[i..])?;
             i += bytes_read;
 
-            let end = start * 2 + length * 2;
+            let end = start + length;
 
             let (target, bytes_read) = Self::read_exception_varint(&self.exceptiontable[i..])?;
             i += bytes_read;
@@ -440,9 +443,9 @@ impl Code {
             let lasti = (dl & 1) != 0;
 
             exception_entries.push(ExceptionTableEntry {
-                start: start * 2,
+                start: start,
                 end: end,
-                target: target * 2,
+                target: target,
                 depth: depth,
                 lasti: lasti,
             });

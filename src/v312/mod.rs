@@ -9,6 +9,7 @@ mod tests {
     use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
     use python_marshal::{CodeFlags, PyString};
 
+    use crate::utils::ExceptionTableEntry;
     use crate::v312;
     use crate::v312::code_objects::CompareOperation::Equal;
     use crate::v312::code_objects::{Constant, FrozenConstant, LinetableEntry, NameIndex};
@@ -339,5 +340,67 @@ mod tests {
             get_line_number(&code_object.co_lines().unwrap(), 15).unwrap(),
             5
         )
+    }
+
+    #[test]
+    fn test_exception_table() {
+        let code_object = v312::code_objects::Code {
+            argcount: 0,
+            posonlyargcount: 0,
+            kwonlyargcount: 0,
+            stacksize: 4,
+            flags: CodeFlags::from_bits_retain(0x0),
+            code: v312::instructions::Instructions::new(vec![]),
+            consts: vec![],
+            names: vec![],
+            localsplusnames: vec![],
+            localspluskinds: vec![],
+            filename: PyString {
+                value: "test.py".into(),
+                kind: ShortAscii,
+            },
+            name: PyString {
+                value: "<module>".into(),
+                kind: ShortAsciiInterned,
+            },
+            qualname: PyString {
+                value: "<module>".into(),
+                kind: ShortAsciiInterned,
+            },
+            firstlineno: 0,
+            linetable: vec![],
+            exceptiontable: vec![
+                193, 4, 4, 68, 8, 0, 196, 8, 7, 68, 18, 3, 196, 17, 1, 68, 18, 3,
+            ],
+        };
+
+        assert_eq!(
+            code_object
+                .exception_table()
+                .expect("Should be a valid exception table"),
+            vec![
+                ExceptionTableEntry {
+                    start: 68,
+                    end: 72,
+                    target: 264,
+                    depth: 0,
+                    lasti: false,
+                },
+                ExceptionTableEntry {
+                    start: 264,
+                    end: 271,
+                    target: 274,
+                    depth: 1,
+                    lasti: true,
+                },
+                ExceptionTableEntry {
+                    start: 273,
+                    end: 274,
+                    target: 274,
+                    depth: 1,
+                    lasti: true,
+                },
+            ]
+        );
     }
 }

@@ -373,13 +373,13 @@ fn test_stacksize_standard_lib() {
 
     // Cpython has a bug where it overcalculates the stacksize of these files, so we skip it.
     static EXCEPTIONS: &[&str] = &[
-        "tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_except_star.cpython-311.pyc",
-        "tests/data\\cpython-3.11.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-311.pyc",
+        "tests/data/cpython-3.11.1/Lib/test/__pycache__/test_except_star.cpython-311.pyc",
+        "tests/data/cpython-3.11.1/Lib/test/__pycache__/test_sys_settrace.cpython-311.pyc",
         "tests/data/cpython-3.11.1/Lib/__pycache__/opcode.cpython-311.pyc", // Only fails on github actions for some reason
-        "tests/data\\cpython-3.12.1/Lib\\test\\__pycache__\\test_except_star.cpython-312.pyc",
-        "tests/data\\cpython-3.12.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-312.pyc",
-        "tests/data\\cpython-3.13.1/Lib\\test\\__pycache__\\test_except_star.cpython-313.pyc",
-        "tests/data\\cpython-3.13.1/Lib\\test\\__pycache__\\test_sys_settrace.cpython-313.pyc",
+        "tests/data/cpython-3.12.1/Lib/test/__pycache__/test_except_star.cpython-312.pyc",
+        "tests/data/cpython-3.12.1/Lib/test/__pycache__/test_sys_settrace.cpython-312.pyc",
+        "tests/data/cpython-3.13.1/Lib/test/__pycache__/test_except_star.cpython-313.pyc",
+        "tests/data/cpython-3.13.1/Lib/test/__pycache__/test_sys_settrace.cpython-313.pyc",
     ];
 
     common::PYTHON_VERSIONS.par_iter().for_each(|version| {

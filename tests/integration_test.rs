@@ -77,8 +77,8 @@ static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
 
 #[test]
 fn test_recompile_standard_lib() {
-    common::setup();
     LOGGER_INIT.call_once(|| {
+        common::setup();
         env_logger::init();
     });
 
@@ -230,8 +230,8 @@ fn compare_instructions<T: SimpleInstructionAccess<I>, I>(original_list: T, new_
 
 #[test]
 fn test_recompile_resolved_standard_lib() {
-    common::setup();
     LOGGER_INIT.call_once(|| {
+        common::setup();
         env_logger::init();
     });
 
@@ -311,8 +311,8 @@ fn test_recompile_resolved_standard_lib() {
 
 #[test]
 fn test_line_number_standard_lib() {
-    common::setup();
     LOGGER_INIT.call_once(|| {
+        common::setup();
         env_logger::init();
     });
 
@@ -366,8 +366,8 @@ fn test_line_number_standard_lib() {
 
 #[test]
 fn test_stacksize_standard_lib() {
-    common::setup();
     LOGGER_INIT.call_once(|| {
+        common::setup();
         env_logger::init();
     });
 
@@ -485,8 +485,8 @@ fn test_stacksize_standard_lib() {
 #[test]
 #[ignore = "This test will write the files to disk so we can run the Python tests on them. That way we're sure the files are correct."]
 fn test_write_standard_lib() {
-    common::setup();
     LOGGER_INIT.call_once(|| {
+        common::setup();
         env_logger::init();
     });
 

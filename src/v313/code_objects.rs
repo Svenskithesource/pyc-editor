@@ -752,7 +752,6 @@ pub enum BinaryOperation {
     InplaceSubtract = 23,
     InplaceTrueDivide = 24,
     InplaceXor = 25,
-    Subscr = 26,
     Invalid(u32),
 }
 
@@ -785,7 +784,6 @@ impl std::fmt::Display for BinaryOperation {
             BinaryOperation::InplaceSubtract => write!(f, "-="),
             BinaryOperation::InplaceTrueDivide => write!(f, "/="),
             BinaryOperation::InplaceXor => write!(f, "^="),
-            BinaryOperation::Subscr => write!(f, "[]"),
             BinaryOperation::Invalid(v) => write!(f, "Invalid({})", v),
         }
     }
@@ -820,7 +818,6 @@ impl From<u32> for BinaryOperation {
             23 => Self::InplaceSubtract,
             24 => Self::InplaceTrueDivide,
             25 => Self::InplaceXor,
-            26 => Self::Subscr,
             v => Self::Invalid(v),
         }
     }
@@ -855,7 +852,6 @@ impl From<&BinaryOperation> for u32 {
             BinaryOperation::InplaceSubtract => 23,
             BinaryOperation::InplaceTrueDivide => 24,
             BinaryOperation::InplaceXor => 25,
-            BinaryOperation::Subscr => 26,
             BinaryOperation::Invalid(v) => *v,
         }
     }

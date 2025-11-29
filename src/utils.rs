@@ -150,6 +150,16 @@ macro_rules! define_opcodes {
 }
 
 #[macro_export]
+macro_rules! get_names {
+    (@instruction $variant:ident, $val:expr) => {
+        paste::paste! { Instruction::[<$variant:camel>]($val) }
+    };
+    (@instruction $variant:ident) => {
+        paste::paste! { Instruction::[<$variant:camel>](_) }
+    };
+}
+
+#[macro_export]
 macro_rules! define_default_traits {
     ($variant:ident, Instruction) => {
         impl Deref for crate::$variant::instructions::Instructions {

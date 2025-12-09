@@ -204,7 +204,7 @@ where
                         && !instruction.stops_execution()
                     {
                         // Block for not taking the jump
-                        let stack_effect = instruction.stack_effect(arg, Some(false)).net_total();
+                        let stack_effect = instruction.stack_effect(arg, false, false).net_total();
 
                         let (stack_size, indx) = (
                             curr_stack_size.checked_add_signed(stack_effect).ok_or(
@@ -218,7 +218,7 @@ where
 
                     if let Some((jump_index, _)) = self.get_jump_target(instruction_index as u32) {
                         // Block for valid jump target
-                        let stack_effect = instruction.stack_effect(arg, Some(true)).net_total();
+                        let stack_effect = instruction.stack_effect(arg, true, false).net_total();
 
                         let (stack_size, indx) = (
                             curr_stack_size.checked_add_signed(stack_effect).ok_or(
@@ -233,7 +233,7 @@ where
                     // Process new block, as this one has ended
                     break;
                 } else {
-                    let stack_effect = instruction.stack_effect(arg, None).net_total();
+                    let stack_effect = instruction.stack_effect(arg, false, true).net_total();
 
                     curr_stack_size = curr_stack_size.checked_add_signed(stack_effect).ok_or(
                         Error::InvalidStacksize(curr_stack_size as i32 + stack_effect),
@@ -319,7 +319,7 @@ where
 }
 
 /// Generic opcode functions each version has to implement
-pub trait GenericOpcode: PartialEq + Into<u8> {
+pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> {
     fn is_jump(&self) -> bool;
     fn is_absolute_jump(&self) -> bool;
     fn is_relative_jump(&self) -> bool;
@@ -328,11 +328,6 @@ pub trait GenericOpcode: PartialEq + Into<u8> {
     fn is_conditional_jump(&self) -> bool;
     fn stops_execution(&self) -> bool;
     fn is_extended_arg(&self) -> bool;
-
-    /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
-    /// If jump is false, it will return the stack effect of not jumping.
-    /// And if jump is None, it will return the maximal stack effect of both cases.
-    fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect;
 }
 
 pub trait Oparg<T> {
@@ -403,10 +398,18 @@ where
 
     /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
     /// If jump is false, it will return the stack effect of not jumping.
-    /// And if jump is None, it will return the maximal stack effect of both cases.
-    fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect {
-        self.get_opcode().stack_effect(oparg, jump)
+    /// And if calculate_max is true, it will return the maximal stack effect of both cases.
+    fn stack_effect(&self, oparg: u32, jump: bool, calculate_max: bool) -> StackEffect {
+        self.get_opcode().stack_effect(oparg, jump, calculate_max)
     }
+}
+
+/// Should be automatically implemented by define_opcodes!()
+pub trait StackEffectTrait {
+    /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
+    /// If jump is false, it will return the stack effect of not jumping.
+    /// And if calculate_max is true, it will return the maximal stack effect of both cases.
+    fn stack_effect(&self, oparg: u32, jump: bool, calculate_max: bool) -> StackEffect;
 }
 
 #[cfg(all(test, feature = "v311"))]

@@ -253,7 +253,7 @@ impl Code {
         // See https://github.com/python/cpython/blob/3.10/Objects/lnotab_notes.txt
         // This library returns a slightly different list. When there is no line number (-128) it will use None to indicate so.
 
-        if self.linetable.len() % 2 != 0 {
+        if !self.linetable.len().is_multiple_of(2) {
             // Invalid linetable
             return Err(Error::InvalidLinetable);
         }

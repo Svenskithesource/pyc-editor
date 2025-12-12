@@ -443,11 +443,11 @@ impl Code {
             let lasti = (dl & 1) != 0;
 
             exception_entries.push(ExceptionTableEntry {
-                start: start,
-                end: end,
-                target: target,
-                depth: depth,
-                lasti: lasti,
+                start,
+                end,
+                target,
+                depth,
+                lasti,
             });
         }
 

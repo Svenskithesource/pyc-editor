@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::DerefMut};
 
 use crate::{
     error::Error,
-    utils::{self, ExceptionTableEntry, StackEffect},
+    utils::{ExceptionTableEntry, StackEffect},
 };
 
 pub trait InstructionAccess<OpargType, I>
@@ -414,7 +414,7 @@ pub trait StackEffectTrait {
 
 #[cfg(all(test, feature = "v311"))]
 mod test {
-    use crate::{traits::SimpleInstructionAccess, v310::instructions};
+    use crate::traits::SimpleInstructionAccess;
 
     #[test]
     fn test_invalid_extended_arg_jump() {

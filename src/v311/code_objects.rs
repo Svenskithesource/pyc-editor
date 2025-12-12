@@ -8,7 +8,7 @@ use ordered_float::OrderedFloat;
 use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
 
 use crate::{error::Error, utils::ExceptionTableEntry, v311::instructions::Instructions};
-use std::{fmt, io::Cursor};
+use std::fmt;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FrozenConstant {

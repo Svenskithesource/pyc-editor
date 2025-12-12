@@ -4,7 +4,6 @@ use crate::get_names;
 use crate::traits::{GenericOpcode, StackEffectTrait};
 use crate::utils::StackEffect;
 use crate::v310::instructions::Instruction;
-use paste::paste;
 
 use python_instruction_dsl_proc::define_opcodes;
 
@@ -77,7 +76,7 @@ define_opcodes!(
     POP_EXCEPT = 89 (exc_tb, exc_value, exc_type -- ),
     STORE_NAME = 90 (value -- ),
     DELETE_NAME = 91 ( -- ),
-    UNPACK_SEQUENCE = 92 (seq -- array[oparg]),
+    UNPACK_SEQUENCE = 92 (seq -- unpacked[oparg]),
     FOR_ITER = 93 (iter -- iter[if jump || calculate_max {0} else {1}], next[if jump || calculate_max {0} else {1}]),
     UNPACK_EX = 94 (seq -- before[oparg & 0xFF], leftover, after[oparg >> 8]),
     STORE_ATTR = 95 (value, owner -- ),
@@ -119,7 +118,7 @@ define_opcodes!(
     MAKE_FUNCTION = 132 (defaults[if oparg & 0x01 != 0 {1} else {0}],
                         kwdefaults[if oparg & 0x02 != 0 {1} else {0}],
                         annotations[if oparg & 0x04 != 0 {1} else {0}],
-                        closure[if oparg & 0x01 != 0 {1} else {0}],
+                        closure[if oparg & 0x08 != 0 {1} else {0}],
                         code_obj, qualname -- func),
     BUILD_SLICE = 133 (start, stop, step[if oparg == 3 {1} else {0}] -- slice),
     LOAD_CLOSURE = 135 ( -- value),
@@ -134,7 +133,7 @@ define_opcodes!(
     SET_ADD = 146 (set, unused[oparg-1], value -- set, unused[oparg-1]),
     MAP_ADD = 147 (map, unused[oparg-1], key, value -- map, unused[oparg-1]),
     LOAD_CLASSDEREF = 148 ( -- value),
-    MATCH_CLASS = 152 (subject, cmp_type, names -- attrs, boolean),
+    MATCH_CLASS = 152 (subject, cmp_type, names -- attrs_or_none, boolean),
     SETUP_ASYNC_WITH = 154 (res -- res[if jump || calculate_max {0} else {1}], excs[if jump || calculate_max {6} else {0}]),
     // FVS_MASK = FVS_HAVE_SPEC = 0x4
     FORMAT_VALUE = 155 (value, fmt_spec[if (oparg & 0x4) == 0x4 {1} else {0}] -- result),

@@ -5,7 +5,6 @@ use crate::traits::GenericOpcode;
 use crate::traits::StackEffectTrait;
 use crate::utils::StackEffect;
 use crate::v311::instructions::Instruction;
-use paste::paste;
 
 use python_instruction_dsl_proc::define_opcodes;
 
@@ -23,7 +22,7 @@ define_opcodes!(
     GET_LEN = 30 (obj -- obj, length),
     MATCH_MAPPING = 31 (subject -- subject, res),
     MATCH_SEQUENCE = 32 (subject -- subject, res),
-    MATCH_KEYS = 33 (subject, keys -- subject, keys, values_or_none, true_or_false),
+    MATCH_KEYS = 33 (subject, keys -- subject, keys, values_or_none),
     PUSH_EXC_INFO = 35 ( -- exc),
     CHECK_EXC_MATCH = 36 (left_exc, right_exc -- left_exc, boolean),
     CHECK_EG_MATCH = 37 (exc_value, match_type -- rest, match_group),
@@ -51,7 +50,7 @@ define_opcodes!(
     POP_EXCEPT = 89 (exc_value -- ),
     STORE_NAME = 90 (value -- ),
     DELETE_NAME = 91 ( -- ),
-    UNPACK_SEQUENCE = 92 (seq -- array[oparg]),
+    UNPACK_SEQUENCE = 92 (seq -- unpacked[oparg]),
     FOR_ITER = 93 (iter -- iter[if jump || calculate_max {0} else {1}], next[if jump || calculate_max {0} else {1}]),
     UNPACK_EX = 94 (seq -- before[oparg & 0xFF], leftover, after[oparg >> 8]),
     STORE_ATTR = 95 (value, owner --),
@@ -74,13 +73,13 @@ define_opcodes!(
     JUMP_IF_TRUE_OR_POP = 112 (condition -- condition[if jump && !calculate_max {1} else {0}]),
     POP_JUMP_FORWARD_IF_FALSE = 114 (condition -- ),
     POP_JUMP_FORWARD_IF_TRUE = 115 (condition -- ),
-    LOAD_GLOBAL = 116 (-- value),
+    LOAD_GLOBAL = 116 (-- null[if oparg & 0x01 != 0 {1} else {0}], value),
     IS_OP = 117 (left, right -- boolean),
     CONTAINS_OP = 118 (left, right -- boolean),
-    RERAISE = 119 (values[oparg], tb, val, exc -- values[oparg]),
+    RERAISE = 119 (values[oparg] ,exc -- values[oparg]),
     COPY = 120 (bottom, unused[oparg-1] -- bottom, unused[oparg-1], top),
     BINARY_OP = 122 (left, right -- res),
-    SEND = 123 (receiver, value -- receiver, return_value),
+    SEND = 123 (receiver, value -- receiver[if jump && !calculate_max {0} else {1}], return_value),
     LOAD_FAST = 124 (-- value),
     STORE_FAST = 125 (value --),
     DELETE_FAST = 126 ( -- ),
@@ -92,7 +91,7 @@ define_opcodes!(
     MAKE_FUNCTION = 132 (defaults[if oparg & 0x01 != 0 {1} else {0}],
                         kwdefaults[if oparg & 0x02 != 0 {1} else {0}],
                         annotations[if oparg & 0x04 != 0 {1} else {0}],
-                        closure[if oparg & 0x01 != 0 {1} else {0}],
+                        closure[if oparg & 0x08 != 0 {1} else {0}],
                         code_obj -- func),
     BUILD_SLICE = 133 (start, stop, step[if oparg == 3 {1} else {0}] -- slice),
     JUMP_BACKWARD_NO_INTERRUPT = 134 ( -- ),
@@ -110,7 +109,7 @@ define_opcodes!(
     LOAD_CLASSDEREF = 148 (-- value),
     COPY_FREE_VARS = 149 ( -- ),
     RESUME = 151 ( -- ),
-    MATCH_CLASS = 152 (subject, cmp_type, names -- attrs),
+    MATCH_CLASS = 152 (subject, cmp_type, names -- attrs_or_none),
     // FVS_MASK = FVS_HAVE_SPEC = 0x4
     FORMAT_VALUE = 155 (value, fmt_spec[if (oparg & 0x4) == 0x4 {1} else {0}] -- result),
     BUILD_CONST_KEY_MAP = 156 (values[oparg], keys -- map),
@@ -121,7 +120,7 @@ define_opcodes!(
     DICT_MERGE = 164 (update --),
     DICT_UPDATE = 165 (update --),
     PRECALL = 166 ( -- ),
-    CALL = 171 (method_or_null, callable, args[oparg] -- res),
+    CALL = 171 (method_or_null, self_or_callable, args[oparg] -- res),
     KW_NAMES = 172 ( -- ),
     POP_JUMP_BACKWARD_IF_NOT_NONE = 173 (condition -- ),
     POP_JUMP_BACKWARD_IF_NONE = 174 (condition -- ),

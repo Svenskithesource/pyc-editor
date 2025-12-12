@@ -16,7 +16,7 @@ num-bigint = "0.4.6"
 num-complex = "0.4.6"
 ordered-float = "5.0.0"
 paste = "1.0.15"
-python-instruction-dsl-proc = "0.1.5"
+python-instruction-dsl-proc = "0.1.6"
 python_marshal = "0.4.6"
 store-interval-tree = "0.4.0"
 

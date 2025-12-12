@@ -1531,8 +1531,8 @@ dependencies = [
 
 [[package]]
 name = "python-instruction-dsl-proc"
-version = "0.1.5"
-source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc#77567d67e75b25d1dba707498a5a3efa034903a4"
+version = "0.1.6"
+source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc#e2c16230d27037d6e91b2d1cbdc6b353ea167723"
 dependencies = [
  "paste",
  "quote",

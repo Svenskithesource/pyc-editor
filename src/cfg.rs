@@ -47,7 +47,7 @@ impl<I, T> SimpleInstructionAccess<I> for T where
 pub fn create_cfg<OpargType, I>(instructions: Vec<I>) -> ControlFlowGraph<I>
 where
     OpargType: Oparg,
-    I: GenericInstruction<OpargType> + Clone,
+    I: GenericInstruction<OpargType>,
     Vec<I>: InstructionAccess<OpargType, I>,
 {
     // Used for keeping track of finished blocks

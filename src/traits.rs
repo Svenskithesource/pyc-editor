@@ -380,7 +380,7 @@ pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug {
 }
 
 /// Generic instruction functions used by all versions
-pub trait GenericInstruction<OpargType>: PartialEq + Debug
+pub trait GenericInstruction<OpargType>: PartialEq + Debug + Clone
 where
     OpargType: Oparg,
 {

@@ -10,6 +10,7 @@ pub mod v311;
 pub mod v312;
 #[cfg(feature = "v313")]
 pub mod v313;
+mod cfg;
 
 use error::Error;
 use python_marshal::{self, magic::PyVersion, minimize_references};

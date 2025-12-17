@@ -34,6 +34,7 @@ rayon = "1.11.0"
 reqwest = { version = "0.12.23", features = ["blocking"] }
 zip = "4.3.0"
 criterion = { version = "0.7.0", features = ["html_reports"] }
+petgraph = "0.8.3"
 
 [[bench]]
 name = "extended_args"

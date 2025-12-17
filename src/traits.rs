@@ -1,14 +1,51 @@
-use std::{collections::HashMap, ops::DerefMut};
+use std::{collections::HashMap, fmt::Debug, ops::DerefMut};
 
 use crate::{
     error::Error,
     utils::{ExceptionTableEntry, StackEffect},
 };
 
+pub trait Oparg: Copy + PartialEq + 'static {
+    fn is_u32() -> bool;
+
+    fn to_u32(self) -> u32;
+
+    fn is_u8() -> bool;
+}
+
+impl Oparg for u8 {
+    fn is_u32() -> bool {
+        false
+    }
+
+    #[inline]
+    fn to_u32(self) -> u32 {
+        self as u32
+    }
+
+    fn is_u8() -> bool {
+        true
+    }
+}
+impl Oparg for u32 {
+    fn is_u32() -> bool {
+        true
+    }
+
+    #[inline]
+    fn to_u32(self) -> u32 {
+        self as u32
+    }
+
+    fn is_u8() -> bool {
+        false
+    }
+}
+
 pub trait InstructionAccess<OpargType, I>
 where
     Self: AsRef<[Self::Instruction]>,
-    OpargType: PartialEq,
+    OpargType: Oparg,
 {
     type Instruction: GenericInstruction<OpargType> + std::fmt::Debug;
     type Jump;
@@ -48,6 +85,80 @@ where
     }
 
     fn get_jump_value(&self, index: u32) -> Option<Self::Jump>;
+
+    /// Calculates the full argument for an index (keeping in mind extended args). None if the index is not within bounds.
+    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
+    fn get_full_arg(&self, index: usize) -> Option<u32> {
+        if self.as_ref().len() > index {
+            if OpargType::is_u32() {
+                self.as_ref()
+                    .get(index as usize)
+                    .map(|i| i.get_raw_value().to_u32())
+            } else {
+                let mut curr_index = index;
+                let mut extended_args = vec![];
+
+                while curr_index > 0 {
+                    curr_index -= 1;
+
+                    if self.as_ref()[curr_index].is_extended_arg() {
+                        extended_args.push(self.as_ref()[curr_index].get_raw_value());
+                    } else {
+                        break;
+                    }
+                }
+
+                let mut extended_arg = 0;
+
+                for arg in extended_args.iter().rev() {
+                    // We collected them in the reverse order
+                    let arg = (*arg).to_u32() | extended_arg;
+                    extended_arg = arg << 8;
+                }
+
+                Some(self.as_ref()[index].get_raw_value().to_u32() | extended_arg)
+            }
+        } else {
+            None
+        }
+    }
+
+    /// The same as `get_full_arg` but you can specify a lower limit while searching for extended args.
+    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
+    fn get_full_arg_bounded(&self, index: usize, lower_bound: usize) -> Option<u32> {
+        if self.as_ref().len() > index {
+            if OpargType::is_u32() {
+                self.as_ref()
+                    .get(index as usize)
+                    .map(|i| i.get_raw_value().to_u32())
+            } else {
+                let mut curr_index = index;
+                let mut extended_args = vec![];
+
+                while curr_index > lower_bound {
+                    curr_index -= 1;
+
+                    if self.as_ref()[curr_index].is_extended_arg() {
+                        extended_args.push(self.as_ref()[curr_index].get_raw_value());
+                    } else {
+                        break;
+                    }
+                }
+
+                let mut extended_arg = 0;
+
+                for arg in extended_args.iter().rev() {
+                    // We collected them in the reverse order
+                    let arg = (*arg).to_u32() | extended_arg;
+                    extended_arg = arg << 8;
+                }
+
+                Some(self.as_ref()[index].get_raw_value().to_u32() | extended_arg)
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub trait SimpleInstructionAccess<I>
@@ -79,68 +190,6 @@ where
         }
 
         jumps
-    }
-
-    /// Calculates the full argument for an index (keeping in mind extended args). None if the index is not within bounds.
-    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
-    fn get_full_arg(&self, index: usize) -> Option<u32> {
-        if self.as_ref().len() > index {
-            let mut curr_index = index;
-            let mut extended_args = vec![];
-
-            while curr_index > 0 {
-                curr_index -= 1;
-
-                if self.as_ref()[curr_index].is_extended_arg() {
-                    extended_args.push(self.as_ref()[curr_index].get_raw_value());
-                } else {
-                    break;
-                }
-            }
-
-            let mut extended_arg = 0;
-
-            for arg in extended_args.iter().rev() {
-                // We collected them in the reverse order
-                let arg = *arg as u32 | extended_arg;
-                extended_arg = arg << 8;
-            }
-
-            Some(self.as_ref()[index].get_raw_value() as u32 | extended_arg)
-        } else {
-            None
-        }
-    }
-
-    /// The same as `get_full_arg` but you can specify a lower limit while searching for extended args.
-    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
-    fn get_full_arg_bounded(&self, index: usize, lower_bound: usize) -> Option<u32> {
-        if self.as_ref().len() > index {
-            let mut curr_index = index;
-            let mut extended_args = vec![];
-
-            while curr_index > lower_bound {
-                curr_index -= 1;
-
-                if self.as_ref()[curr_index].is_extended_arg() {
-                    extended_args.push(self.as_ref()[curr_index].get_raw_value());
-                } else {
-                    break;
-                }
-            }
-
-            let mut extended_arg = 0;
-
-            for arg in extended_args.iter().rev() {
-                // We collected them in the reverse order
-                let arg = *arg as u32 | extended_arg;
-                extended_arg = arg << 8;
-            }
-
-            Some(self.as_ref()[index].get_raw_value() as u32 | extended_arg)
-        } else {
-            None
-        }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -319,7 +368,7 @@ where
 }
 
 /// Generic opcode functions each version has to implement
-pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> {
+pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug {
     fn is_jump(&self) -> bool;
     fn is_absolute_jump(&self) -> bool;
     fn is_relative_jump(&self) -> bool;
@@ -330,32 +379,10 @@ pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> {
     fn is_extended_arg(&self) -> bool;
 }
 
-pub trait Oparg<T> {
-    const MAX: Self;
-
-    fn new(value: T) -> Self;
-}
-
-impl Oparg<u8> for u8 {
-    const MAX: Self = u8::MAX;
-
-    fn new(value: u8) -> Self {
-        value
-    }
-}
-
-impl Oparg<u32> for u32 {
-    const MAX: Self = u32::MAX;
-
-    fn new(value: u32) -> Self {
-        value
-    }
-}
-
 /// Generic instruction functions used by all versions
-pub trait GenericInstruction<OpargType>: PartialEq
+pub trait GenericInstruction<OpargType>: PartialEq + Debug
 where
-    OpargType: PartialEq,
+    OpargType: Oparg,
 {
     type Opcode: GenericOpcode;
 

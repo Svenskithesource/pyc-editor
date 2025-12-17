@@ -229,10 +229,10 @@ macro_rules! define_default_traits {
             }
         }
 
-        impl<T> SimpleInstructionAccess<$crate::$variant::instructions::Instruction> for T where
-            T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
-        {
-        }
+        // impl<T> SimpleInstructionAccess<$crate::$variant::instructions::Instruction> for T where
+        //     T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
+        // {
+        // }
     };
 
     ($variant:ident, ExtInstruction) => {

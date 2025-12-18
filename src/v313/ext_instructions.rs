@@ -6,7 +6,7 @@ use crate::{
     define_default_traits,
     error::Error,
     traits::{
-        ExtInstructionsOwned, GenericInstruction, InstructionAccess, InstructionsOwned,
+        ExtInstructionsOwned, GenericInstruction, InstructionAccess, InstructionsOwned, Oparg,
         SimpleInstructionAccess,
     },
     utils::{get_extended_args_count, UnusedArgument},
@@ -319,6 +319,7 @@ impl<T> ExtInstructionAccess<Instruction> for T
 where
     T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
 {
+    type ExtInstructions = ExtInstructions;
     type Instructions = Instructions;
 
     fn to_instructions(&self) -> Self::Instructions {
@@ -547,117 +548,8 @@ where
 
         instructions
     }
-}
 
-impl InstructionsOwned<ExtInstruction> for ExtInstructions {
-    type Instruction = ExtInstruction;
-
-    fn push(&mut self, item: Self::Instruction) {
-        self.0.push(item);
-    }
-}
-
-impl ExtInstructionsOwned<ExtInstruction> for ExtInstructions {
-    type Instruction = ExtInstruction;
-
-    fn delete_instruction(&mut self, index: usize) {
-        self.0.iter_mut().enumerate().for_each(|(idx, inst)| {
-            match inst {
-                ExtInstruction::ForIter(jump)
-                | ExtInstruction::JumpForward(jump)
-                | ExtInstruction::PopJumpIfFalse(jump)
-                | ExtInstruction::PopJumpIfTrue(jump)
-                | ExtInstruction::Send(jump)
-                | ExtInstruction::PopJumpIfNotNone(jump)
-                | ExtInstruction::PopJumpIfNone(jump)
-                | ExtInstruction::ForIterRange(jump)
-                | ExtInstruction::ForIterList(jump)
-                | ExtInstruction::ForIterGen(jump)
-                | ExtInstruction::ForIterTuple(jump)
-                | ExtInstruction::InstrumentedForIter(jump)
-                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
-                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
-                | ExtInstruction::InstrumentedJumpForward(jump)
-                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
-                | ExtInstruction::InstrumentedPopJumpIfTrue(jump) => {
-                    // Relative jumps only need to update if the index falls within it's jump range
-                    if idx <= index && index + idx <= jump.index as usize {
-                        jump.index -= 1
-                    }
-                }
-                ExtInstruction::JumpBackwardNoInterrupt(jump)
-                | ExtInstruction::JumpBackward(jump)
-                | ExtInstruction::InstrumentedJumpBackward(jump) => {
-                    // Relative jumps only need to update if the index falls within it's jump range
-                    if idx > index && index + idx >= jump.index as usize {
-                        jump.index -= 1
-                    }
-                }
-                _ => {}
-            }
-        });
-
-        self.0.remove(index);
-    }
-
-    fn insert_instruction(&mut self, index: usize, instruction: Self::Instruction) {
-        self.0.iter_mut().enumerate().for_each(|(idx, inst)| {
-            match inst {
-                ExtInstruction::ForIter(jump)
-                | ExtInstruction::JumpForward(jump)
-                | ExtInstruction::PopJumpIfFalse(jump)
-                | ExtInstruction::PopJumpIfTrue(jump)
-                | ExtInstruction::Send(jump)
-                | ExtInstruction::PopJumpIfNotNone(jump)
-                | ExtInstruction::PopJumpIfNone(jump)
-                | ExtInstruction::ForIterRange(jump)
-                | ExtInstruction::ForIterList(jump)
-                | ExtInstruction::ForIterGen(jump)
-                | ExtInstruction::ForIterTuple(jump)
-                | ExtInstruction::InstrumentedForIter(jump)
-                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
-                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
-                | ExtInstruction::InstrumentedJumpForward(jump)
-                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
-                | ExtInstruction::InstrumentedPopJumpIfTrue(jump) => {
-                    // Relative jumps only need to update if the index falls within it's jump range
-                    if idx <= index && index + idx <= jump.index as usize {
-                        jump.index += 1
-                    }
-                }
-                ExtInstruction::JumpBackwardNoInterrupt(jump)
-                | ExtInstruction::JumpBackward(jump)
-                | ExtInstruction::InstrumentedJumpBackward(jump) => {
-                    // Relative jumps only need to update if the index falls within it's jump range
-                    if idx > index && index + idx >= jump.index as usize {
-                        jump.index += 1
-                    }
-                }
-                _ => {}
-            }
-        });
-        self.0.insert(index, instruction);
-    }
-}
-
-/// Resolves the actual index of the current jump instruction.
-/// In 3.13 the jump offsets are relative to the CACHE opcodes succeeding the jump instruction.
-/// They're calculated from the predefined cache layout. This does not guarantee the index is actually valid.
-pub fn get_real_jump_index(instructions: &[ExtInstruction], index: usize) -> Option<usize> {
-    Some(index + get_cache_count(instructions.get(index)?.get_opcode()).unwrap_or(0))
-}
-
-impl ExtInstructions {
-    pub fn with_capacity(capacity: usize) -> Self {
-        ExtInstructions(Vec::with_capacity(capacity))
-    }
-
-    pub fn new(instructions: Vec<ExtInstruction>) -> Self {
-        ExtInstructions(instructions)
-    }
-
-    /// Resolve instructions into extended instructions.
-    pub fn from_instructions(instructions: &[Instruction]) -> Result<Self, Error> {
+    fn from_instructions(instructions: &[Instruction]) -> Result<Self::ExtInstructions, Error> {
         if !instructions.find_ext_arg_jumps().is_empty() {
             return Err(Error::ExtendedArgJump);
         }
@@ -790,7 +682,7 @@ impl ExtInstructions {
                         .expect("The jump table should always contain all jump indexes")
                         .value()
                 }
-                _ => instruction.get_raw_value() as u32 | extended_arg,
+                _ => instruction.get_raw_value().to_u32() | extended_arg,
             };
 
             ext_instructions.append_instruction(
@@ -803,6 +695,114 @@ impl ExtInstructions {
         }
 
         Ok(ext_instructions)
+    }
+}
+
+impl InstructionsOwned<ExtInstruction> for ExtInstructions {
+    type Instruction = ExtInstruction;
+
+    fn push(&mut self, item: Self::Instruction) {
+        self.0.push(item);
+    }
+}
+
+impl ExtInstructionsOwned<ExtInstruction> for ExtInstructions {
+    type Instruction = ExtInstruction;
+
+    fn delete_instruction(&mut self, index: usize) {
+        self.0.iter_mut().enumerate().for_each(|(idx, inst)| {
+            match inst {
+                ExtInstruction::ForIter(jump)
+                | ExtInstruction::JumpForward(jump)
+                | ExtInstruction::PopJumpIfFalse(jump)
+                | ExtInstruction::PopJumpIfTrue(jump)
+                | ExtInstruction::Send(jump)
+                | ExtInstruction::PopJumpIfNotNone(jump)
+                | ExtInstruction::PopJumpIfNone(jump)
+                | ExtInstruction::ForIterRange(jump)
+                | ExtInstruction::ForIterList(jump)
+                | ExtInstruction::ForIterGen(jump)
+                | ExtInstruction::ForIterTuple(jump)
+                | ExtInstruction::InstrumentedForIter(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+                | ExtInstruction::InstrumentedJumpForward(jump)
+                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+                | ExtInstruction::InstrumentedPopJumpIfTrue(jump) => {
+                    // Relative jumps only need to update if the index falls within it's jump range
+                    if idx <= index && index + idx <= jump.index as usize {
+                        jump.index -= 1
+                    }
+                }
+                ExtInstruction::JumpBackwardNoInterrupt(jump)
+                | ExtInstruction::JumpBackward(jump)
+                | ExtInstruction::InstrumentedJumpBackward(jump) => {
+                    // Relative jumps only need to update if the index falls within it's jump range
+                    if idx > index && index + idx >= jump.index as usize {
+                        jump.index -= 1
+                    }
+                }
+                _ => {}
+            }
+        });
+
+        self.0.remove(index);
+    }
+
+    fn insert_instruction(&mut self, index: usize, instruction: Self::Instruction) {
+        self.0.iter_mut().enumerate().for_each(|(idx, inst)| {
+            match inst {
+                ExtInstruction::ForIter(jump)
+                | ExtInstruction::JumpForward(jump)
+                | ExtInstruction::PopJumpIfFalse(jump)
+                | ExtInstruction::PopJumpIfTrue(jump)
+                | ExtInstruction::Send(jump)
+                | ExtInstruction::PopJumpIfNotNone(jump)
+                | ExtInstruction::PopJumpIfNone(jump)
+                | ExtInstruction::ForIterRange(jump)
+                | ExtInstruction::ForIterList(jump)
+                | ExtInstruction::ForIterGen(jump)
+                | ExtInstruction::ForIterTuple(jump)
+                | ExtInstruction::InstrumentedForIter(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNone(jump)
+                | ExtInstruction::InstrumentedPopJumpIfNotNone(jump)
+                | ExtInstruction::InstrumentedJumpForward(jump)
+                | ExtInstruction::InstrumentedPopJumpIfFalse(jump)
+                | ExtInstruction::InstrumentedPopJumpIfTrue(jump) => {
+                    // Relative jumps only need to update if the index falls within it's jump range
+                    if idx <= index && index + idx <= jump.index as usize {
+                        jump.index += 1
+                    }
+                }
+                ExtInstruction::JumpBackwardNoInterrupt(jump)
+                | ExtInstruction::JumpBackward(jump)
+                | ExtInstruction::InstrumentedJumpBackward(jump) => {
+                    // Relative jumps only need to update if the index falls within it's jump range
+                    if idx > index && index + idx >= jump.index as usize {
+                        jump.index += 1
+                    }
+                }
+                _ => {}
+            }
+        });
+        self.0.insert(index, instruction);
+    }
+}
+
+/// Resolves the actual index of the current jump instruction.
+/// In 3.13 the jump offsets are relative to the CACHE opcodes succeeding the jump instruction.
+/// They're calculated from the predefined cache layout. This does not guarantee the index is actually valid.
+pub fn get_real_jump_index(instructions: &[ExtInstruction], index: usize) -> Option<usize> {
+    Some(index + get_cache_count(instructions.get(index)?.get_opcode()).unwrap_or(0))
+}
+
+impl ExtInstructions {
+    pub fn with_capacity(capacity: usize) -> Self {
+        ExtInstructions(Vec::with_capacity(capacity))
+    }
+
+    pub fn new(instructions: Vec<ExtInstruction>) -> Self {
+        ExtInstructions(instructions)
     }
 }
 
@@ -1135,7 +1135,8 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
     }
 }
 
-impl GenericInstruction<u32> for ExtInstruction {
+impl GenericInstruction for ExtInstruction {
+    type OpargType = u32;
     type Opcode = Opcode;
 
     fn get_opcode(&self) -> Self::Opcode {
@@ -1585,6 +1586,10 @@ impl GenericInstruction<u32> for ExtInstruction {
             ExtInstruction::Resume(resume_where) => resume_where.into(),
             ExtInstruction::InvalidOpcode((_, arg)) => *arg,
         }
+    }
+
+    fn get_nop() -> Self {
+        ExtInstruction::Nop(UnusedArgument(0))
     }
 }
 

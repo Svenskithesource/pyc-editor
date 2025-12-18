@@ -4,8 +4,8 @@ use pyc_editor::{
     v311, v312, v313,
 };
 
-use python_marshal::magic::PyVersion;
 use python_marshal::CodeFlags;
+use python_marshal::magic::PyVersion;
 use rayon::prelude::*;
 use std::{
     io::{BufReader, Write},
@@ -155,14 +155,15 @@ fn compare_instructions<T: SimpleInstructionAccess<I>, I>(original_list: T, new_
                     };
 
                     if curr_instruction.is_extended_arg()
-                        && prev_instruction.get_raw_value() != u8::MAX
+                        && prev_instruction.get_raw_value().to_u8() != u8::MAX
                     {
                         // Has to be max value for the bug to happen
                         return false;
                     }
                 }
 
-                if !(curr_instruction.is_jump_backwards() && curr_instruction.get_raw_value() == 0)
+                if !(curr_instruction.is_jump_backwards()
+                    && curr_instruction.get_raw_value().to_u8() == 0)
                 {
                     // Bug did not occur so there could be an actual mismatch or a difference in indexes due to previous bugs
                     possible_mismatches.push((og_index, new_index));
@@ -263,14 +264,15 @@ fn test_recompile_resolved_standard_lib() {
                                 return Err((
                                     pyc_editor::CodeObject::$variant(code),
                                     pyc_editor::CodeObject::$variant(new_code),
-                                ))
+                                ));
                             }
                             true => {}
                         }
 
                         for constant in &mut code.consts {
-                            if let $module::code_objects::Constant::CodeObject(ref mut const_code) =
-                                constant
+                            if let &mut $module::code_objects::Constant::CodeObject(
+                                ref mut const_code,
+                            ) = constant
                             {
                                 rewrite_code_object(pyc_editor::CodeObject::$variant(
                                     const_code.clone(),
@@ -337,7 +339,7 @@ fn test_line_number_standard_lib() {
                         }
 
                         for constant in &$code.consts {
-                            if let $module::code_objects::Constant::CodeObject(ref const_code) =
+                            if let &$module::code_objects::Constant::CodeObject(ref const_code) =
                                 constant
                             {
                                 recursive_code_object(&pyc_editor::CodeObject::$variant(
@@ -454,8 +456,9 @@ fn test_stacksize_standard_lib() {
                             );
 
                             for constant in &$code.consts {
-                                if let $module::code_objects::Constant::CodeObject(ref const_code) =
-                                    constant
+                                if let &$module::code_objects::Constant::CodeObject(
+                                    ref const_code,
+                                ) = constant
                                 {
                                     recursive_code_object(&pyc_editor::CodeObject::$variant(
                                         const_code.clone(),

@@ -5,12 +5,14 @@ use crate::{
     utils::{ExceptionTableEntry, StackEffect},
 };
 
-pub trait Oparg: Copy + PartialEq + 'static {
+pub trait Oparg: Copy + PartialEq + 'static + Debug {
     fn is_u32() -> bool;
 
     fn to_u32(self) -> u32;
 
     fn is_u8() -> bool;
+
+    fn to_u8(self) -> u8;
 }
 
 impl Oparg for u8 {
@@ -26,6 +28,11 @@ impl Oparg for u8 {
     fn is_u8() -> bool {
         true
     }
+
+    #[inline]
+    fn to_u8(self) -> u8 {
+        self as u8
+    }
 }
 impl Oparg for u32 {
     fn is_u32() -> bool {
@@ -40,6 +47,11 @@ impl Oparg for u32 {
     fn is_u8() -> bool {
         false
     }
+
+    #[inline]
+    fn to_u8(self) -> u8 {
+        self as u8
+    }
 }
 
 pub trait InstructionAccess<OpargType, I>
@@ -47,7 +59,7 @@ where
     Self: AsRef<[Self::Instruction]>,
     OpargType: Oparg,
 {
-    type Instruction: GenericInstruction<OpargType> + std::fmt::Debug;
+    type Instruction: GenericInstruction + std::fmt::Debug;
     type Jump;
 
     fn get_instructions(&self) -> &[Self::Instruction] {
@@ -197,7 +209,7 @@ where
 
         for instruction in self.as_ref().iter() {
             bytearray.push(instruction.get_opcode().into());
-            bytearray.push(instruction.get_raw_value())
+            bytearray.push(instruction.get_raw_value().to_u8())
         }
 
         bytearray
@@ -304,10 +316,14 @@ where
 }
 
 pub trait ExtInstructionAccess<I> {
+    type ExtInstructions;
     type Instructions: SimpleInstructionAccess<I>;
 
     /// Convert the resolved instructions back into instructions with extended args.
     fn to_instructions(&self) -> Self::Instructions;
+
+    /// Resolve instructions into extended instructions.
+    fn from_instructions(instructions: &[I]) -> Result<Self::ExtInstructions, Error>;
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_instructions().to_bytes()
@@ -377,18 +393,17 @@ pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug {
     fn is_conditional_jump(&self) -> bool;
     fn stops_execution(&self) -> bool;
     fn is_extended_arg(&self) -> bool;
+    fn get_nop() -> Self;
 }
 
 /// Generic instruction functions used by all versions
-pub trait GenericInstruction<OpargType>: PartialEq + Debug + Clone
-where
-    OpargType: Oparg,
-{
+pub trait GenericInstruction: PartialEq + Debug + Clone {
+    type OpargType: Oparg;
     type Opcode: GenericOpcode;
 
     fn get_opcode(&self) -> Self::Opcode;
 
-    fn get_raw_value(&self) -> OpargType;
+    fn get_raw_value(&self) -> Self::OpargType;
 
     /// Relative or absolute jump
     fn is_jump(&self) -> bool {
@@ -422,6 +437,8 @@ where
     fn is_extended_arg(&self) -> bool {
         self.get_opcode().is_extended_arg()
     }
+
+    fn get_nop() -> Self;
 
     /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
     /// If jump is false, it will return the stack effect of not jumping.

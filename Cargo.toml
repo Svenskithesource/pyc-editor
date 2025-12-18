@@ -5,7 +5,7 @@ description = "A Rust library for reading, modifying, and writing Python .pyc fi
 repository = "https://github.com/Svenskithesource/pyc-editor"
 readme = "README.md"
 version = "0.4.2"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 bitflags = "2.9.1"

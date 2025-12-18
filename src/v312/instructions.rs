@@ -226,7 +226,8 @@ pub enum Instruction {
     InvalidOpcode((u8, u8)), // (opcode, arg)
 }
 
-impl GenericInstruction<u8> for Instruction {
+impl GenericInstruction for Instruction {
+    type OpargType = u8;
     type Opcode = Opcode;
 
     fn get_opcode(&self) -> Self::Opcode {
@@ -443,6 +444,10 @@ impl GenericInstruction<u8> for Instruction {
             | Instruction::SendGen(arg) => *arg,
             Instruction::InvalidOpcode((_, arg)) => *arg,
         }
+    }
+
+    fn get_nop() -> Self {
+        Instruction::Nop(0)
     }
 }
 

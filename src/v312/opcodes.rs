@@ -327,6 +327,10 @@ impl GenericOpcode for Opcode {
         matches!(self, Opcode::EXTENDED_ARG)
     }
 
+    fn get_nop() -> Self {
+        Opcode::NOP
+    }
+
     // fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect {
     //     match self {
     //         Opcode::NOP

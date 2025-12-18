@@ -213,6 +213,10 @@ impl GenericOpcode for Opcode {
         matches!(self, Opcode::EXTENDED_ARG)
     }
 
+    fn get_nop() -> Self {
+        Opcode::NOP
+    }
+
     // fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect {
     //     // See https://github.com/python/cpython/blob/3.10/Python/compile.c#L956
     //     match &self {

@@ -1,8 +1,17 @@
-use std::{collections::VecDeque, fmt::Debug, ops::Deref};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Debug,
+    ops::Deref,
+};
 
-use crate::traits::{GenericInstruction, InstructionAccess, Oparg, SimpleInstructionAccess};
+use crate::{
+    error::Error,
+    traits::{
+        ExtInstructionAccess, GenericInstruction, InstructionAccess, Oparg, SimpleInstructionAccess,
+    },
+};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BlockIndex {
     /// Index of the block in the `blocks` list of the CFG
     Index(usize),
@@ -34,7 +43,10 @@ impl<T> Block<T> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ControlFlowGraph<I> {
+pub struct ControlFlowGraph<I>
+where
+    I: GenericInstruction,
+{
     pub blocks: Vec<Block<I>>,
     pub start_index: BlockIndex,
 }
@@ -44,41 +56,158 @@ impl<I, T> SimpleInstructionAccess<I> for T where
 {
 }
 
+/// This "fixes" a unique pattern:
+///
+/// LOAD_CONST 0
+/// POP_JUMP_FORWARD_IF_TRUE 1
+/// EXTENDED_ARG
+/// STORE_NAME 0
+///
+/// We will convert this to
+///
+/// LOAD_CONST 0
+/// POP_JUMP_FORWARD_IF_TRUE 3
+/// EXTENDED_ARG
+/// STORE_NAME 0
+/// JUMP_FORWARD 1
+/// STORE_NAME 0
+///
+/// `blocks_to_fix` contains a list of blocks indexes that jump over an EXTENDED_ARG
+fn fix_extended_args<I>(cfg: &mut ControlFlowGraph<I>, blocks_to_fix: &[BlockIndex])
+where
+    I: GenericInstruction,
+{
+    for block_to_fix in blocks_to_fix {
+        match block_to_fix {
+            BlockIndex::Index(index) => {
+                let default_block_index = match cfg.blocks[*index].default_block {
+                    BlockIndex::Index(default_index) => default_index,
+                    _ => unreachable!(),
+                };
+
+                let branch_block_index = match cfg.blocks[*index].branch_block {
+                    BlockIndex::Index(branch_index) => branch_index,
+                    _ => unreachable!(),
+                };
+
+                // The instruction that the EXTENDED_ARG should be applied to
+                let mut instructions = cfg.blocks[branch_block_index].instructions.clone();
+
+                cfg.blocks
+                    .get_mut(branch_block_index)
+                    .expect("index is valid here")
+                    .instructions = vec![instructions[0].clone()];
+
+                // Copy the instruction behind the EXTENDED_ARG
+                cfg.blocks
+                    .get_mut(default_block_index)
+                    .expect("index is valid here")
+                    .instructions
+                    .push(instructions[0].clone());
+
+                // Remove first instruction in the branch block
+                instructions.remove(0);
+
+                // Create new block that has the remaining instructions of the branch block
+                cfg.blocks.push(Block {
+                    instructions: instructions,
+                    branch_block: cfg.blocks[branch_block_index].branch_block.clone(),
+                    default_block: cfg.blocks[branch_block_index].default_block.clone(),
+                });
+
+                let new_block_index = cfg.blocks.len() - 1;
+
+                cfg.blocks
+                    .get_mut(branch_block_index)
+                    .expect("index is valid here")
+                    .default_block = BlockIndex::Index(new_block_index);
+
+                cfg.blocks
+                    .get_mut(branch_block_index)
+                    .expect("index is valid here")
+                    .branch_block = BlockIndex::NoIndex;
+
+                cfg.blocks
+                    .get_mut(default_block_index)
+                    .expect("index is valid here")
+                    .default_block = BlockIndex::Index(new_block_index);
+
+                // Should never happen but just in case we will add a NOP.
+                if cfg.blocks[new_block_index].instructions.is_empty() {
+                    cfg.blocks
+                        .get_mut(new_block_index)
+                        .expect("index is valid here")
+                        .instructions
+                        .push(I::get_nop());
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
 pub fn create_cfg<OpargType, I>(instructions: Vec<I>) -> ControlFlowGraph<I>
 where
     OpargType: Oparg,
-    I: GenericInstruction<OpargType>,
+    I: GenericInstruction,
     Vec<I>: InstructionAccess<OpargType, I>,
 {
     // Used for keeping track of finished blocks
     let mut blocks: Vec<Block<I>> = vec![];
+
+    // Maps instruction index to block index
+    let mut block_map: HashMap<usize, BlockIndex> = HashMap::new();
+
     // Keeps indexes of instructions that start new blocks and still need to be processed.
     let mut block_queue: VecDeque<usize> = VecDeque::new();
     block_queue.push_front(0);
+
+    // A list of block indexes that will be used to fix a unique EXTENDED_ARG pattern. See `fix_extended_args`.
+    let mut block_indexes_to_fix = vec![];
 
     let mut curr_block_index = 0;
 
     while !block_queue.is_empty() {
         let mut index = block_queue.pop_back().expect("queue is not empty");
+
         let mut curr_block = vec![];
 
+        let start_index = index;
+
         loop {
-            let instruction = instructions
-                .get(index)
-                .expect("index was previously checked")
-                .clone();
+            if block_map.contains_key(&index) {
+                if !curr_block.is_empty() {
+                    blocks.push(Block {
+                        instructions: curr_block,
+                        branch_block: BlockIndex::NoIndex,
+                        default_block: block_map[&index].clone(),
+                    });
+                }
+
+                break;
+            }
+
+            let instruction = instructions[index].clone();
 
             curr_block.push(instruction.clone());
 
             if instruction.is_jump() {
-                let next_instruction = if index + 1 < instructions.len() {
-                    Some(index + 1)
-                } else {
-                    None
-                };
+                let next_instruction =
+                    if index + 1 < instructions.len() && instruction.is_conditional_jump() {
+                        Some(index + 1)
+                    } else {
+                        None
+                    };
 
                 let jump_instruction =
                     if let Some((jump_index, _)) = instructions.get_jump_target(index as u32) {
+                        if instruction.is_conditional_jump() {
+                            if let Some(instruction) = instructions.get(jump_index as usize - 1)
+                                && instruction.is_extended_arg()
+                            {
+                                block_indexes_to_fix.push(BlockIndex::Index(curr_block_index));
+                            }
+                        }
                         Some(jump_index)
                     } else {
                         None
@@ -87,9 +216,13 @@ where
                 blocks.push(Block {
                     instructions: curr_block,
                     branch_block: if let Some(jump_index) = jump_instruction {
-                        block_queue.push_front(jump_index as usize);
+                        if block_map.contains_key(&(jump_index as usize)) {
+                            block_map[&(jump_index as usize)].clone()
+                        } else {
+                            block_queue.push_front(jump_index as usize);
 
-                        BlockIndex::Index(curr_block_index + 1)
+                            BlockIndex::Index(curr_block_index + 1)
+                        }
                     } else {
                         BlockIndex::InvalidIndex(
                             instructions
@@ -99,12 +232,18 @@ where
                         )
                     },
                     default_block: if let Some(next_index) = next_instruction {
-                        block_queue.push_front(next_index);
+                        if block_map.contains_key(&next_index) {
+                            block_map[&next_index].clone()
+                        } else {
+                            block_queue.push_front(next_index);
 
-                        // If branch block also exists add another 1
-                        BlockIndex::Index(
-                            curr_block_index + 1 + if jump_instruction.is_some() { 1 } else { 0 },
-                        )
+                            // If branch block also exists add another 1
+                            BlockIndex::Index(
+                                curr_block_index
+                                    + 1
+                                    + if jump_instruction.is_some() { 1 } else { 0 },
+                            )
+                        }
                     } else {
                         BlockIndex::NoIndex
                     },
@@ -134,10 +273,14 @@ where
             }
         }
 
-        curr_block_index += 1;
+        if !block_map.contains_key(&index) {
+            block_map.insert(start_index, BlockIndex::Index(curr_block_index));
+
+            curr_block_index += 1;
+        }
     }
 
-    ControlFlowGraph::<I> {
+    let mut cfg = ControlFlowGraph::<I> {
         start_index: if !blocks.is_empty() {
             BlockIndex::Index(0)
         } else {
@@ -145,12 +288,37 @@ where
         },
 
         blocks: blocks,
+    };
+
+    fix_extended_args(&mut cfg, &block_indexes_to_fix);
+
+    cfg
+}
+
+// Convert a cfg that consists of simple instructions to a cfg where the extended args are resolved.
+pub fn simple_cfg_to_ext_cfg<SimpleI, ExtI, ExtInstructions>(
+    simple_cfg: ControlFlowGraph<SimpleI>,
+) -> Result<ControlFlowGraph<ExtI>, Error>
+where
+    SimpleI: GenericInstruction<OpargType = u8>,
+    ExtI: GenericInstruction<OpargType = u32>,
+    ExtInstructions: ExtInstructionAccess<SimpleI>,
+{
+    let mut blocks = vec![];
+
+    for block in simple_cfg.blocks {
+        let ext_instructions = ExtInstructions::from_instructions(&block.instructions)?;
     }
+
+    Ok(ControlFlowGraph::<ExtI> {
+        blocks,
+        start_index: simple_cfg.start_index,
+    })
 }
 
 #[cfg(test)]
 mod test {
-    use std::fmt::Debug;
+    use std::{collections::HashMap, fmt::Debug};
 
     use petgraph::{
         dot::{Config, Dot},
@@ -158,15 +326,16 @@ mod test {
     };
 
     use crate::{
-        cfg::{create_cfg, Block, BlockIndex},
+        cfg::{Block, BlockIndex, create_cfg},
         traits::GenericInstruction,
         v311::instructions::{Instruction, Instructions},
     };
 
-    fn add_block<I: GenericInstruction<u8>>(
+    fn add_block<I: GenericInstruction>(
         graph: &mut petgraph::Graph<String, &str>,
         blocks: &[Block<I>],
         block_index: &BlockIndex,
+        block_map: &mut HashMap<BlockIndex, NodeIndex>,
     ) -> Option<NodeIndex> {
         let block = match block_index {
             BlockIndex::Index(index) => blocks.get(*index).unwrap(),
@@ -180,11 +349,18 @@ mod test {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let index = graph.add_node(text);
+        let index = if block_map.contains_key(block_index) {
+            block_map[block_index]
+        } else {
+            let index = graph.add_node(text);
+            block_map.insert(block_index.clone(), index);
 
-        let branch_index = add_block(graph, blocks, &block.branch_block);
+            index
+        };
 
-        let default_index = add_block(graph, blocks, &block.default_block);
+        let branch_index = add_block(graph, blocks, &block.branch_block, block_map);
+
+        let default_index = add_block(graph, blocks, &block.default_block, block_map);
 
         if let Some(to_index) = branch_index {
             graph.add_edge(index, to_index, "branch");
@@ -198,7 +374,7 @@ mod test {
     }
 
     #[test]
-    fn make_dot_graph() {
+    fn simple_instructions() {
         let instructions = Instructions::new(vec![
             Instruction::LoadConst(0),
             Instruction::LoadConst(1),
@@ -210,13 +386,32 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec());
+        make_dot_graph(instructions);
+    }
 
-        dbg!(&cfg);
+    #[test]
+    fn ext_trick() {
+        let instructions = Instructions::new(vec![
+            Instruction::LoadConst(0),
+            Instruction::PopJumpForwardIfTrue(1),
+            Instruction::ExtendedArg(0),
+            Instruction::StoreName(0),
+        ]);
+
+        make_dot_graph(instructions);
+    }
+
+    fn make_dot_graph(instructions: Instructions) {
+        let cfg = create_cfg(instructions.to_vec());
 
         let mut graph = petgraph::Graph::<String, &str>::new();
 
-        add_block(&mut graph, &cfg.blocks, &cfg.start_index);
+        add_block(
+            &mut graph,
+            &cfg.blocks,
+            &cfg.start_index,
+            &mut HashMap::new(),
+        );
 
         println!(
             "{:#?}",

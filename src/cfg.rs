@@ -7,7 +7,8 @@ use std::{
 use crate::{
     error::Error,
     traits::{
-        ExtInstructionAccess, GenericInstruction, InstructionAccess, Oparg, SimpleInstructionAccess,
+        ExtInstructionAccess, GenericInstruction, GenericOpcode, InstructionAccess, Oparg,
+        SimpleInstructionAccess,
     },
 };
 
@@ -21,28 +22,61 @@ pub enum BlockIndex {
     NoIndex,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BranchBlockIndex<O>
+where
+    O: GenericOpcode,
+{
+    Edge(BranchEdge<O>),
+    /// For blocks without a target
+    NoIndex,
+}
+
+/// Used to represent the opcode that was used for this branch and the block index it's jumping to.
+/// We do this so the value of the branch instruction cannot represent a wrong index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BranchEdge<O>
+where
+    O: GenericOpcode,
+{
+    opcode: O,
+    block_index: BlockIndex,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 /// Represents a block in the control flow graph
-pub struct Block<I> {
+pub struct Block<I>
+where
+    I: GenericInstruction,
+{
     pub instructions: Vec<I>,
     /// Index to block for conditional jump
-    pub branch_block: BlockIndex,
+    pub branch_block: BranchBlockIndex<I::Opcode>,
     /// Index to default block (unconditional)
     pub default_block: BlockIndex,
 }
 
-impl<T> Block<T> {
+impl<T> Block<T>
+where
+    T: GenericInstruction,
+{
     pub fn is_terminating(&self) -> bool {
         matches!(self.default_block, BlockIndex::NoIndex)
     }
 
     /// Whether the block has a conditional jump or not
     pub fn is_conditional(&self) -> bool {
-        matches!(self.branch_block, BlockIndex::Index(_))
+        matches!(
+            self.branch_block,
+            BranchBlockIndex::Edge(BranchEdge {
+                block_index: BlockIndex::Index(_),
+                ..
+            })
+        )
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct ControlFlowGraph<I>
 where
     I: GenericInstruction,
@@ -86,7 +120,10 @@ where
                 };
 
                 let branch_block_index = match cfg.blocks[*index].branch_block {
-                    BlockIndex::Index(branch_index) => branch_index,
+                    BranchBlockIndex::Edge(BranchEdge {
+                        block_index: BlockIndex::Index(branch_index),
+                        ..
+                    }) => branch_index,
                     _ => unreachable!(),
                 };
 
@@ -144,7 +181,7 @@ where
                 cfg.blocks
                     .get_mut(branch_block_index)
                     .expect("index is valid here")
-                    .branch_block = BlockIndex::NoIndex;
+                    .branch_block = BranchBlockIndex::NoIndex;
 
                 cfg.blocks
                     .get_mut(default_block_index)
@@ -198,7 +235,7 @@ where
                 if !curr_block.is_empty() {
                     blocks.push(Block {
                         instructions: curr_block,
-                        branch_block: BlockIndex::NoIndex,
+                        branch_block: BranchBlockIndex::NoIndex,
                         default_block: block_map[&index].clone(),
                     });
                 }
@@ -207,8 +244,6 @@ where
             }
 
             let instruction = instructions[index].clone();
-
-            curr_block.push(instruction.clone());
 
             if instruction.is_jump() {
                 let next_instruction =
@@ -234,22 +269,25 @@ where
 
                 blocks.push(Block {
                     instructions: curr_block,
-                    branch_block: if let Some(jump_index) = jump_instruction {
-                        if block_map.contains_key(&(jump_index as usize)) {
-                            block_map[&(jump_index as usize)].clone()
-                        } else {
-                            block_queue.push_front(jump_index as usize);
+                    branch_block: BranchBlockIndex::Edge(BranchEdge {
+                        opcode: instruction.get_opcode(),
+                        block_index: if let Some(jump_index) = jump_instruction {
+                            if block_map.contains_key(&(jump_index as usize)) {
+                                block_map[&(jump_index as usize)].clone()
+                            } else {
+                                block_queue.push_front(jump_index as usize);
 
-                            BlockIndex::Index(curr_block_index + 1)
-                        }
-                    } else {
-                        BlockIndex::InvalidIndex(
-                            instructions
-                                .get_full_arg(index)
-                                .expect("Index is within bounds")
-                                as usize,
-                        )
-                    },
+                                BlockIndex::Index(curr_block_index + 1)
+                            }
+                        } else {
+                            BlockIndex::InvalidIndex(
+                                instructions
+                                    .get_full_arg(index)
+                                    .expect("Index is within bounds")
+                                    as usize,
+                            )
+                        },
+                    }),
                     default_block: if let Some(next_index) = next_instruction {
                         if block_map.contains_key(&next_index) {
                             block_map[&next_index].clone()
@@ -269,10 +307,14 @@ where
                 });
 
                 break;
-            } else if instruction.stops_execution() {
+            }
+
+            curr_block.push(instruction.clone());
+
+            if instruction.stops_execution() {
                 blocks.push(Block {
                     instructions: curr_block,
-                    branch_block: BlockIndex::NoIndex,
+                    branch_block: BranchBlockIndex::NoIndex,
                     default_block: BlockIndex::NoIndex,
                 });
 
@@ -284,7 +326,7 @@ where
             } else {
                 blocks.push(Block {
                     instructions: curr_block,
-                    branch_block: BlockIndex::NoIndex,
+                    branch_block: BranchBlockIndex::NoIndex,
                     default_block: BlockIndex::NoIndex,
                 });
 
@@ -320,7 +362,7 @@ pub fn simple_cfg_to_ext_cfg<SimpleI, ExtI, ExtInstructions>(
 ) -> Result<ControlFlowGraph<ExtI>, Error>
 where
     SimpleI: GenericInstruction<OpargType = u8>,
-    ExtI: GenericInstruction<OpargType = u32>,
+    ExtI: GenericInstruction<OpargType = u32, Opcode = SimpleI::Opcode>,
     ExtInstructions: ExtInstructionAccess<SimpleI, ExtI>,
 {
     let mut blocks = vec![];
@@ -330,7 +372,13 @@ where
 
         blocks.push(Block {
             instructions: ext_instructions,
-            branch_block: block.branch_block.clone(),
+            branch_block: match &block.branch_block {
+                BranchBlockIndex::Edge(edge) => BranchBlockIndex::Edge(BranchEdge {
+                    opcode: edge.opcode.clone(),
+                    block_index: edge.block_index.clone(),
+                }),
+                BranchBlockIndex::NoIndex => BranchBlockIndex::NoIndex,
+            },
             default_block: block.default_block.clone(),
         });
     }
@@ -351,14 +399,19 @@ mod test {
     };
 
     use crate::{
-        cfg::{Block, BlockIndex, ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg},
+        cfg::{
+            Block, BlockIndex, BranchBlockIndex, BranchEdge, ControlFlowGraph, create_cfg,
+            simple_cfg_to_ext_cfg,
+        },
         traits::GenericInstruction,
-        v311::ext_instructions::{ExtInstruction, ExtInstructions},
-        v311::instructions::{Instruction, Instructions},
+        v311::{
+            ext_instructions::{ExtInstruction, ExtInstructions},
+            instructions::{Instruction, Instructions},
+        },
     };
 
     fn add_block<I: GenericInstruction>(
-        graph: &mut petgraph::Graph<String, &str>,
+        graph: &mut petgraph::Graph<String, String>,
         blocks: &[Block<I>],
         block_index: &BlockIndex,
         block_map: &mut HashMap<BlockIndex, NodeIndex>,
@@ -384,16 +437,29 @@ mod test {
             index
         };
 
-        let branch_index = add_block(graph, blocks, &block.branch_block, block_map);
+        dbg!(&block.branch_block);
+
+        let (block_index, opcode) = match &block.branch_block {
+            BranchBlockIndex::Edge(BranchEdge {
+                block_index,
+                opcode,
+            }) => (block_index, Some(opcode.clone())),
+            _ => (&BlockIndex::NoIndex, None),
+        };
+
+        dbg!(&opcode);
+
+        let branch_index = add_block(graph, blocks, block_index, block_map);
 
         let default_index = add_block(graph, blocks, &block.default_block, block_map);
 
         if let Some(to_index) = branch_index {
-            graph.add_edge(index, to_index, "branch");
+            let text = format!("{:#?}", opcode.unwrap());
+            graph.add_edge(index, to_index, text);
         }
 
         if let Some(to_index) = default_index {
-            graph.add_edge(index, to_index, "fallthrough");
+            graph.add_edge(index, to_index, "fallthrough".to_string());
         }
 
         Some(index)
@@ -460,7 +526,7 @@ mod test {
     where
         I: GenericInstruction,
     {
-        let mut graph = petgraph::Graph::<String, &str>::new();
+        let mut graph = petgraph::Graph::<String, String>::new();
 
         add_block(
             &mut graph,

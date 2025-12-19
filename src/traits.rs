@@ -388,7 +388,7 @@ where
 }
 
 /// Generic opcode functions each version has to implement
-pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug {
+pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug + Clone {
     fn is_jump(&self) -> bool;
     fn is_absolute_jump(&self) -> bool;
     fn is_relative_jump(&self) -> bool;

@@ -304,7 +304,7 @@ where
     }
 }
 
-impl<T> ExtInstructionAccess<Instruction> for T
+impl<T> ExtInstructionAccess<Instruction, ExtInstruction> for T
 where
     T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
 {

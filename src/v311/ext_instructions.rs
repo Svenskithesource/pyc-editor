@@ -9,7 +9,7 @@ use crate::{
         ExtInstructionAccess, ExtInstructionsOwned, GenericInstruction, InstructionAccess,
         InstructionsOwned, Oparg, SimpleInstructionAccess,
     },
-    utils::{get_extended_args_count, UnusedArgument},
+    utils::{UnusedArgument, get_extended_args_count},
     v311::{
         code_objects::{
             AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex, CompareOperation,
@@ -216,7 +216,10 @@ pub enum ExtInstruction {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtInstructions(Vec<ExtInstruction>);
 
-impl InstructionAccess<u32, ExtInstruction> for [ExtInstruction] {
+impl<T> InstructionAccess<u32, ExtInstruction> for T
+where
+    T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
+{
     type Instruction = ExtInstruction;
     type Jump = Jump;
 
@@ -269,7 +272,7 @@ impl InstructionAccess<u32, ExtInstruction> for [ExtInstruction] {
     }
 }
 
-impl<T> ExtInstructionAccess<Instruction> for T
+impl<T> ExtInstructionAccess<Instruction, ExtInstruction> for T
 where
     T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
 {

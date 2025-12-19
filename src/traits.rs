@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Debug, ops::DerefMut};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{
     error::Error,
@@ -56,7 +60,7 @@ impl Oparg for u32 {
 
 pub trait InstructionAccess<OpargType, I>
 where
-    Self: AsRef<[Self::Instruction]>,
+    Self: AsRef<[Self::Instruction]> + Deref<Target = [I]>,
     OpargType: Oparg,
 {
     type Instruction: GenericInstruction + std::fmt::Debug;
@@ -315,8 +319,8 @@ where
     }
 }
 
-pub trait ExtInstructionAccess<I> {
-    type ExtInstructions;
+pub trait ExtInstructionAccess<I, ExtI> {
+    type ExtInstructions: InstructionAccess<u32, ExtI>;
     type Instructions: SimpleInstructionAccess<I>;
 
     /// Convert the resolved instructions back into instructions with extended args.

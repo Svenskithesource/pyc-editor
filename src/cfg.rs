@@ -90,23 +90,42 @@ where
                     _ => unreachable!(),
                 };
 
-                // The instruction that the EXTENDED_ARG should be applied to
+                // The instruction that the EXTENDED_ARG should be applied to is at the start of this one
                 let mut instructions = cfg.blocks[branch_block_index].instructions.clone();
 
+                // If there are multiple extended args, this should indicate that
+                let instructions_to_copy = instructions
+                    .iter()
+                    .take_while(|i| i.is_extended_arg())
+                    .count()
+                    // The instruction itself
+                    + 1;
+
+                // Remove rest of instructions in the branch block
                 cfg.blocks
                     .get_mut(branch_block_index)
                     .expect("index is valid here")
-                    .instructions = vec![instructions[0].clone()];
+                    .instructions = instructions
+                    .iter()
+                    .take(instructions_to_copy)
+                    .cloned()
+                    .collect();
 
-                // Copy the instruction behind the EXTENDED_ARG
+                // Copy the instruction(s) behind the EXTENDED_ARG
                 cfg.blocks
                     .get_mut(default_block_index)
                     .expect("index is valid here")
                     .instructions
-                    .push(instructions[0].clone());
+                    .extend_from_slice(
+                        &instructions
+                            .iter()
+                            .take(instructions_to_copy)
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                    );
 
-                // Remove first instruction in the branch block
-                instructions.remove(0);
+                // Remove first instruction(s) in the branch block that we will copy into the new branch block
+                let instructions = instructions.split_off(instructions_to_copy);
 
                 // Create new block that has the remaining instructions of the branch block
                 cfg.blocks.push(Block {
@@ -297,22 +316,28 @@ where
 
 // Convert a cfg that consists of simple instructions to a cfg where the extended args are resolved.
 pub fn simple_cfg_to_ext_cfg<SimpleI, ExtI, ExtInstructions>(
-    simple_cfg: ControlFlowGraph<SimpleI>,
+    simple_cfg: &ControlFlowGraph<SimpleI>,
 ) -> Result<ControlFlowGraph<ExtI>, Error>
 where
     SimpleI: GenericInstruction<OpargType = u8>,
     ExtI: GenericInstruction<OpargType = u32>,
-    ExtInstructions: ExtInstructionAccess<SimpleI>,
+    ExtInstructions: ExtInstructionAccess<SimpleI, ExtI>,
 {
     let mut blocks = vec![];
 
-    for block in simple_cfg.blocks {
-        let ext_instructions = ExtInstructions::from_instructions(&block.instructions)?;
+    for block in &simple_cfg.blocks {
+        let ext_instructions = ExtInstructions::from_instructions(&block.instructions)?.to_vec();
+
+        blocks.push(Block {
+            instructions: ext_instructions,
+            branch_block: block.branch_block.clone(),
+            default_block: block.default_block.clone(),
+        });
     }
 
     Ok(ControlFlowGraph::<ExtI> {
         blocks,
-        start_index: simple_cfg.start_index,
+        start_index: simple_cfg.start_index.clone(),
     })
 }
 
@@ -326,8 +351,9 @@ mod test {
     };
 
     use crate::{
-        cfg::{Block, BlockIndex, create_cfg},
+        cfg::{Block, BlockIndex, ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg},
         traits::GenericInstruction,
+        v311::ext_instructions::{ExtInstruction, ExtInstructions},
         v311::instructions::{Instruction, Instructions},
     };
 
@@ -386,7 +412,33 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        make_dot_graph(instructions);
+        let cfg = create_cfg(instructions.to_vec());
+
+        make_dot_graph(&cfg);
+    }
+
+    #[test]
+    fn simple_to_ext_instructions() {
+        let instructions = Instructions::new(vec![
+            Instruction::ExtendedArg(1),
+            Instruction::LoadConst(0),
+            Instruction::LoadConst(1),
+            Instruction::CompareOp(0),
+            Instruction::PopJumpForwardIfTrue(2),
+            Instruction::LoadConst(2),
+            Instruction::ReturnValue(0),
+            Instruction::LoadConst(3),
+            Instruction::ReturnValue(0),
+        ]);
+
+        let cfg = create_cfg(instructions.to_vec());
+
+        make_dot_graph(&cfg);
+
+        let cfg: ControlFlowGraph<ExtInstruction> =
+            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
+
+        make_dot_graph(&cfg);
     }
 
     #[test]
@@ -395,15 +447,19 @@ mod test {
             Instruction::LoadConst(0),
             Instruction::PopJumpForwardIfTrue(1),
             Instruction::ExtendedArg(0),
+            Instruction::ExtendedArg(0),
             Instruction::StoreName(0),
         ]);
 
-        make_dot_graph(instructions);
-    }
-
-    fn make_dot_graph(instructions: Instructions) {
         let cfg = create_cfg(instructions.to_vec());
 
+        make_dot_graph(&cfg);
+    }
+
+    fn make_dot_graph<I>(cfg: &ControlFlowGraph<I>)
+    where
+        I: GenericInstruction,
+    {
         let mut graph = petgraph::Graph::<String, &str>::new();
 
         add_block(

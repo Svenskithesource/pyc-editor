@@ -619,7 +619,15 @@ mod test {
             Dot::with_attr_getters(
                 &graph,
                 &[Config::NodeNoLabel],
-                &|_, _| "".to_string(),
+                &|_, e| {
+                    let color = if e.weight() != "fallthrough" {
+                        "green"
+                    } else {
+                        "red"
+                    };
+
+                    format!("color = {}", color)
+                },
                 &|_, (_, s)| format!(r#"label = "{}""#, s),
             )
         );

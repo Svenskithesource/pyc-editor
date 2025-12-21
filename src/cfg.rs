@@ -214,6 +214,8 @@ where
     // Maps instruction index to block index
     let mut block_map: HashMap<usize, BlockIndex> = HashMap::new();
 
+    let jump_map = instructions.get_jump_map();
+
     // Keeps indexes of instructions that start new blocks and still need to be processed.
     let mut block_queue: VecDeque<usize> = VecDeque::new();
     block_queue.push_front(0);
@@ -230,7 +232,14 @@ where
 
         let start_index = index;
 
-        loop {
+        enum ExitReason {
+            BlockExists,
+            IsJumpTarget,
+            DoesJump,
+            StopsExecution,
+        }
+
+        let exit_reason = loop {
             if block_map.contains_key(&index) {
                 if !curr_block.is_empty() {
                     blocks.push(Block {
@@ -240,7 +249,20 @@ where
                     });
                 }
 
-                break;
+                break ExitReason::BlockExists;
+            } else if jump_map.values().any(|e| *e == (index as u32)) && !curr_block.is_empty() {
+                // If this is a jump target, place it in a new block (used to support backwards jumps)
+
+                blocks.push(Block {
+                    instructions: curr_block,
+                    branch_block: BranchBlockIndex::NoIndex,
+                    // The fallthrough block will be processed after the queue is empty
+                    default_block: BlockIndex::Index(curr_block_index + 1 + block_queue.len()),
+                });
+
+                block_queue.push_front(index);
+
+                break ExitReason::IsJumpTarget;
             }
 
             let instruction = instructions[index].clone();
@@ -253,19 +275,18 @@ where
                         None
                     };
 
-                let jump_instruction =
-                    if let Some((jump_index, _)) = instructions.get_jump_target(index as u32) {
-                        if instruction.is_conditional_jump() {
-                            if let Some(instruction) = instructions.get(jump_index as usize - 1)
-                                && instruction.is_extended_arg()
-                            {
-                                block_indexes_to_fix.push(BlockIndex::Index(curr_block_index));
-                            }
+                let jump_instruction = if let Some(jump_index) = jump_map.get(&(index as u32)) {
+                    if instruction.is_conditional_jump() {
+                        if let Some(instruction) = instructions.get(*jump_index as usize - 1)
+                            && instruction.is_extended_arg()
+                        {
+                            block_indexes_to_fix.push(BlockIndex::Index(curr_block_index));
                         }
-                        Some(jump_index)
-                    } else {
-                        None
-                    };
+                    }
+                    Some(*jump_index)
+                } else {
+                    None
+                };
 
                 blocks.push(Block {
                     instructions: curr_block,
@@ -294,11 +315,17 @@ where
                         } else {
                             block_queue.push_front(next_index);
 
-                            // If branch block also exists add another 1
                             BlockIndex::Index(
                                 curr_block_index
                                     + 1
-                                    + if jump_instruction.is_some() { 1 } else { 0 },
+                                    // If branch block also exists add another 1
+                                    + if let Some(jump_index) = jump_instruction
+                                        && !block_map.contains_key(&(jump_index as usize))
+                                    {
+                                        1
+                                    } else {
+                                        0
+                                    },
                             )
                         }
                     } else {
@@ -306,7 +333,7 @@ where
                     },
                 });
 
-                break;
+                break ExitReason::DoesJump;
             }
 
             curr_block.push(instruction.clone());
@@ -318,7 +345,7 @@ where
                     default_block: BlockIndex::NoIndex,
                 });
 
-                break;
+                break ExitReason::StopsExecution;
             }
 
             if index + 1 < instructions.len() {
@@ -330,18 +357,24 @@ where
                     default_block: BlockIndex::NoIndex,
                 });
 
-                break;
+                break ExitReason::StopsExecution;
             }
-        }
+        };
 
-        if !block_map.contains_key(&index) {
-            block_map.insert(start_index, BlockIndex::Index(curr_block_index));
+        match exit_reason {
+            ExitReason::StopsExecution | ExitReason::DoesJump => {
+                block_map.insert(start_index, BlockIndex::Index(curr_block_index));
 
-            curr_block_index += 1;
+                curr_block_index += 1;
+            }
+            ExitReason::IsJumpTarget => {
+                curr_block_index += 1;
+            }
+            _ => {}
         }
     }
 
-    let mut cfg = ControlFlowGraph::<I> {
+    let cfg = ControlFlowGraph::<I> {
         start_index: if !blocks.is_empty() {
             BlockIndex::Index(0)
         } else {
@@ -351,7 +384,7 @@ where
         blocks: blocks,
     };
 
-    fix_extended_args(&mut cfg, &block_indexes_to_fix);
+    // fix_extended_args(&mut cfg, &block_indexes_to_fix);
 
     cfg
 }
@@ -399,6 +432,7 @@ mod test {
     };
 
     use crate::{
+        CodeObject,
         cfg::{
             Block, BlockIndex, BranchBlockIndex, BranchEdge, ControlFlowGraph, create_cfg,
             simple_cfg_to_ext_cfg,
@@ -421,12 +455,17 @@ mod test {
             _ => return None,
         };
 
-        let text = block
+        let mut lines = block
             .instructions
             .iter()
             .map(|i| format!("{:#?} {:#?}", i.get_opcode(), i.get_raw_value()))
-            .collect::<Vec<_>>()
-            .join("\n");
+            .collect::<Vec<_>>();
+
+        if let BranchBlockIndex::Edge(BranchEdge { opcode, .. }) = &block.branch_block {
+            lines.push(format!("{:#?}", opcode.clone()));
+        }
+
+        let text = lines.join("\n");
 
         let index = if block_map.contains_key(block_index) {
             block_map[block_index]
@@ -437,21 +476,37 @@ mod test {
             index
         };
 
-        dbg!(&block.branch_block);
-
-        let (block_index, opcode) = match &block.branch_block {
+        let (branch_index, opcode) = match &block.branch_block {
             BranchBlockIndex::Edge(BranchEdge {
-                block_index,
+                block_index: branch_index,
                 opcode,
-            }) => (block_index, Some(opcode.clone())),
+            }) => (branch_index, Some(opcode.clone())),
             _ => (&BlockIndex::NoIndex, None),
         };
 
-        dbg!(&opcode);
+        let branch_index = if block_map.contains_key(branch_index) {
+            Some(block_map[branch_index])
+        } else {
+            let index = add_block(graph, blocks, branch_index, block_map);
 
-        let branch_index = add_block(graph, blocks, block_index, block_map);
+            if let Some(index) = index {
+                block_map.insert(branch_index.clone(), index);
+            }
 
-        let default_index = add_block(graph, blocks, &block.default_block, block_map);
+            index
+        };
+
+        let default_index = if block_map.contains_key(&block.default_block) {
+            Some(block_map[&block.default_block])
+        } else {
+            let index = add_block(graph, blocks, &block.default_block, block_map);
+
+            if let Some(index) = index {
+                block_map.insert(block.default_block.clone(), index);
+            }
+
+            index
+        };
 
         if let Some(to_index) = branch_index {
             let text = format!("{:#?}", opcode.unwrap());
@@ -479,6 +534,30 @@ mod test {
         ]);
 
         let cfg = create_cfg(instructions.to_vec());
+
+        make_dot_graph(&cfg);
+    }
+
+    #[test]
+    fn simple_program() {
+        // for x in range(10):
+        //     if x == 9:
+        //         print("yay")
+        //     else:
+        //         print("nay")
+
+        let program = crate::load_code(&b"\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\xf3\\\x00\x00\x00\x97\x00\x02\x00e\x00d\x00\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00D\x00]\x1fZ\x01e\x01d\x01k\x02\x00\x00\x00\x00r\x0c\x02\x00e\x02d\x02\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x8c\x14\x02\x00e\x02d\x03\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x8c d\x04S\x00)\x05\xe9\n\x00\x00\x00\xe9\t\x00\x00\x00\xda\x03yay\xda\x03nayN)\x03\xda\x05range\xda\x01x\xda\x05print\xa9\x00\xf3\x00\x00\x00\x00z\x08<string>\xfa\x08<module>r\x0b\x00\x00\x00\x01\x00\x00\x00sM\x00\x00\x00\xf0\x03\x01\x01\x01\xe0\t\x0e\x88\x15\x88r\x89\x19\x8c\x19\xf0\x00\x04\x01\x15\xf0\x00\x04\x01\x15\x80A\xd8\x07\x08\x88A\x82v\x80v\xd8\x08\r\x88\x05\x88e\x89\x0c\x8c\x0c\x88\x0c\x88\x0c\xe0\x08\r\x88\x05\x88e\x89\x0c\x8c\x0c\x88\x0c\x88\x0c\xf0\t\x04\x01\x15\xf0\x00\x04\x01\x15r\n\x00\x00\x00"[..], (3, 11).into()).unwrap();
+
+        let instructions = match program {
+            CodeObject::V311(code) => code.code,
+            _ => unreachable!(),
+        };
+
+        dbg!(&instructions);
+
+        let cfg = create_cfg(instructions.to_vec());
+
+        dbg!(&cfg);
 
         make_dot_graph(&cfg);
     }

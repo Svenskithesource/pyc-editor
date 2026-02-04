@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 
-use crate::get_names;
 use crate::traits::{GenericOpcode, StackEffectTrait};
 use crate::utils::StackEffect;
 use crate::v310::instructions::Instruction;

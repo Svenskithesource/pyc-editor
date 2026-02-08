@@ -1,3 +1,7 @@
+use std::{collections::HashMap, fmt::Display, ops::Add};
+
+use crate::{sir::SIR, v310::opcodes::sir::SIRNode};
+
 /// The amount of extended_args necessary to represent the arg.
 /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.
 pub fn get_extended_args_count(arg: u32) -> u8 {
@@ -206,4 +210,17 @@ macro_rules! define_default_traits {
             }
         }
     };
+}
+
+pub fn generate_var_name(
+    stack_name: &'static str,
+    names: &mut HashMap<&'static str, u32>,
+) -> String {
+    if names.contains_key(stack_name) {
+        *names.get_mut(stack_name).unwrap() += 1;
+    } else {
+        names.insert(stack_name, 0);
+    }
+
+    format!("{}_{}", stack_name, names[stack_name])
 }

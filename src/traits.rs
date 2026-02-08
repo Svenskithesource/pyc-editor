@@ -6,6 +6,7 @@ use std::{
 
 use crate::{
     error::Error,
+    sir::{SIRStatement, StackItem},
     utils::{ExceptionTableEntry, StackEffect},
 };
 
@@ -458,6 +459,19 @@ pub trait StackEffectTrait {
     /// If jump is false, it will return the stack effect of not jumping.
     /// And if calculate_max is true, it will return the maximal stack effect of both cases.
     fn stack_effect(&self, oparg: u32, jump: bool, calculate_max: bool) -> StackEffect;
+}
+
+pub trait GenericSIRNode<Opcode>: Clone + Debug {
+    fn new(opcode: Opcode, oparg: u32, jump: bool) -> Self;
+
+    fn get_outputs(&self) -> &[StackItem];
+
+    fn get_inputs(&self) -> &[StackItem];
+}
+
+/// A trait to indicate that the SIR statements are owned.
+pub trait SIROwned<SIRNode> {
+    fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;
 }
 
 #[cfg(all(test, feature = "v311"))]

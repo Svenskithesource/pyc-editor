@@ -39,8 +39,8 @@ pub struct BranchEdge<O>
 where
     O: GenericOpcode,
 {
-    opcode: O,
-    block_index: BlockIndex,
+    pub opcode: O,
+    pub block_index: BlockIndex,
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -461,8 +461,10 @@ pub trait StackEffectTrait {
     fn stack_effect(&self, oparg: u32, jump: bool, calculate_max: bool) -> StackEffect;
 }
 
-pub trait GenericSIRNode<Opcode>: Clone + Debug {
-    fn new(opcode: Opcode, oparg: u32, jump: bool) -> Self;
+pub trait GenericSIRNode: Clone + Debug {
+    type Opcode: GenericOpcode;
+
+    fn new(opcode: Self::Opcode, oparg: u32, jump: bool) -> Self;
 
     fn get_outputs(&self) -> &[StackItem];
 
@@ -470,7 +472,7 @@ pub trait GenericSIRNode<Opcode>: Clone + Debug {
 }
 
 /// A trait to indicate that the SIR statements are owned.
-pub trait SIROwned<SIRNode> {
+pub trait SIROwned<SIRNode>: std::fmt::Display {
     fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;
 }
 

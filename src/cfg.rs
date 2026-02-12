@@ -6,9 +6,10 @@ use std::{
 
 use crate::{
     error::Error,
+    sir::SIRBranchEdge,
     traits::{
-        ExtInstructionAccess, GenericInstruction, GenericOpcode, InstructionAccess, Oparg,
-        SimpleInstructionAccess,
+        ExtInstructionAccess, GenericInstruction, GenericOpcode, GenericSIRNode, InstructionAccess,
+        Oparg, SIROwned, SimpleInstructionAccess,
     },
 };
 
@@ -30,6 +31,32 @@ where
     Fallthrough(BlockIndex),
     /// For blocks without a target
     NoIndex,
+}
+
+impl<O> BlockIndexInfo<O>
+where
+    O: GenericOpcode,
+{
+    pub fn into_sir<SIRNode>(
+        &self,
+        statements: Option<Vec<crate::sir::SIRStatement<SIRNode>>>,
+    ) -> crate::sir::SIRBlockIndexInfo<SIRNode>
+    where
+        SIRNode: GenericSIRNode<Opcode = O>,
+        crate::sir::SIR<SIRNode>: SIROwned<SIRNode>,
+    {
+        match &self {
+            BlockIndexInfo::Edge(edge) => crate::sir::SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                opcode: edge.opcode.clone(),
+                statements: statements.map(|v| crate::sir::SIR::new(v)),
+                block_index: edge.block_index.clone(),
+            }),
+            BlockIndexInfo::Fallthrough(block_index) => {
+                crate::sir::SIRBlockIndexInfo::Fallthrough(block_index.clone())
+            }
+            BlockIndexInfo::NoIndex => crate::sir::SIRBlockIndexInfo::NoIndex,
+        }
+    }
 }
 
 impl<O> BlockIndexInfo<O>
@@ -696,7 +723,7 @@ mod test {
         ]);
 
         let cfg = create_cfg(instructions.to_vec());
-            
+
         make_dot_graph(&cfg);
     }
 

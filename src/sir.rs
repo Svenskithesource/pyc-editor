@@ -423,7 +423,7 @@ where
                 instruction_to_ir::<ExtInstruction, SIRNode>(
                     branch_opcode.clone(),
                     0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
-                    false, // Don't take the jump for the default block
+                    true, // Don't take the jump for the default block
                     &mut branch_stack,
                     &mut branch_phi_map,
                     &mut names,

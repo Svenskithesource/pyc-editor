@@ -337,6 +337,9 @@ where
 
             if !found {
                 return Err(Error::PhiNodeNotPopulated);
+            } else {
+                // Remove item from the stack after it was used
+                curr_stack.remove(item_index);
             }
         }
 

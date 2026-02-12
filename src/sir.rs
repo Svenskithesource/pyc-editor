@@ -58,7 +58,7 @@ where
     ExtInstruction: GenericInstruction<OpargType = u32>,
     SIRNode: GenericSIRNode<Opcode = ExtInstruction::Opcode>,
 {
-    let node = SIRNode::new(opcode, oparg, jump);
+    let node = SIRNode::new(opcode.clone(), oparg, jump);
 
     let mut stack_inputs = vec![];
 
@@ -93,7 +93,6 @@ where
 
     let mut stack_outputs = vec![];
 
-    let mut inserted_items = 0;
     for output in node.get_outputs() {
         for count in 0..output.count {
             let var = AuxVar {
@@ -103,10 +102,9 @@ where
             stack_outputs.push(var.clone());
 
             stack.insert(
-                stack.len() - (output.index + count) as usize + inserted_items,
+                stack.len() - (output.index as i32 + count as i32) as usize,
                 SIRExpression::<SIRNode>::AuxVar(var),
             );
-            inserted_items += 1;
         }
     }
 
@@ -245,7 +243,7 @@ pub enum Error {
 }
 
 pub fn cfg_to_ir<ExtInstruction, SIRNode>(
-    cfg: ControlFlowGraph<ExtInstruction>,
+    cfg: &ControlFlowGraph<ExtInstruction>,
 ) -> Result<SIRControlFlowGraph<SIRNode>, Error>
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
@@ -275,17 +273,17 @@ where
         )?);
     }
 
-    let mut empty_stack = vec![];
-    let mut empty_phi_map = BTreeMap::new();
+    let empty_statements = vec![];
+    let empty_phi_map = BTreeMap::new();
 
     // Fill the empty phi nodes with actual values
     let mut queue: Vec<(
         BlockIndexInfo<ExtInstruction::Opcode>,
-        Vec<SIRExpression<SIRNode>>,
+        (Vec<SIRExpression<SIRNode>>, Vec<SIRExpression<SIRNode>>),
         Option<(bool, usize)>, // shows whether to use the branch or default statement on the specified index block
-    )> = vec![(cfg.start_index, vec![], None)];
+    )> = vec![(cfg.start_index.clone(), (vec![], vec![]), None)];
 
-    while let Some((index, mut curr_stack, edge_statements)) = queue.pop() {
+    while let Some((index, (mut curr_stack, mut branch_stack), edge_statements)) = queue.pop() {
         // The branch opcode is used to calculate any effects the branch instruction might have
         let index = match index {
             BlockIndexInfo::Fallthrough(BlockIndex::Index(index))
@@ -295,6 +293,8 @@ where
             }) => index,
             _ => continue,
         };
+
+        let already_analysed = blocks.get(index).unwrap().is_some();
 
         // Get the branch
         let (branch_statements, branch_phi_map) =
@@ -306,20 +306,59 @@ where
                     &mut block.4
                 }
             } else {
-                &mut (empty_stack.clone(), empty_phi_map.clone())
+                &mut (empty_statements.clone(), empty_phi_map.clone())
             };
 
-        let (statements, phi_map, stack) = temp_blocks.get_mut(index).unwrap();
-
-        // Loop over phi map in descending order (ex. -1 -> -2 -> -5 -> ...)
-        for (item_index, phi_var) in branch_phi_map.iter().rev().chain(phi_map.iter().rev()) {
+        // For the branch statements only
+        for (item_index, phi_var) in branch_phi_map.iter().rev() {
             let mut found = false;
             let item_index = (curr_stack.len() as i32 + item_index) as usize;
 
             if let Some(item) = curr_stack.get(item_index) {
                 // Add the item to the phi node
                 // Loop both the branch statements and the actual basic block statements
-                for statement in statements.0.iter_mut().chain(branch_statements.iter_mut()) {
+                for statement in branch_statements.iter_mut() {
+                    match (statement, item) {
+                        (
+                            SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
+                            SIRExpression::AuxVar(item),
+                        ) => {
+                            if var == phi_var {
+                                values.push(item.clone());
+                                found = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            } else {
+                return Err(Error::InvalidStackAccess);
+            }
+
+            if !found {
+                return Err(Error::PhiNodeNotPopulated);
+            }
+        }
+
+        // Add the branch stack after processing the branch statements
+        curr_stack.extend_from_slice(&branch_stack);
+
+        if already_analysed {
+            // Already processed this block but we still processed the statements of the edge
+            continue;
+        }
+
+        let (statements, phi_map, stack) = temp_blocks.get_mut(index).unwrap();
+
+        // Loop over phi map in descending order (ex. -1 -> -2 -> -5 -> ...)
+        for (item_index, phi_var) in phi_map.iter().rev() {
+            let mut found = false;
+            let item_index = (curr_stack.len() as i32 + item_index) as usize;
+
+            if let Some(item) = curr_stack.get(item_index) {
+                // Add the item to the phi node
+                // Loop both the branch statements and the actual basic block statements
+                for statement in statements.0.iter_mut() {
                     match (statement, item) {
                         (
                             SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
@@ -345,7 +384,9 @@ where
             }
         }
 
-        let mut default_stack = curr_stack.clone();
+        let new_stack = [curr_stack.to_vec(), stack.to_vec()].concat();
+
+        let mut default_stack = vec![];
         let mut default_phi_map: BTreeMap<i32, AuxVar> = BTreeMap::new();
 
         let default_statements = match &cfg.blocks.index(index).default_block {
@@ -365,15 +406,13 @@ where
             _ => vec![],
         };
 
-        let new_stack = [default_stack, stack.to_vec()].concat();
-
         queue.push((
             cfg.blocks.index(index).default_block.clone(),
-            new_stack.clone(),
+            (new_stack.clone(), default_stack),
             Some((false, index)),
         ));
 
-        let mut branch_stack = curr_stack.clone();
+        let mut branch_stack = vec![];
         let mut branch_phi_map: BTreeMap<i32, AuxVar> = BTreeMap::new();
 
         let branch_statements = match &cfg.blocks.index(index).branch_block {
@@ -393,11 +432,9 @@ where
             _ => vec![],
         };
 
-        let new_stack = [branch_stack, stack.to_vec()].concat();
-
         queue.push((
             cfg.blocks.index(index).branch_block.clone(),
-            new_stack,
+            (new_stack, branch_stack),
             Some((true, index)),
         ));
 
@@ -460,10 +497,10 @@ mod test {
         SIR, SIRBlock, SIRBlockIndexInfo, SIRBranchEdge, SIRControlFlowGraph, bb_to_ir, cfg_to_ir,
     };
     use crate::traits::{GenericSIRNode, SIROwned};
-    use crate::v311;
     use crate::v311::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v311::instructions::Instruction;
     use crate::v311::opcodes::sir::SIRNode;
+    use crate::{CodeObject, v311};
 
     #[test]
     fn test_simple_ext_to_sir() {
@@ -532,7 +569,26 @@ mod test {
         let cfg: ControlFlowGraph<ExtInstruction> =
             simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
 
-        make_dot_graph(&cfg_to_ir::<ExtInstruction, SIRNode>(cfg).unwrap());
+        make_dot_graph(&cfg_to_ir::<ExtInstruction, SIRNode>(&cfg).unwrap());
+    }
+
+    #[test]
+    fn test_complex_cfg_to_sir() {
+        let program = crate::load_code(&b"\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\xf3\\\x00\x00\x00\x97\x00\x02\x00e\x00d\x00\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00D\x00]\x1fZ\x01e\x01d\x01k\x02\x00\x00\x00\x00r\x0c\x02\x00e\x02d\x02\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x8c\x14\x02\x00e\x02d\x03\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x8c d\x04S\x00)\x05\xe9\n\x00\x00\x00\xe9\t\x00\x00\x00\xda\x03yay\xda\x03nayN)\x03\xda\x05range\xda\x01x\xda\x05print\xa9\x00\xf3\x00\x00\x00\x00z\x08<string>\xfa\x08<module>r\x0b\x00\x00\x00\x01\x00\x00\x00sM\x00\x00\x00\xf0\x03\x01\x01\x01\xe0\t\x0e\x88\x15\x88r\x89\x19\x8c\x19\xf0\x00\x04\x01\x15\xf0\x00\x04\x01\x15\x80A\xd8\x07\x08\x88A\x82v\x80v\xd8\x08\r\x88\x05\x88e\x89\x0c\x8c\x0c\x88\x0c\x88\x0c\xe0\x08\r\x88\x05\x88e\x89\x0c\x8c\x0c\x88\x0c\x88\x0c\xf0\t\x04\x01\x15\xf0\x00\x04\x01\x15r\n\x00\x00\x00"[..], (3, 11).into()).unwrap();
+
+        let instructions = match program {
+            CodeObject::V311(code) => code.code,
+            _ => unreachable!(),
+        };
+
+        let cfg = create_cfg(instructions.to_vec());
+
+        let cfg =
+            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
+
+        let ir_cfg = cfg_to_ir::<ExtInstruction, SIRNode>(&cfg).unwrap();
+
+        make_dot_graph(&ir_cfg);
     }
 
     fn add_block<'a, SIRNode: GenericSIRNode>(
@@ -560,12 +616,13 @@ mod test {
             index
         };
 
-        let (branch_index, statements, opcode) = match &block.branch_block {
+        let (branch_index, branch_statements, opcode) = match &block.branch_block {
             SIRBlockIndexInfo::Edge(SIRBranchEdge {
                 block_index: branch_index,
                 statements,
                 opcode,
             }) => (Some(branch_index), Some(statements), Some(opcode.clone())),
+            SIRBlockIndexInfo::Fallthrough(branch_index) => (Some(branch_index), None, None),
             _ => (None, None, None),
         };
 
@@ -590,21 +647,26 @@ mod test {
             index
         };
 
-        let default_index = if block_map.contains_key(&block.default_block.get_block_index()) {
-            Some(block_map[&block.default_block.get_block_index()])
+        let (default_index, default_statements, opcode) = match &block.default_block {
+            SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                block_index: default_index,
+                statements,
+                opcode,
+            }) => (Some(default_index), Some(statements), Some(opcode.clone())),
+            SIRBlockIndexInfo::Fallthrough(branch_index) => (Some(branch_index), None, None),
+            _ => (None, None, None),
+        };
+
+        let default_index = if block_map.contains_key(&default_index) {
+            Some(block_map[&default_index])
         } else {
-            let index = add_block(
-                graph,
-                blocks,
-                block.default_block.get_block_index(),
-                block_map,
-            );
+            let index = add_block(graph, blocks, default_index, block_map);
 
             let index = if let Some(index) = index {
-                block_map.insert(block.default_block.get_block_index(), index);
+                block_map.insert(default_index, index);
                 Some(index)
             } else {
-                match block.default_block.get_block_index() {
+                match default_index {
                     Some(BlockIndex::InvalidIndex(invalid_index)) => {
                         Some(graph.add_node(format!("invalid jump to index {}", invalid_index)))
                     }
@@ -617,12 +679,21 @@ mod test {
         };
 
         if let Some(to_index) = branch_index {
-            let text = format!("{}", statements.unwrap().as_ref().unwrap());
+            let text = if let Some(statements) = branch_statements {
+                format!("{}", statements.as_ref().unwrap())
+            } else {
+                "".to_owned()
+            };
             graph.add_edge(index, to_index, text);
         }
 
         if let Some(to_index) = default_index {
-            let text = format!("fallthrough\n{}", statements.unwrap().as_ref().unwrap());
+            let text = if let Some(statements) = default_statements {
+                format!("fallthrough\n{}", statements.as_ref().unwrap())
+            } else {
+                format!("fallthrough")
+            };
+
             graph.add_edge(index, to_index, text);
         }
 

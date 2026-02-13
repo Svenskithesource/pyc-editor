@@ -189,9 +189,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.55"
+version = "1.2.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47b26a0954ae34af09b50f0de26458fa95369a0d478d8236d3f93082b219bd29"
+checksum = "aebf35691d1bfb0ac386a69bac2fde4dd276fb618cf8bf4f5318fe285e821bb2"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1146,9 +1146,9 @@ checksum = "2c4a545a15244c7d945065b5d392b2d2d7f21526fba56ce51467b06ed445e8f7"
 
 [[package]]
 name = "libc"
-version = "0.2.181"
+version = "0.2.182"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "459427e2af2b9c839b132acb702a1c654d95e10f8c326bfc2ad11310e458b1c5"
+checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
 
 [[package]]
 name = "liblzma"
@@ -1603,8 +1603,8 @@ dependencies = [
 
 [[package]]
 name = "python-instruction-dsl-proc"
-version = "0.1.7"
-source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc?branch=sir-models#feb3ea6a6a669c9b7214fe9a9f68438b4a2099d0"
+version = "0.1.8"
+source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc#48283c386ecf97926896e20a840bf14ea0f76403"
 dependencies = [
  "heck",
  "paste",

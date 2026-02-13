@@ -461,7 +461,7 @@ pub trait StackEffectTrait {
     fn stack_effect(&self, oparg: u32, jump: bool, calculate_max: bool) -> StackEffect;
 }
 
-pub trait GenericSIRNode: Clone + Debug {
+pub trait GenericSIRNode: Clone + Debug + PartialEq {
     type Opcode: GenericOpcode;
 
     fn new(opcode: Self::Opcode, oparg: u32, jump: bool) -> Self;

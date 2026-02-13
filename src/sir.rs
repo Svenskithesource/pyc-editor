@@ -256,14 +256,29 @@ where
             SIR<SIRNode>,
             BlockIndexInfo<ExtInstruction::Opcode>,
             BlockIndexInfo<ExtInstruction::Opcode>,
-            (Vec<SIRStatement<SIRNode>>, BTreeMap<i32, AuxVar>),
-            (Vec<SIRStatement<SIRNode>>, BTreeMap<i32, AuxVar>),
         )>,
     > = Vec::with_capacity(cfg.blocks.len());
     blocks.resize_with(cfg.blocks.len(), || None);
 
     let mut temp_blocks = vec![];
+    // ((default stack, default statements, default phi map), (branch stack, branch statements, branch phi map))
+    let mut temp_edges: Vec<(
+        (
+            Vec<SIRExpression<SIRNode>>,
+            Vec<SIRStatement<SIRNode>>,
+            BTreeMap<i32, AuxVar>,
+        ),
+        (
+            Vec<SIRExpression<SIRNode>>,
+            Vec<SIRStatement<SIRNode>>,
+            BTreeMap<i32, AuxVar>,
+        ),
+    )> = vec![];
     let mut names = HashMap::new();
+
+    // Keeps track of the different stacks used to enter a basic block
+    // TODO: We have to find a way to merge stacks
+    let mut has_changed: HashMap<usize, Vec<Vec<SIRExpression<SIRNode>>>> = HashMap::new();
 
     // Create isolated IR blocks
     for block in &cfg.blocks {
@@ -271,19 +286,65 @@ where
             &block.instructions,
             &mut names,
         )?);
+
+        let mut default_stack = vec![];
+        let mut default_phi_map = BTreeMap::new();
+
+        let default_statements = match &block.default_block {
+            BlockIndexInfo::Edge(BranchEdge {
+                opcode: branch_opcode,
+                ..
+            }) => {
+                instruction_to_ir::<ExtInstruction, SIRNode>(
+                    branch_opcode.clone(),
+                    0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
+                    false, // Don't take the jump for the default block
+                    &mut default_stack,
+                    &mut default_phi_map,
+                    &mut names,
+                )?
+            }
+            _ => vec![],
+        };
+
+        let mut branch_stack = vec![];
+        let mut branch_phi_map = BTreeMap::new();
+
+        let branch_statements = match &block.branch_block {
+            BlockIndexInfo::Edge(BranchEdge {
+                opcode: branch_opcode,
+                ..
+            }) => {
+                instruction_to_ir::<ExtInstruction, SIRNode>(
+                    branch_opcode.clone(),
+                    0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
+                    true, // Don't take the jump for the default block
+                    &mut branch_stack,
+                    &mut branch_phi_map,
+                    &mut names,
+                )?
+            }
+            _ => vec![],
+        };
+
+        temp_edges.push((
+            (default_stack, default_statements, default_phi_map),
+            (branch_stack, branch_statements, branch_phi_map),
+        ));
     }
 
     let empty_statements = vec![];
+    let empty_stack = vec![];
     let empty_phi_map = BTreeMap::new();
 
     // Fill the empty phi nodes with actual values
     let mut queue: Vec<(
         BlockIndexInfo<ExtInstruction::Opcode>,
-        (Vec<SIRExpression<SIRNode>>, Vec<SIRExpression<SIRNode>>),
+        Vec<SIRExpression<SIRNode>>,
         Option<(bool, usize)>, // shows whether to use the branch or default statement on the specified index block
-    )> = vec![(cfg.start_index.clone(), (vec![], vec![]), None)];
+    )> = vec![(cfg.start_index.clone(), vec![], None)];
 
-    while let Some((index, (mut curr_stack, mut branch_stack), edge_statements)) = queue.pop() {
+    while let Some((index, mut curr_stack, edge_statements)) = queue.pop() {
         // The branch opcode is used to calculate any effects the branch instruction might have
         let index = match index {
             BlockIndexInfo::Fallthrough(BlockIndex::Index(index))
@@ -297,16 +358,23 @@ where
         let already_analysed = blocks.get(index).unwrap().is_some();
 
         // Get the branch
-        let (branch_statements, branch_phi_map) =
+        let (branch_stack, branch_statements, branch_phi_map) =
             if let Some((is_branch, block_index)) = edge_statements {
-                let block = blocks.get_mut(block_index).unwrap().as_mut().unwrap();
+                let (
+                    (default_stack, default_statements, default_phi_map),
+                    (branch_stack, branch_statements, branch_phi_map),
+                ) = temp_edges.get_mut(block_index).unwrap();
                 if is_branch {
-                    &mut block.3
+                    &mut (branch_stack, branch_statements, branch_phi_map)
                 } else {
-                    &mut block.4
+                    &mut (default_stack, default_statements, default_phi_map)
                 }
             } else {
-                &mut (empty_statements.clone(), empty_phi_map.clone())
+                &mut (
+                    &mut empty_stack.clone(),
+                    &mut empty_statements.clone(),
+                    &mut empty_phi_map.clone(),
+                )
             };
 
         // For the branch statements only
@@ -347,8 +415,17 @@ where
         curr_stack.extend_from_slice(&branch_stack);
 
         if already_analysed {
-            // Already processed this block but we still processed the statements of the edge
-            continue;
+            if let Some(stacks) = has_changed.get_mut(&index) {
+                if stacks.contains(&curr_stack) {
+                    // Already processed this block but we still processed the statements of the edge
+                    continue;
+                } else {
+                    // Entered with a different stack
+                    stacks.push(curr_stack.clone());
+                }
+            }
+        } else {
+            has_changed.insert(index, vec![curr_stack.clone()]);
         }
 
         let (statements, phi_map, stack) = temp_blocks.get_mut(index).unwrap();
@@ -389,55 +466,15 @@ where
 
         let new_stack = [curr_stack.to_vec(), stack.to_vec()].concat();
 
-        let mut default_stack = vec![];
-        let mut default_phi_map: BTreeMap<i32, AuxVar> = BTreeMap::new();
-
-        let default_statements = match &cfg.blocks.index(index).default_block {
-            BlockIndexInfo::Edge(BranchEdge {
-                opcode: branch_opcode,
-                ..
-            }) => {
-                instruction_to_ir::<ExtInstruction, SIRNode>(
-                    branch_opcode.clone(),
-                    0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
-                    false, // Don't take the jump for the default block
-                    &mut default_stack,
-                    &mut default_phi_map,
-                    &mut names,
-                )?
-            }
-            _ => vec![],
-        };
-
         queue.push((
             cfg.blocks.index(index).default_block.clone(),
-            (new_stack.clone(), default_stack),
+            new_stack.clone(),
             Some((false, index)),
         ));
 
-        let mut branch_stack = vec![];
-        let mut branch_phi_map: BTreeMap<i32, AuxVar> = BTreeMap::new();
-
-        let branch_statements = match &cfg.blocks.index(index).branch_block {
-            BlockIndexInfo::Edge(BranchEdge {
-                opcode: branch_opcode,
-                ..
-            }) => {
-                instruction_to_ir::<ExtInstruction, SIRNode>(
-                    branch_opcode.clone(),
-                    0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
-                    true, // Don't take the jump for the default block
-                    &mut branch_stack,
-                    &mut branch_phi_map,
-                    &mut names,
-                )?
-            }
-            _ => vec![],
-        };
-
         queue.push((
             cfg.blocks.index(index).branch_block.clone(),
-            (new_stack, branch_stack),
+            new_stack,
             Some((true, index)),
         ));
 
@@ -446,35 +483,30 @@ where
             statements.clone(),
             cfg.blocks.index(index).branch_block.clone(),
             cfg.blocks.index(index).default_block.clone(),
-            (branch_statements, branch_phi_map),
-            (default_statements, default_phi_map),
         ));
     }
 
     let blocks: Vec<_> = blocks
         .into_iter()
-        .map(|v| {
+        .enumerate()
+        .map(|(index, v)| {
             v.ok_or(Error::NotAllBlocksProcessed).map(
-                |(
-                    statements,
-                    branch_block,
-                    default_block,
-                    (branch_statements, _),
-                    (default_statements, _),
-                )| {
-                    SIRBlock {
-                        nodes: statements.clone(),
-                        branch_block: branch_block.into_sir(if branch_statements.is_empty() {
+                |(statements, branch_block, default_block)| SIRBlock {
+                    nodes: statements.clone(),
+                    branch_block: branch_block.into_sir(
+                        if temp_edges.get(index).unwrap().1.1.is_empty() {
                             None
                         } else {
-                            Some(branch_statements)
-                        }),
-                        default_block: default_block.into_sir(if default_statements.is_empty() {
+                            Some(temp_edges.get(index).unwrap().1.1.clone())
+                        },
+                    ),
+                    default_block: default_block.into_sir(
+                        if temp_edges.get(index).unwrap().0.1.is_empty() {
                             None
                         } else {
-                            Some(default_statements)
-                        }),
-                    }
+                            Some(temp_edges.get(index).unwrap().0.1.clone())
+                        },
+                    ),
                 },
             )
         })
@@ -723,7 +755,7 @@ mod test {
                 &graph,
                 &[Config::NodeNoLabel, Config::EdgeNoLabel],
                 &|_, e| {
-                    let color = if e.weight().contains("fallthrough") {
+                    let color = if !e.weight().contains("fallthrough") {
                         "green"
                     } else {
                         "red"

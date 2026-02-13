@@ -1223,9 +1223,9 @@ dependencies = [
 
 [[package]]
 name = "native-tls"
-version = "0.2.14"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87de3442987e9dbec73158d5c715e7ad9072fda936bb03d19d7fa10e00520f0e"
+checksum = "6cdede44f9a69cab2899a2049e2c3bd49bf911a157f6a3353d4a91c61abbce44"
 dependencies = [
  "libc",
  "log",
@@ -1604,7 +1604,7 @@ dependencies = [
 [[package]]
 name = "python-instruction-dsl-proc"
 version = "0.1.7"
-source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc?branch=sir-models#9c32aaced309b177606293f6e264a3dd91a3729e"
+source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc?branch=sir-models#feb3ea6a6a669c9b7214fe9a9f68438b4a2099d0"
 dependencies = [
  "heck",
  "paste",

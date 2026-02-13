@@ -93,6 +93,10 @@ where
 
     let mut stack_outputs = vec![];
 
+    if opcode.is_jump() {
+        dbg!(&node);
+    }
+
     for output in node.get_outputs() {
         for count in 0..output.count {
             let var = AuxVar {
@@ -114,6 +118,8 @@ where
     };
 
     if stack_outputs.len() > 1 {
+        // Reverse list so that the order makes sense in the visualization
+        stack_outputs.reverse();
         statements.push(SIRStatement::TupleAssignment(
             stack_outputs,
             SIRExpression::Call(call),

@@ -206,7 +206,7 @@ where
                     );
 
                 // Remove first instruction(s) in the branch block that we will copy into the new branch block
-                let instructions = if instructions.len() != 0 {
+                let instructions = if !instructions.is_empty() {
                     // Can be empty if we're jumping to another branch instruction (which is not included in the basic block)
                     // This does not fix it yet, but it's a WIP
                     instructions.split_off(instructions_to_copy)
@@ -216,7 +216,7 @@ where
 
                 // Create new block that has the remaining instructions of the branch block
                 cfg.blocks.push(Block {
-                    instructions: instructions,
+                    instructions,
                     branch_block: cfg.blocks[branch_block_index].branch_block.clone(),
                     default_block: cfg.blocks[branch_block_index].default_block.clone(),
                 });
@@ -331,13 +331,12 @@ where
                     };
 
                 let jump_instruction = if let Some(jump_index) = jump_map.get(&(index as u32)) {
-                    if instruction.is_conditional_jump() {
-                        if let Some(instruction) = instructions.get(*jump_index as usize - 1)
+                    if instruction.is_conditional_jump()
+                        && let Some(instruction) = instructions.get(*jump_index as usize - 1)
                             && instruction.is_extended_arg()
                         {
                             block_indexes_to_fix.push(BlockIndex::Index(curr_block_index));
                         }
-                    }
                     Some(*jump_index)
                 } else {
                     None
@@ -451,7 +450,7 @@ where
             BlockIndexInfo::NoIndex
         },
 
-        blocks: blocks,
+        blocks,
     };
 
     fix_extended_args(&mut cfg, &block_indexes_to_fix);

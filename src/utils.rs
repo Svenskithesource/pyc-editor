@@ -1,6 +1,5 @@
-use std::{collections::HashMap, fmt::Display, ops::Add};
+use std::collections::HashMap;
 
-use crate::{sir::SIR, v310::opcodes::sir::SIRNode};
 
 /// The amount of extended_args necessary to represent the arg.
 /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.

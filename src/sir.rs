@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     cfg::{BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph},
-    traits::{ExtInstructionAccess, GenericInstruction, GenericOpcode, GenericSIRNode, SIROwned},
+    traits::{GenericInstruction, GenericOpcode, GenericSIRNode, SIROwned},
     utils::generate_var_name,
 };
 
@@ -112,10 +112,7 @@ where
         }
     }
 
-    let call = Call::<SIRNode> {
-        node: node,
-        stack_inputs,
-    };
+    let call = Call::<SIRNode> { node, stack_inputs };
 
     if stack_outputs.len() > 1 {
         // Reverse list so that the order makes sense in the visualization
@@ -343,16 +340,26 @@ where
     let empty_stack = vec![];
     let empty_phi_map = BTreeMap::new();
 
-    // Fill the empty phi nodes with actual values
-    let mut queue: Vec<(
-        BlockIndexInfo<ExtInstruction::Opcode>,
-        Vec<SIRExpression<SIRNode>>,
-        Option<(bool, usize)>, // shows whether to use the branch or default statement on the specified index block
-    )> = vec![(cfg.start_index.clone(), vec![], None)];
+    struct BlockQueue<ExtInstruction, SIRNode>
+    where
+        ExtInstruction: GenericInstruction,
+    {
+        block_index: BlockIndexInfo<ExtInstruction::Opcode>,
+        curr_stack: Vec<SIRExpression<SIRNode>>,
+        /// Shows whether to use the branch or default statement on the specified index block
+        edge_statements: Option<(bool, usize)>,
+    }
 
-    while let Some((index, mut curr_stack, edge_statements)) = queue.pop() {
+    // Fill the empty phi nodes with actual values
+    let mut queue: Vec<BlockQueue<ExtInstruction, SIRNode>> = vec![BlockQueue {
+        block_index: cfg.start_index.clone(),
+        curr_stack: vec![],
+        edge_statements: None,
+    }];
+
+    while let Some(mut block_element) = queue.pop() {
         // The branch opcode is used to calculate any effects the branch instruction might have
-        let index = match index {
+        let index = match block_element.block_index {
             BlockIndexInfo::Fallthrough(BlockIndex::Index(index))
             | BlockIndexInfo::Edge(BranchEdge {
                 block_index: BlockIndex::Index(index),
@@ -365,7 +372,7 @@ where
 
         // Get the branch
         let (branch_stack, branch_statements, branch_phi_map) =
-            if let Some((is_branch, block_index)) = edge_statements {
+            if let Some((is_branch, block_index)) = block_element.edge_statements {
                 let (
                     (default_stack, default_statements, default_phi_map),
                     (branch_stack, branch_statements, branch_phi_map),
@@ -386,23 +393,20 @@ where
         // For the branch statements only
         for (item_index, phi_var) in branch_phi_map.iter().rev() {
             let mut found = false;
-            let item_index = (curr_stack.len() as i32 + item_index) as usize;
+            let item_index = (block_element.curr_stack.len() as i32 + item_index) as usize;
 
-            if let Some(item) = curr_stack.get(item_index) {
+            if let Some(item) = block_element.curr_stack.get(item_index) {
                 // Add the item to the phi node
                 // Loop both the branch statements and the actual basic block statements
                 for statement in branch_statements.iter_mut() {
-                    match (statement, item) {
-                        (
-                            SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
-                            SIRExpression::AuxVar(item),
-                        ) => {
-                            if var == phi_var {
-                                values.push(item.clone());
-                                found = true;
-                            }
-                        }
-                        _ => {}
+                    if let (
+                        SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
+                        SIRExpression::AuxVar(item),
+                    ) = (statement, item)
+                        && var == phi_var
+                    {
+                        values.push(item.clone());
+                        found = true;
                     }
                 }
             } else {
@@ -413,25 +417,25 @@ where
                 return Err(Error::PhiNodeNotPopulated);
             } else {
                 // Remove item from the stack after it was used
-                curr_stack.remove(item_index);
+                block_element.curr_stack.remove(item_index);
             }
         }
 
         // Add the branch stack after processing the branch statements
-        curr_stack.extend_from_slice(&branch_stack);
+        block_element.curr_stack.extend_from_slice(branch_stack);
 
         if already_analysed {
             if let Some(stacks) = has_changed.get_mut(&index) {
-                if stacks.contains(&curr_stack) {
+                if stacks.contains(&block_element.curr_stack) {
                     // Already processed this block but we still processed the statements of the edge
                     continue;
                 } else {
                     // Entered with a different stack
-                    stacks.push(curr_stack.clone());
+                    stacks.push(block_element.curr_stack.clone());
                 }
             }
         } else {
-            has_changed.insert(index, vec![curr_stack.clone()]);
+            has_changed.insert(index, vec![block_element.curr_stack.clone()]);
         }
 
         let (statements, phi_map, stack) = temp_blocks.get_mut(index).unwrap();
@@ -439,23 +443,20 @@ where
         // Loop over phi map in descending order (ex. -1 -> -2 -> -5 -> ...)
         for (item_index, phi_var) in phi_map.iter().rev() {
             let mut found = false;
-            let item_index = (curr_stack.len() as i32 + item_index) as usize;
+            let item_index = (block_element.curr_stack.len() as i32 + item_index) as usize;
 
-            if let Some(item) = curr_stack.get(item_index) {
+            if let Some(item) = block_element.curr_stack.get(item_index) {
                 // Add the item to the phi node
                 // Loop both the branch statements and the actual basic block statements
                 for statement in statements.0.iter_mut() {
-                    match (statement, item) {
-                        (
-                            SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
-                            SIRExpression::AuxVar(item),
-                        ) => {
-                            if var == phi_var {
-                                values.push(item.clone());
-                                found = true;
-                            }
-                        }
-                        _ => {}
+                    if let (
+                        SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
+                        SIRExpression::AuxVar(item),
+                    ) = (statement, item)
+                        && var == phi_var
+                    {
+                        values.push(item.clone());
+                        found = true;
                     }
                 }
             } else {
@@ -466,23 +467,23 @@ where
                 return Err(Error::PhiNodeNotPopulated);
             } else {
                 // Remove item from the stack after it was used
-                curr_stack.remove(item_index);
+                block_element.curr_stack.remove(item_index);
             }
         }
 
-        let new_stack = [curr_stack.to_vec(), stack.to_vec()].concat();
+        let new_stack = [block_element.curr_stack.to_vec(), stack.to_vec()].concat();
 
-        queue.push((
-            cfg.blocks.index(index).default_block.clone(),
-            new_stack.clone(),
-            Some((false, index)),
-        ));
+        queue.push(BlockQueue {
+            block_index: cfg.blocks.index(index).default_block.clone(),
+            curr_stack: new_stack.clone(),
+            edge_statements: Some((false, index)),
+        });
 
-        queue.push((
-            cfg.blocks.index(index).branch_block.clone(),
-            new_stack,
-            Some((true, index)),
-        ));
+        queue.push(BlockQueue {
+            block_index: cfg.blocks.index(index).branch_block.clone(),
+            curr_stack: new_stack,
+            edge_statements: Some((true, index)),
+        });
 
         // Mutable so the phi nodes can be populated later on
         blocks[index] = Some((
@@ -520,7 +521,7 @@ where
 
     let sir_cfg = SIRControlFlowGraph::<SIRNode> {
         start_index: SIRBlockIndexInfo::Fallthrough(BlockIndex::Index(0)),
-        blocks: blocks,
+        blocks,
     };
 
     Ok(sir_cfg)

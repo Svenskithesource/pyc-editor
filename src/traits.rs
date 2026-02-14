@@ -36,7 +36,7 @@ impl Oparg for u8 {
 
     #[inline]
     fn to_u8(self) -> u8 {
-        self as u8
+        self
     }
 }
 impl Oparg for u32 {
@@ -46,7 +46,7 @@ impl Oparg for u32 {
 
     #[inline]
     fn to_u32(self) -> u32 {
-        self as u32
+        self
     }
 
     fn is_u8() -> bool {
@@ -109,7 +109,7 @@ where
         if self.as_ref().len() > index {
             if OpargType::is_u32() {
                 self.as_ref()
-                    .get(index as usize)
+                    .get(index)
                     .map(|i| i.get_raw_value().to_u32())
             } else {
                 let mut curr_index = index;
@@ -146,7 +146,7 @@ where
         if self.as_ref().len() > index {
             if OpargType::is_u32() {
                 self.as_ref()
-                    .get(index as usize)
+                    .get(index)
                     .map(|i| i.get_raw_value().to_u32())
             } else {
                 let mut curr_index = index;

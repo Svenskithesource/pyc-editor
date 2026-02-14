@@ -264,19 +264,16 @@ where
     blocks.resize_with(cfg.blocks.len(), || None);
 
     let mut temp_blocks = vec![];
-    // ((default stack, default statements, default phi map), (branch stack, branch statements, branch phi map))
-    let mut temp_edges: Vec<(
-        (
-            Vec<SIRExpression<SIRNode>>,
-            Vec<SIRStatement<SIRNode>>,
-            BTreeMap<i32, AuxVar>,
-        ),
-        (
-            Vec<SIRExpression<SIRNode>>,
-            Vec<SIRStatement<SIRNode>>,
-            BTreeMap<i32, AuxVar>,
-        ),
-    )> = vec![];
+
+    #[derive(Clone)]
+    struct TempEdgeInfo<SIRNode> {
+        stack: Vec<SIRExpression<SIRNode>>,
+        statements: Vec<SIRStatement<SIRNode>>,
+        phi_map: BTreeMap<i32, AuxVar>,
+    }
+
+    // (default, branch)
+    let mut temp_edges: Vec<(TempEdgeInfo<SIRNode>, TempEdgeInfo<SIRNode>)> = vec![];
     let mut names = HashMap::new();
 
     // Keeps track of the different stacks used to enter a basic block
@@ -331,14 +328,24 @@ where
         };
 
         temp_edges.push((
-            (default_stack, default_statements, default_phi_map),
-            (branch_stack, branch_statements, branch_phi_map),
+            TempEdgeInfo {
+                stack: default_stack,
+                statements: default_statements,
+                phi_map: default_phi_map,
+            },
+            TempEdgeInfo {
+                stack: branch_stack,
+                statements: branch_statements,
+                phi_map: branch_phi_map,
+            },
         ));
     }
 
-    let empty_statements = vec![];
-    let empty_stack = vec![];
-    let empty_phi_map = BTreeMap::new();
+    let empty_edge_info = TempEdgeInfo {
+        stack: vec![],
+        statements: vec![],
+        phi_map: BTreeMap::new(),
+    };
 
     struct BlockQueue<ExtInstruction, SIRNode>
     where
@@ -371,34 +378,22 @@ where
         let already_analysed = blocks.get(index).unwrap().is_some();
 
         // Get the branch
-        let (branch_stack, branch_statements, branch_phi_map) =
-            if let Some((is_branch, block_index)) = block_element.edge_statements {
-                let (
-                    (default_stack, default_statements, default_phi_map),
-                    (branch_stack, branch_statements, branch_phi_map),
-                ) = temp_edges.get_mut(block_index).unwrap();
-                if is_branch {
-                    &mut (branch_stack, branch_statements, branch_phi_map)
-                } else {
-                    &mut (default_stack, default_statements, default_phi_map)
-                }
-            } else {
-                &mut (
-                    &mut empty_stack.clone(),
-                    &mut empty_statements.clone(),
-                    &mut empty_phi_map.clone(),
-                )
-            };
+        let edge_info = if let Some((is_branch, block_index)) = block_element.edge_statements {
+            let (default, branch) = temp_edges.get_mut(block_index).unwrap();
+            if is_branch { branch } else { default }
+        } else {
+            &mut empty_edge_info.clone()
+        };
 
         // For the branch statements only
-        for (item_index, phi_var) in branch_phi_map.iter().rev() {
+        for (item_index, phi_var) in edge_info.phi_map.iter().rev() {
             let mut found = false;
             let item_index = (block_element.curr_stack.len() as i32 + item_index) as usize;
 
             if let Some(item) = block_element.curr_stack.get(item_index) {
                 // Add the item to the phi node
                 // Loop both the branch statements and the actual basic block statements
-                for statement in branch_statements.iter_mut() {
+                for statement in edge_info.statements.iter_mut() {
                     if let (
                         SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
                         SIRExpression::AuxVar(item),
@@ -422,7 +417,7 @@ where
         }
 
         // Add the branch stack after processing the branch statements
-        block_element.curr_stack.extend_from_slice(branch_stack);
+        block_element.curr_stack.extend_from_slice(&edge_info.stack);
 
         if already_analysed {
             if let Some(stacks) = has_changed.get_mut(&index) {
@@ -501,17 +496,17 @@ where
                 |(statements, branch_block, default_block)| SIRBlock {
                     nodes: statements.clone(),
                     branch_block: branch_block.into_sir(
-                        if temp_edges.get(index).unwrap().1.1.is_empty() {
+                        if temp_edges.get(index).unwrap().1.statements.is_empty() {
                             None
                         } else {
-                            Some(temp_edges.get(index).unwrap().1.1.clone())
+                            Some(temp_edges.get(index).unwrap().1.statements.clone())
                         },
                     ),
                     default_block: default_block.into_sir(
-                        if temp_edges.get(index).unwrap().0.1.is_empty() {
+                        if temp_edges.get(index).unwrap().0.statements.is_empty() {
                             None
                         } else {
-                            Some(temp_edges.get(index).unwrap().0.1.clone())
+                            Some(temp_edges.get(index).unwrap().0.statements.clone())
                         },
                     ),
                 },

@@ -13,6 +13,12 @@ use crate::{
     },
 };
 
+#[cfg(feature = "dot")]
+use petgraph::{
+    dot::{Config, Dot},
+    graph::NodeIndex,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BlockIndex {
     /// Index of the block in the `blocks` list of the CFG
@@ -123,6 +129,140 @@ where
 {
     pub blocks: Vec<Block<I>>,
     pub start_index: BlockIndexInfo<I::Opcode>,
+}
+
+#[cfg(feature = "dot")]
+impl<I> ControlFlowGraph<I>
+where
+    I: GenericInstruction,
+{
+    pub fn make_dot_graph(&self) -> String {
+        let mut graph = petgraph::Graph::<String, String>::new();
+
+        Self::add_block(
+            &mut graph,
+            &self.blocks,
+            self.start_index.get_block_index(),
+            &mut HashMap::new(),
+        );
+
+        format!(
+            "{:#?}",
+            Dot::with_attr_getters(
+                &graph,
+                &[Config::NodeNoLabel],
+                &|_, e| {
+                    let color = if e.weight() != "fallthrough" {
+                        "green"
+                    } else {
+                        "red"
+                    };
+
+                    format!("color = {}", color)
+                },
+                &|_, (_, s)| format!(r#"label = "{}""#, s),
+            )
+        )
+    }
+
+    fn add_block<'a>(
+        graph: &mut petgraph::Graph<String, String>,
+        blocks: &'a [Block<I>],
+        block_index: Option<&'a BlockIndex>,
+        block_map: &mut HashMap<Option<&'a BlockIndex>, NodeIndex>,
+    ) -> Option<NodeIndex> {
+        let block = match block_index {
+            Some(BlockIndex::Index(index)) => blocks.get(*index).unwrap(),
+            _ => return None,
+        };
+
+        let mut lines = block
+            .instructions
+            .iter()
+            .map(|i| format!("{:#?} {:#?}", i.get_opcode(), i.get_raw_value()))
+            .collect::<Vec<_>>();
+
+        if let BlockIndexInfo::Edge(BranchEdge { opcode, .. }) = &block.branch_block {
+            lines.push(format!("{:#?}", opcode.clone()));
+        }
+
+        let text = lines.join("\n");
+
+        let index = if block_map.contains_key(&block_index) {
+            block_map[&block_index]
+        } else {
+            let index = graph.add_node(text);
+            block_map.insert(block_index.clone(), index);
+
+            index
+        };
+
+        let (branch_index, opcode) = match &block.branch_block {
+            BlockIndexInfo::Edge(BranchEdge {
+                block_index: branch_index,
+                opcode,
+            }) => (Some(branch_index), Some(opcode.clone())),
+            _ => (None, None),
+        };
+
+        let branch_index = if block_map.contains_key(&branch_index) {
+            Some(block_map[&branch_index])
+        } else {
+            let index = Self::add_block(graph, blocks, branch_index, block_map);
+
+            let index = if let Some(index) = index {
+                block_map.insert(branch_index.clone(), index);
+                Some(index)
+            } else {
+                match branch_index {
+                    Some(BlockIndex::InvalidIndex(invalid_index)) => {
+                        Some(graph.add_node(format!("invalid jump to index {}", invalid_index)))
+                    }
+                    Some(BlockIndex::Index(_)) => unreachable!(),
+                    None => None,
+                }
+            };
+
+            index
+        };
+
+        let default_index = if block_map.contains_key(&block.default_block.get_block_index()) {
+            Some(block_map[&block.default_block.get_block_index()])
+        } else {
+            let index = Self::add_block(
+                graph,
+                blocks,
+                block.default_block.get_block_index(),
+                block_map,
+            );
+
+            let index = if let Some(index) = index {
+                block_map.insert(block.default_block.get_block_index(), index);
+                Some(index)
+            } else {
+                match block.default_block.get_block_index() {
+                    Some(BlockIndex::InvalidIndex(invalid_index)) => {
+                        Some(graph.add_node(format!("invalid jump to index {}", invalid_index)))
+                    }
+                    Some(BlockIndex::Index(_)) => unreachable!(),
+                    None => None,
+                }
+            };
+
+            index
+        };
+
+        if let Some(to_index) = branch_index {
+            let text = format!("{:#?}", opcode.unwrap());
+            graph.add_edge(index, to_index, text);
+        }
+
+        if let Some(to_index) = default_index {
+            graph.add_edge(index, to_index, "fallthrough".to_string());
+        }
+
+        Some(index)
+    }
 }
 
 impl<I, T> SimpleInstructionAccess<I> for T where
@@ -489,11 +629,6 @@ where
 mod test {
     use std::{collections::HashMap, fmt::Debug};
 
-    use petgraph::{
-        dot::{Config, Dot},
-        graph::NodeIndex,
-    };
-
     use crate::{
         CodeObject,
         cfg::{
@@ -506,105 +641,6 @@ mod test {
             instructions::{Instruction, Instructions},
         },
     };
-
-    fn add_block<'a, I: GenericInstruction>(
-        graph: &mut petgraph::Graph<String, String>,
-        blocks: &'a [Block<I>],
-        block_index: Option<&'a BlockIndex>,
-        block_map: &mut HashMap<Option<&'a BlockIndex>, NodeIndex>,
-    ) -> Option<NodeIndex> {
-        let block = match block_index {
-            Some(BlockIndex::Index(index)) => blocks.get(*index).unwrap(),
-            _ => return None,
-        };
-
-        let mut lines = block
-            .instructions
-            .iter()
-            .map(|i| format!("{:#?} {:#?}", i.get_opcode(), i.get_raw_value()))
-            .collect::<Vec<_>>();
-
-        if let BlockIndexInfo::Edge(BranchEdge { opcode, .. }) = &block.branch_block {
-            lines.push(format!("{:#?}", opcode.clone()));
-        }
-
-        let text = lines.join("\n");
-
-        let index = if block_map.contains_key(&block_index) {
-            block_map[&block_index]
-        } else {
-            let index = graph.add_node(text);
-            block_map.insert(block_index.clone(), index);
-
-            index
-        };
-
-        let (branch_index, opcode) = match &block.branch_block {
-            BlockIndexInfo::Edge(BranchEdge {
-                block_index: branch_index,
-                opcode,
-            }) => (Some(branch_index), Some(opcode.clone())),
-            _ => (None, None),
-        };
-
-        let branch_index = if block_map.contains_key(&branch_index) {
-            Some(block_map[&branch_index])
-        } else {
-            let index = add_block(graph, blocks, branch_index, block_map);
-
-            let index = if let Some(index) = index {
-                block_map.insert(branch_index.clone(), index);
-                Some(index)
-            } else {
-                match branch_index {
-                    Some(BlockIndex::InvalidIndex(invalid_index)) => {
-                        Some(graph.add_node(format!("invalid jump to index {}", invalid_index)))
-                    }
-                    Some(BlockIndex::Index(_)) => unreachable!(),
-                    None => None,
-                }
-            };
-
-            index
-        };
-
-        let default_index = if block_map.contains_key(&block.default_block.get_block_index()) {
-            Some(block_map[&block.default_block.get_block_index()])
-        } else {
-            let index = add_block(
-                graph,
-                blocks,
-                block.default_block.get_block_index(),
-                block_map,
-            );
-
-            let index = if let Some(index) = index {
-                block_map.insert(block.default_block.get_block_index(), index);
-                Some(index)
-            } else {
-                match block.default_block.get_block_index() {
-                    Some(BlockIndex::InvalidIndex(invalid_index)) => {
-                        Some(graph.add_node(format!("invalid jump to index {}", invalid_index)))
-                    }
-                    Some(BlockIndex::Index(_)) => unreachable!(),
-                    None => None,
-                }
-            };
-
-            index
-        };
-
-        if let Some(to_index) = branch_index {
-            let text = format!("{:#?}", opcode.unwrap());
-            graph.add_edge(index, to_index, text);
-        }
-
-        if let Some(to_index) = default_index {
-            graph.add_edge(index, to_index, "fallthrough".to_string());
-        }
-
-        Some(index)
-    }
 
     #[test]
     fn simple_instructions() {
@@ -621,7 +657,7 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec());
 
-        make_dot_graph(&cfg);
+        println!("{}", cfg.make_dot_graph());
 
         insta::assert_debug_snapshot!(cfg);
     }
@@ -647,7 +683,7 @@ mod test {
 
         dbg!(&cfg);
 
-        make_dot_graph(&cfg);
+        println!("{}", cfg.make_dot_graph());
 
         insta::assert_debug_snapshot!(cfg);
     }
@@ -668,12 +704,12 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec());
 
-        make_dot_graph(&cfg);
+        println!("{}", cfg.make_dot_graph());
 
         let cfg: ControlFlowGraph<ExtInstruction> =
             simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
 
-        make_dot_graph(&cfg);
+        println!("{}", cfg.make_dot_graph());
 
         insta::assert_debug_snapshot!(cfg);
     }
@@ -694,12 +730,12 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec());
 
-        make_dot_graph(&cfg);
+        println!("{}", cfg.make_dot_graph());
 
         let cfg: ControlFlowGraph<ExtInstruction> =
             simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
 
-        make_dot_graph(&cfg);
+        println!("{}", cfg.make_dot_graph());
 
         insta::assert_debug_snapshot!(cfg);
     }
@@ -716,7 +752,7 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec());
 
-        make_dot_graph(&cfg);
+        println!("{}", cfg.make_dot_graph());
 
         insta::assert_debug_snapshot!(cfg);
     }
@@ -733,38 +769,6 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec());
 
-        make_dot_graph(&cfg);
-    }
-
-    fn make_dot_graph<I>(cfg: &ControlFlowGraph<I>)
-    where
-        I: GenericInstruction,
-    {
-        let mut graph = petgraph::Graph::<String, String>::new();
-
-        add_block(
-            &mut graph,
-            &cfg.blocks,
-            cfg.start_index.get_block_index(),
-            &mut HashMap::new(),
-        );
-
-        println!(
-            "{:#?}",
-            Dot::with_attr_getters(
-                &graph,
-                &[Config::NodeNoLabel],
-                &|_, e| {
-                    let color = if e.weight() != "fallthrough" {
-                        "green"
-                    } else {
-                        "red"
-                    };
-
-                    format!("color = {}", color)
-                },
-                &|_, (_, s)| format!(r#"label = "{}""#, s),
-            )
-        );
+        println!("{}", cfg.make_dot_graph());
     }
 }

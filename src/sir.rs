@@ -93,10 +93,6 @@ where
 
     let mut stack_outputs = vec![];
 
-    if opcode.is_jump() {
-        dbg!(&node);
-    }
-
     for output in node.get_outputs() {
         for count in 0..output.count {
             let var = AuxVar {
@@ -606,7 +602,11 @@ mod test {
         let cfg: ControlFlowGraph<ExtInstruction> =
             simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
 
-        make_dot_graph(&cfg_to_ir::<ExtInstruction, SIRNode>(&cfg).unwrap());
+        let ir_cfg = cfg_to_ir::<ExtInstruction, SIRNode>(&cfg).unwrap();
+
+        make_dot_graph(&ir_cfg);
+
+        insta::assert_debug_snapshot!(ir_cfg);
     }
 
     #[test]
@@ -626,6 +626,7 @@ mod test {
         let ir_cfg = cfg_to_ir::<ExtInstruction, SIRNode>(&cfg).unwrap();
 
         make_dot_graph(&ir_cfg);
+        insta::assert_debug_snapshot!(ir_cfg);
     }
 
     fn add_block<'a, SIRNode: GenericSIRNode>(

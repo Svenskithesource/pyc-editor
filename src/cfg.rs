@@ -333,10 +333,10 @@ where
                 let jump_instruction = if let Some(jump_index) = jump_map.get(&(index as u32)) {
                     if instruction.is_conditional_jump()
                         && let Some(instruction) = instructions.get(*jump_index as usize - 1)
-                            && instruction.is_extended_arg()
-                        {
-                            block_indexes_to_fix.push(BlockIndex::Index(curr_block_index));
-                        }
+                        && instruction.is_extended_arg()
+                    {
+                        block_indexes_to_fix.push(BlockIndex::Index(curr_block_index));
+                    }
                     Some(*jump_index)
                 } else {
                     None

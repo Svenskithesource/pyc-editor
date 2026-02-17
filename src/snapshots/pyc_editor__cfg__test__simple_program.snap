@@ -1,0 +1,220 @@
+---
+source: src/cfg.rs
+expression: cfg
+---
+ControlFlowGraph {
+    blocks: [
+        Block {
+            instructions: [
+                Resume(
+                    0,
+                ),
+                PushNull(
+                    0,
+                ),
+                LoadName(
+                    0,
+                ),
+                LoadConst(
+                    0,
+                ),
+                Precall(
+                    1,
+                ),
+                Cache(
+                    0,
+                ),
+                Call(
+                    1,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                GetIter(
+                    0,
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: Fallthrough(
+                Index(
+                    1,
+                ),
+            ),
+        },
+        Block {
+            instructions: [],
+            branch_block: Edge(
+                BranchEdge {
+                    opcode: FOR_ITER,
+                    block_index: Index(
+                        2,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    opcode: FOR_ITER,
+                    block_index: Index(
+                        3,
+                    ),
+                },
+            ),
+        },
+        Block {
+            instructions: [
+                LoadConst(
+                    4,
+                ),
+                ReturnValue(
+                    0,
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: NoIndex,
+        },
+        Block {
+            instructions: [
+                StoreName(
+                    1,
+                ),
+                LoadName(
+                    1,
+                ),
+                LoadConst(
+                    1,
+                ),
+                CompareOp(
+                    2,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    opcode: POP_JUMP_FORWARD_IF_FALSE,
+                    block_index: Index(
+                        4,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    opcode: POP_JUMP_FORWARD_IF_FALSE,
+                    block_index: Index(
+                        5,
+                    ),
+                },
+            ),
+        },
+        Block {
+            instructions: [
+                PushNull(
+                    0,
+                ),
+                LoadName(
+                    2,
+                ),
+                LoadConst(
+                    3,
+                ),
+                Precall(
+                    1,
+                ),
+                Cache(
+                    0,
+                ),
+                Call(
+                    1,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                PopTop(
+                    0,
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    opcode: JUMP_BACKWARD,
+                    block_index: Index(
+                        1,
+                    ),
+                },
+            ),
+            default_block: NoIndex,
+        },
+        Block {
+            instructions: [
+                PushNull(
+                    0,
+                ),
+                LoadName(
+                    2,
+                ),
+                LoadConst(
+                    2,
+                ),
+                Precall(
+                    1,
+                ),
+                Cache(
+                    0,
+                ),
+                Call(
+                    1,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                Cache(
+                    0,
+                ),
+                PopTop(
+                    0,
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    opcode: JUMP_BACKWARD,
+                    block_index: Index(
+                        1,
+                    ),
+                },
+            ),
+            default_block: NoIndex,
+        },
+    ],
+    start_index: Fallthrough(
+        Index(
+            0,
+        ),
+    ),
+}

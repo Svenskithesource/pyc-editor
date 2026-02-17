@@ -622,6 +622,8 @@ mod test {
         let cfg = create_cfg(instructions.to_vec());
 
         make_dot_graph(&cfg);
+
+        insta::assert_debug_snapshot!(cfg);
     }
 
     #[test]
@@ -646,6 +648,8 @@ mod test {
         dbg!(&cfg);
 
         make_dot_graph(&cfg);
+
+        insta::assert_debug_snapshot!(cfg);
     }
 
     #[test]
@@ -670,6 +674,8 @@ mod test {
             simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
 
         make_dot_graph(&cfg);
+
+        insta::assert_debug_snapshot!(cfg);
     }
 
     #[test]
@@ -694,6 +700,8 @@ mod test {
             simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
 
         make_dot_graph(&cfg);
+
+        insta::assert_debug_snapshot!(cfg);
     }
 
     #[test]
@@ -709,6 +717,8 @@ mod test {
         let cfg = create_cfg(instructions.to_vec());
 
         make_dot_graph(&cfg);
+
+        insta::assert_debug_snapshot!(cfg);
     }
 
     #[test]

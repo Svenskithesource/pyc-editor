@@ -38,7 +38,9 @@ pub struct ExceptionTableEntry {
     pub start: u32,
     pub end: u32,
     pub target: u32,
+    /// Stack depth at the start of the try block
     pub depth: u32,
+    /// Whether to push the index of the last executed instruction
     pub lasti: bool,
 }
 

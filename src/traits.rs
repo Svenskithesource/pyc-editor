@@ -108,9 +108,7 @@ where
     fn get_full_arg(&self, index: usize) -> Option<u32> {
         if self.as_ref().len() > index {
             if OpargType::is_u32() {
-                self.as_ref()
-                    .get(index)
-                    .map(|i| i.get_raw_value().to_u32())
+                self.as_ref().get(index).map(|i| i.get_raw_value().to_u32())
             } else {
                 let mut curr_index = index;
                 let mut extended_args = vec![];
@@ -145,9 +143,7 @@ where
     fn get_full_arg_bounded(&self, index: usize, lower_bound: usize) -> Option<u32> {
         if self.as_ref().len() > index {
             if OpargType::is_u32() {
-                self.as_ref()
-                    .get(index)
-                    .map(|i| i.get_raw_value().to_u32())
+                self.as_ref().get(index).map(|i| i.get_raw_value().to_u32())
             } else {
                 let mut curr_index = index;
                 let mut extended_args = vec![];
@@ -474,6 +470,21 @@ pub trait GenericSIRNode: Clone + Debug + PartialEq {
 /// A trait to indicate that the SIR statements are owned.
 pub trait SIROwned<SIRNode>: std::fmt::Display {
     fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;
+}
+
+/// Trait to show what the branch reason is (opcode or exception)
+pub trait BranchReasonTrait: Clone + Debug {
+    fn from_opcode<O>(opcode: O) -> Self
+    where
+        O: GenericOpcode;
+
+    fn from_exception() -> Self;
+
+    fn is_opcode(&self) -> bool;
+
+    fn is_exception(&self) -> bool;
+
+    fn get_opcode<O>(&self) -> O;
 }
 
 #[cfg(all(test, feature = "v311"))]

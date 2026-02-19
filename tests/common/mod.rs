@@ -58,10 +58,10 @@ fn init_repo(version: &PyVersion) {
                 if file.is_dir() {
                     fs::create_dir_all(&outpath).unwrap();
                 } else {
-                    if let Some(parent) = outpath.parent() {
-                        if !parent.exists() {
-                            fs::create_dir_all(parent).unwrap();
-                        }
+                    if let Some(parent) = outpath.parent()
+                        && !parent.exists()
+                    {
+                        fs::create_dir_all(parent).unwrap();
                     }
 
                     let mut outfile = fs::File::create(&outpath).unwrap();

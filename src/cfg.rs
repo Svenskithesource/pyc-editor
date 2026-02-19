@@ -192,7 +192,7 @@ where
             block_map[&block_index]
         } else {
             let index = graph.add_node(text);
-            block_map.insert(block_index.clone(), index);
+            block_map.insert(block_index, index);
 
             index
         };
@@ -210,8 +210,8 @@ where
         } else {
             let index = Self::add_block(graph, blocks, branch_index, block_map);
 
-            let index = if let Some(index) = index {
-                block_map.insert(branch_index.clone(), index);
+            if let Some(index) = index {
+                block_map.insert(branch_index, index);
                 Some(index)
             } else {
                 match branch_index {
@@ -221,9 +221,7 @@ where
                     Some(BlockIndex::Index(_)) => unreachable!(),
                     None => None,
                 }
-            };
-
-            index
+            }
         };
 
         let default_index = if block_map.contains_key(&block.default_block.get_block_index()) {
@@ -236,7 +234,7 @@ where
                 block_map,
             );
 
-            let index = if let Some(index) = index {
+            if let Some(index) = index {
                 block_map.insert(block.default_block.get_block_index(), index);
                 Some(index)
             } else {
@@ -247,9 +245,7 @@ where
                     Some(BlockIndex::Index(_)) => unreachable!(),
                     None => None,
                 }
-            };
-
-            index
+            }
         };
 
         if let Some(to_index) = branch_index {
@@ -627,15 +623,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, fmt::Debug};
-
     use crate::{
         CodeObject,
-        cfg::{
-            Block, BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph, create_cfg,
-            simple_cfg_to_ext_cfg,
-        },
-        traits::GenericInstruction,
+        cfg::{ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg},
         v311::{
             ext_instructions::{ExtInstruction, ExtInstructions},
             instructions::{Instruction, Instructions},

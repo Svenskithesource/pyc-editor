@@ -273,19 +273,19 @@ where
             block_map[&block_index]
         } else {
             let index = graph.add_node(text);
-            block_map.insert(block_index.clone(), index);
+            block_map.insert(block_index, index);
 
             index
         };
 
-        let (branch_index, branch_statements, opcode) = match &block.branch_block {
+        let (branch_index, branch_statements) = match &block.branch_block {
             SIRBlockIndexInfo::Edge(SIRBranchEdge {
                 block_index: branch_index,
                 statements,
-                opcode,
-            }) => (Some(branch_index), Some(statements), Some(opcode.clone())),
-            SIRBlockIndexInfo::Fallthrough(branch_index) => (Some(branch_index), None, None),
-            _ => (None, None, None),
+                ..
+            }) => (Some(branch_index), Some(statements)),
+            SIRBlockIndexInfo::Fallthrough(branch_index) => (Some(branch_index), None),
+            _ => (None, None),
         };
 
         let branch_index = if block_map.contains_key(&branch_index) {
@@ -293,8 +293,8 @@ where
         } else {
             let index = Self::add_block(graph, blocks, branch_index, block_map);
 
-            let index = if let Some(index) = index {
-                block_map.insert(branch_index.clone(), index);
+            if let Some(index) = index {
+                block_map.insert(branch_index, index);
                 Some(index)
             } else {
                 match branch_index {
@@ -304,19 +304,17 @@ where
                     Some(BlockIndex::Index(_)) => unreachable!(),
                     None => None,
                 }
-            };
-
-            index
+            }
         };
 
-        let (default_index, default_statements, opcode) = match &block.default_block {
+        let (default_index, default_statements) = match &block.default_block {
             SIRBlockIndexInfo::Edge(SIRBranchEdge {
                 block_index: default_index,
                 statements,
-                opcode,
-            }) => (Some(default_index), Some(statements), Some(opcode.clone())),
-            SIRBlockIndexInfo::Fallthrough(branch_index) => (Some(branch_index), None, None),
-            _ => (None, None, None),
+                ..
+            }) => (Some(default_index), Some(statements)),
+            SIRBlockIndexInfo::Fallthrough(branch_index) => (Some(branch_index), None),
+            _ => (None, None),
         };
 
         let default_index = if block_map.contains_key(&default_index) {
@@ -324,7 +322,7 @@ where
         } else {
             let index = Self::add_block(graph, blocks, default_index, block_map);
 
-            let index = if let Some(index) = index {
+            if let Some(index) = index {
                 block_map.insert(default_index, index);
                 Some(index)
             } else {
@@ -335,9 +333,7 @@ where
                     Some(BlockIndex::Index(_)) => unreachable!(),
                     None => None,
                 }
-            };
-
-            index
+            }
         };
 
         if let Some(to_index) = branch_index {
@@ -353,7 +349,7 @@ where
             let text = if let Some(statements) = default_statements {
                 format!("fallthrough\n{}", statements.as_ref().unwrap())
             } else {
-                format!("fallthrough")
+                "fallthrough".to_string()
             };
 
             graph.add_edge(index, to_index, text);
@@ -696,11 +692,8 @@ where
 mod test {
     use std::collections::HashMap;
 
-    use crate::cfg::{BlockIndex, ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg};
-    use crate::sir::{
-        SIR, SIRBlock, SIRBlockIndexInfo, SIRBranchEdge, SIRControlFlowGraph, bb_to_ir, cfg_to_ir,
-    };
-    use crate::traits::{GenericSIRNode, SIROwned};
+    use crate::cfg::{ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg};
+    use crate::sir::{bb_to_ir, cfg_to_ir};
     use crate::v311::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v311::instructions::Instruction;
     use crate::v311::opcodes::sir::SIRNode;

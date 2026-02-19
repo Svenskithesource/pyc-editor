@@ -488,7 +488,7 @@ mod test {
             crate::v311::instructions::Instruction::Nop(1),
         ]);
 
-        assert_eq!(instructions.find_ext_arg_jumps().iter().count(), 1)
+        assert_eq!(instructions.find_ext_arg_jumps().len(), 1)
     }
 
     #[test]

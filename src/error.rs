@@ -9,6 +9,7 @@ pub enum Error {
     InvalidConstant(python_marshal::Object),
     InvalidExceptionTable,
     InvalidStacksize(i32),
+    UnexpectedExceptiontable,
     UnsupportedVersion(python_marshal::magic::PyVersion),
     PythonMarshalError(python_marshal::error::Error),
     ExtendedArgJump,
@@ -28,9 +29,20 @@ impl fmt::Display for Error {
             Error::InvalidConstant(obj) => write!(f, "Invalid constant: {:?}", obj),
             Error::InvalidExceptionTable => write!(f, "Invalid exception table"),
             Error::InvalidStacksize(size) => write!(f, "Invalid stack size: {:?}", size),
-            Error::UnsupportedVersion(ver) => write!(f, "Unsupported Python version: {:?}. Did you forget to enable the feature for this version?", ver),
+            Error::UnexpectedExceptiontable => write!(
+                f,
+                "Received an exception table for a version that doesn't have one"
+            ),
+            Error::UnsupportedVersion(ver) => write!(
+                f,
+                "Unsupported Python version: {:?}. Did you forget to enable the feature for this version?",
+                ver
+            ),
             Error::PythonMarshalError(err) => write!(f, "Python marshal error: {}", err),
-            Error::ExtendedArgJump => write!(f, "There is a jump skipping over an extended arg. We cannot convert to resolved instructions because of this."),
+            Error::ExtendedArgJump => write!(
+                f,
+                "There is a jump skipping over an extended arg. We cannot convert to resolved instructions because of this."
+            ),
             Error::RecursiveReference(s) => write!(f, "Recursive reference: {}", s),
         }
     }

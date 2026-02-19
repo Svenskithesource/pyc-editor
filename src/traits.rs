@@ -473,18 +473,19 @@ pub trait SIROwned<SIRNode>: std::fmt::Display {
 }
 
 /// Trait to show what the branch reason is (opcode or exception)
-pub trait BranchReasonTrait: Clone + Debug {
-    fn from_opcode<O>(opcode: O) -> Self
-    where
-        O: GenericOpcode;
+pub trait BranchReasonTrait: Clone + Debug
+{
+    type Opcode: GenericOpcode;
 
-    fn from_exception() -> Self;
+    fn from_opcode(opcode: Self::Opcode) -> Result<Self, Error>;
+
+    fn from_exception(lasti: bool) -> Result<Self, Error>;
 
     fn is_opcode(&self) -> bool;
 
     fn is_exception(&self) -> bool;
 
-    fn get_opcode<O>(&self) -> O;
+    fn get_opcode(&self) -> Option<&Self::Opcode>;
 }
 
 #[cfg(all(test, feature = "v311"))]

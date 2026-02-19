@@ -253,7 +253,9 @@ SIRControlFlowGraph {
             ),
             branch_block: Edge(
                 SIRBranchEdge {
-                    opcode: FOR_ITER,
+                    reason: Opcode(
+                        FOR_ITER,
+                    ),
                     statements: Some(
                         SIR(
                             [
@@ -316,7 +318,9 @@ SIRControlFlowGraph {
             ),
             default_block: Edge(
                 SIRBranchEdge {
-                    opcode: FOR_ITER,
+                    reason: Opcode(
+                        FOR_ITER,
+                    ),
                     statements: Some(
                         SIR(
                             [
@@ -593,7 +597,9 @@ SIRControlFlowGraph {
             ),
             branch_block: Edge(
                 SIRBranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_FALSE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
                     statements: Some(
                         SIR(
                             [
@@ -642,7 +648,9 @@ SIRControlFlowGraph {
             ),
             default_block: Edge(
                 SIRBranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_FALSE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
                     statements: Some(
                         SIR(
                             [
@@ -906,7 +914,9 @@ SIRControlFlowGraph {
             ),
             branch_block: Edge(
                 SIRBranchEdge {
-                    opcode: JUMP_BACKWARD,
+                    reason: Opcode(
+                        JUMP_BACKWARD,
+                    ),
                     statements: Some(
                         SIR(
                             [
@@ -1147,7 +1157,9 @@ SIRControlFlowGraph {
             ),
             branch_block: Edge(
                 SIRBranchEdge {
-                    opcode: JUMP_BACKWARD,
+                    reason: Opcode(
+                        JUMP_BACKWARD,
+                    ),
                     statements: Some(
                         SIR(
                             [

@@ -18,7 +18,9 @@ ControlFlowGraph {
             ],
             branch_block: Edge(
                 BranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_TRUE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
                     block_index: Index(
                         1,
                     ),
@@ -26,7 +28,9 @@ ControlFlowGraph {
             ),
             default_block: Edge(
                 BranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_TRUE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
                     block_index: Index(
                         2,
                     ),

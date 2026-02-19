@@ -140,6 +140,91 @@ where
     Ok(statements)
 }
 
+fn exception_to_ir<SIRNode>(
+    lasti: bool,
+    stack: &mut Vec<SIRExpression<SIRNode>>,
+    phi_map: &mut BTreeMap<i32, AuxVar>,
+    phantom_items: &mut i32,
+    names: &mut HashMap<&'static str, u32>,
+) -> Result<Vec<SIRStatement<SIRNode>>, Error>
+where
+    SIRNode: GenericSIRNode,
+{
+    let node = SIRNode::new(opcode.clone(), oparg, jump);
+
+    let mut stack_inputs = vec![];
+
+    let mut statements = vec![];
+
+    // Store temp count so items from the same input don't count twice
+    let mut temp_phantom_count = 0;
+    for input in node.get_inputs() {
+        for count in 0..input.count {
+            let index = (stack.len() as i32 - 1) - (input.index + count) as i32;
+
+            if index < 0 {
+                // Stack item from other basic block, create an empty phi node that we populate later.
+
+                if phi_map.contains_key(&(index - *phantom_items)) {
+                    return Err(Error::StackItemReused);
+                }
+
+                let phi = SIRExpression::PhiNode(vec![]);
+
+                let var = AuxVar {
+                    name: generate_var_name("phi", names),
+                };
+
+                statements.push(SIRStatement::Assignment(var.clone(), phi));
+                stack_inputs.push(SIRExpression::AuxVar(var.clone()));
+                phi_map.insert(index - *phantom_items, var);
+                temp_phantom_count += 1;
+            } else {
+                stack_inputs.push((*stack.index(index as usize)).clone());
+                stack.remove(index as usize);
+            }
+        }
+    }
+    *phantom_items += temp_phantom_count;
+
+    let mut stack_outputs = vec![];
+
+    for output in node.get_outputs() {
+        for count in 0..output.count {
+            let var = AuxVar {
+                name: generate_var_name(output.name, names),
+            };
+
+            stack_outputs.push(var.clone());
+
+            stack.insert(
+                stack.len() - (output.index as i32 + count as i32) as usize,
+                SIRExpression::<SIRNode>::AuxVar(var),
+            );
+        }
+    }
+
+    let call = Call::<SIRNode> { node, stack_inputs };
+
+    if stack_outputs.len() > 1 {
+        // Reverse list so that the order makes sense in the visualization
+        stack_outputs.reverse();
+        statements.push(SIRStatement::TupleAssignment(
+            stack_outputs,
+            SIRExpression::Call(call),
+        ));
+    } else if !stack_outputs.is_empty() {
+        statements.push(SIRStatement::Assignment(
+            stack_outputs.first().unwrap().clone(),
+            SIRExpression::Call(call),
+        ))
+    } else {
+        statements.push(SIRStatement::DisregardCall(call))
+    }
+
+    Ok(statements)
+}
+
 /// Internal function that is used while converting an Ext CFG to SIR nodes.
 /// This function is meant to process a single block.
 fn bb_to_ir<ExtInstruction, SIRNode>(
@@ -412,7 +497,7 @@ pub fn cfg_to_ir<ExtInstruction, SIRNode, BranchReason>(
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
     SIRNode: GenericSIRNode<Opcode = ExtInstruction::Opcode>,
-    BranchReason: BranchReasonTrait,
+    BranchReason: BranchReasonTrait<Opcode = SIRNode::Opcode>,
     SIR<SIRNode>: SIROwned<SIRNode>,
 {
     // Prefill blocks with None that we replace later
@@ -457,9 +542,9 @@ where
                 reason: branch_reason,
                 ..
             }) => {
-                if branch_reason.is_opcode() {
+                if let Some(opcode) = branch_reason.get_opcode() {
                     instruction_to_ir::<ExtInstruction, SIRNode>(
-                        branch_reason.get_opcode(),
+                        opcode.clone(),
                         0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
                         false, // Don't take the jump for the default block
                         &mut default_stack,
@@ -468,7 +553,15 @@ where
                         &mut names,
                     )?
                 } else {
-                    todo!()
+                    exception_to_ir::<ExtInstruction, SIRNode>(
+                        opcode.clone(),
+                        0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
+                        false, // Don't take the jump for the default block
+                        &mut default_stack,
+                        &mut default_phi_map,
+                        &mut 0,
+                        &mut names,
+                    )?
                 }
             }
             _ => vec![],
@@ -482,13 +575,13 @@ where
                 reason: branch_reason,
                 ..
             }) => {
-                if branch_reason.is_opcode() {
+                if let Some(opcode) = branch_reason.get_opcode() {
                     instruction_to_ir::<ExtInstruction, SIRNode>(
-                        branch_reason.get_opcode(),
+                        opcode.clone(),
                         0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
                         true, // Take the jump for the branch block
-                        &mut default_stack,
-                        &mut default_phi_map,
+                        &mut branch_stack,
+                        &mut branch_phi_map,
                         &mut 0,
                         &mut names,
                     )?
@@ -776,12 +869,19 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
-        let cfg: ControlFlowGraph<ExtInstruction> =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
+        let cfg: ControlFlowGraph<ExtInstruction, v311::opcodes::BranchReason> =
+            simple_cfg_to_ext_cfg::<
+                Instruction,
+                ExtInstruction,
+                ExtInstructions,
+                v311::opcodes::BranchReason,
+            >(&cfg)
+            .unwrap();
 
-        let ir_cfg = cfg_to_ir::<ExtInstruction, SIRNode>(&cfg).unwrap();
+        let ir_cfg =
+            cfg_to_ir::<ExtInstruction, SIRNode, v311::opcodes::BranchReason>(&cfg).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 
@@ -797,12 +897,18 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
-        let cfg =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
+        let cfg = simple_cfg_to_ext_cfg::<
+            Instruction,
+            ExtInstruction,
+            ExtInstructions,
+            v311::opcodes::BranchReason,
+        >(&cfg)
+        .unwrap();
 
-        let ir_cfg = cfg_to_ir::<ExtInstruction, SIRNode>(&cfg).unwrap();
+        let ir_cfg =
+            cfg_to_ir::<ExtInstruction, SIRNode, v311::opcodes::BranchReason>(&cfg).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
         insta::assert_debug_snapshot!(ir_cfg);
@@ -822,12 +928,13 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg::<
             crate::v310::instructions::Instruction,
             crate::v310::ext_instructions::ExtInstruction,
             crate::v310::ext_instructions::ExtInstructions,
+            crate::v310::opcodes::Opcode,
         >(&cfg)
         .unwrap();
 
@@ -836,6 +943,7 @@ mod test {
         let ir_cfg = cfg_to_ir::<
             crate::v310::ext_instructions::ExtInstruction,
             crate::v310::opcodes::sir::SIRNode,
+            crate::v310::opcodes::Opcode,
         >(&cfg)
         .unwrap();
 

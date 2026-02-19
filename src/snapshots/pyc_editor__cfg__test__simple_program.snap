@@ -54,7 +54,9 @@ ControlFlowGraph {
             instructions: [],
             branch_block: Edge(
                 BranchEdge {
-                    opcode: FOR_ITER,
+                    reason: Opcode(
+                        FOR_ITER,
+                    ),
                     block_index: Index(
                         2,
                     ),
@@ -62,7 +64,9 @@ ControlFlowGraph {
             ),
             default_block: Edge(
                 BranchEdge {
-                    opcode: FOR_ITER,
+                    reason: Opcode(
+                        FOR_ITER,
+                    ),
                     block_index: Index(
                         3,
                     ),
@@ -104,7 +108,9 @@ ControlFlowGraph {
             ],
             branch_block: Edge(
                 BranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_FALSE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
                     block_index: Index(
                         4,
                     ),
@@ -112,7 +118,9 @@ ControlFlowGraph {
             ),
             default_block: Edge(
                 BranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_FALSE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
                     block_index: Index(
                         5,
                     ),
@@ -157,7 +165,9 @@ ControlFlowGraph {
             ],
             branch_block: Edge(
                 BranchEdge {
-                    opcode: JUMP_BACKWARD,
+                    reason: Opcode(
+                        JUMP_BACKWARD,
+                    ),
                     block_index: Index(
                         1,
                     ),
@@ -203,7 +213,9 @@ ControlFlowGraph {
             ],
             branch_block: Edge(
                 BranchEdge {
-                    opcode: JUMP_BACKWARD,
+                    reason: Opcode(
+                        JUMP_BACKWARD,
+                    ),
                     block_index: Index(
                         1,
                     ),

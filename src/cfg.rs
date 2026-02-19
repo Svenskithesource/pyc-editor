@@ -403,11 +403,11 @@ fn fix_extended_args<I, BranchReason>(
 pub fn create_cfg<OpargType, I, BranchReason>(
     instructions: Vec<I>,
     exception_table: Option<Vec<ExceptionTableEntry>>,
-) -> ControlFlowGraph<I, BranchReason>
+) -> Result<ControlFlowGraph<I, BranchReason>, Error>
 where
     OpargType: Oparg,
     I: GenericInstruction,
-    BranchReason: BranchReasonTrait,
+    BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
     Vec<I>: InstructionAccess<OpargType, I>,
 {
     // Used for keeping track of finished blocks
@@ -421,10 +421,10 @@ where
 
     let jump_map = instructions.get_jump_map();
 
-    let exception_map: HashMap<u32, u32> = if let Some(exception_table) = exception_table {
+    let exception_map: HashMap<u32, (u32, bool)> = if let Some(exception_table) = exception_table {
         exception_table
             .into_iter()
-            .map(|e| (e.start, e.target))
+            .map(|e| (e.start, (e.target, e.lasti)))
             .collect()
     } else {
         HashMap::new()
@@ -481,7 +481,7 @@ where
                 break ExitReason::BlockExists;
             } else if jump_map
                 .values()
-                .chain(exception_map.values())
+                .chain(exception_map.values().map(|(target, _)| target))
                 .any(|e| *e == (index as u32))
                 && !curr_block.is_empty()
             {
@@ -505,13 +505,13 @@ where
 
             let exception_start = exception_map.get(&(index as u32));
 
-            if let Some(exception_target) = exception_start
+            if let Some((exception_target, lasti)) = exception_start
                 && !exception_block_map.contains_key(&index)
             {
                 blocks.push(Block {
                     instructions: curr_block,
                     branch_block: BlockIndexInfo::Edge(BranchEdge {
-                        reason: BranchReason::from_exception(),
+                        reason: BranchReason::from_exception(*lasti)?,
                         block_index: if exception_block_map
                             .contains_key(&(*exception_target as usize))
                         {
@@ -526,7 +526,7 @@ where
                         block_queue.push_front(index);
 
                         BlockIndexInfo::Edge(BranchEdge {
-                            reason: BranchReason::from_exception(),
+                            reason: BranchReason::from_exception(*lasti)?,
                             block_index: BlockIndex::Index(
                                 curr_block_index
                                     + 1
@@ -575,7 +575,7 @@ where
                 blocks.push(Block {
                     instructions: curr_block,
                     branch_block: BlockIndexInfo::Edge(BranchEdge {
-                        reason: BranchReason::from_opcode(instruction.get_opcode()),
+                        reason: BranchReason::from_opcode(instruction.get_opcode())?,
                         block_index: if let Some(jump_index) = jump_instruction {
                             if block_map.contains_key(&(jump_index as usize)) {
                                 block_map[&(jump_index as usize)].clone()
@@ -596,14 +596,14 @@ where
                     default_block: if let Some(next_index) = next_instruction {
                         if block_map.contains_key(&next_index) {
                             BlockIndexInfo::Edge(BranchEdge {
-                                reason: BranchReason::from_opcode(instruction.get_opcode()),
+                                reason: BranchReason::from_opcode(instruction.get_opcode())?,
                                 block_index: block_map[&next_index].clone(),
                             })
                         } else {
                             block_queue.push_front(next_index);
 
                             BlockIndexInfo::Edge(BranchEdge {
-                                reason: BranchReason::from_opcode(instruction.get_opcode()),
+                                reason: BranchReason::from_opcode(instruction.get_opcode())?,
                                 block_index: BlockIndex::Index(
                                     curr_block_index
                                     + 1
@@ -681,7 +681,7 @@ where
 
     fix_extended_args(&mut cfg, &block_indexes_to_fix);
 
-    cfg
+    Ok(cfg)
 }
 
 // Convert a cfg that consists of simple instructions to a cfg where the extended args are resolved.
@@ -720,6 +720,7 @@ mod test {
         v311::{
             ext_instructions::{ExtInstruction, ExtInstructions},
             instructions::{Instruction, Instructions},
+            opcodes::BranchReason,
         },
     };
 
@@ -736,7 +737,8 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg: ControlFlowGraph<_, BranchReason> =
+            create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -760,7 +762,8 @@ mod test {
 
         dbg!(&instructions);
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg: ControlFlowGraph<_, BranchReason> =
+            create_cfg(instructions.to_vec(), None).unwrap();
 
         dbg!(&cfg);
 
@@ -783,12 +786,15 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
-        let cfg: ControlFlowGraph<ExtInstruction> =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
+        let cfg: ControlFlowGraph<ExtInstruction, BranchReason> =
+            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
+                &cfg,
+            )
+            .unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -809,12 +815,15 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
-        let cfg: ControlFlowGraph<ExtInstruction> =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions>(&cfg).unwrap();
+        let cfg: ControlFlowGraph<ExtInstruction, BranchReason> =
+            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
+                &cfg,
+            )
+            .unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -831,7 +840,8 @@ mod test {
             Instruction::StoreName(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg: ControlFlowGraph<_, BranchReason> =
+            create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -848,7 +858,8 @@ mod test {
             Instruction::JumpForward(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None);
+        let cfg: ControlFlowGraph<_, BranchReason> =
+            create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
     }

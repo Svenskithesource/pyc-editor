@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+use crate::error::Error;
+use crate::traits::BranchReasonTrait;
 use crate::traits::GenericOpcode;
 use crate::traits::StackEffectTrait;
 use crate::utils::StackEffect;
@@ -328,5 +330,39 @@ impl GenericOpcode for Opcode {
 
     fn get_nop() -> Self {
         Opcode::NOP
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum BranchReason {
+    Opcode(Opcode),
+    /// Bool is the `lasti` field of the `ExceptionTableEntry`
+    Exception(bool),
+}
+
+impl BranchReasonTrait for BranchReason {
+    type Opcode = Opcode;
+
+    fn from_exception(lasti: bool) -> Result<Self, Error> {
+        Ok(BranchReason::Exception(lasti))
+    }
+
+    fn from_opcode(opcode: Opcode) -> Result<Self, Error> {
+        Ok(BranchReason::Opcode(opcode))
+    }
+
+    fn is_opcode(&self) -> bool {
+        matches!(self, BranchReason::Opcode(_))
+    }
+
+    fn is_exception(&self) -> bool {
+        matches!(self, BranchReason::Exception(_))
+    }
+
+    fn get_opcode(&self) -> Option<&Opcode> {
+        match self {
+            BranchReason::Opcode(opcode) => Some(opcode),
+            BranchReason::Exception(_) => None,
+        }
     }
 }

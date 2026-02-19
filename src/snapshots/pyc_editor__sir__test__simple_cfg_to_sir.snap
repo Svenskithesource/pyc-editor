@@ -121,7 +121,9 @@ SIRControlFlowGraph {
             ),
             branch_block: Edge(
                 SIRBranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_TRUE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
                     statements: Some(
                         SIR(
                             [
@@ -170,7 +172,9 @@ SIRControlFlowGraph {
             ),
             default_block: Edge(
                 SIRBranchEdge {
-                    opcode: POP_JUMP_FORWARD_IF_TRUE,
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
                     statements: Some(
                         SIR(
                             [

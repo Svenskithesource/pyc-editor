@@ -8,8 +8,9 @@ use crate::{
     error::Error,
     sir::SIRBranchEdge,
     traits::{
-        BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode, GenericSIRNode,
-        InstructionAccess, Oparg, SIROwned, SimpleInstructionAccess,
+        BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode,
+        GenericSIRException, GenericSIRNode, InstructionAccess, Oparg, SIROwned,
+        SimpleInstructionAccess,
     },
     utils::ExceptionTableEntry,
 };
@@ -44,13 +45,14 @@ impl<BranchReason> BlockIndexInfo<BranchReason>
 where
     BranchReason: BranchReasonTrait,
 {
-    pub fn into_sir<SIRNode>(
+    pub fn into_sir<SIRNode, SIRException>(
         &self,
-        statements: Option<Vec<crate::sir::SIRStatement<SIRNode>>>,
-    ) -> crate::sir::SIRBlockIndexInfo<SIRNode, BranchReason>
+        statements: Option<Vec<crate::sir::SIRStatement<SIRNode, SIRException>>>,
+    ) -> crate::sir::SIRBlockIndexInfo<SIRNode, SIRException, BranchReason>
     where
         SIRNode: GenericSIRNode,
-        crate::sir::SIR<SIRNode>: SIROwned<SIRNode>,
+        SIRException: GenericSIRException,
+        crate::sir::SIR<SIRNode, SIRException>: SIROwned<SIRNode, SIRException>,
     {
         match &self {
             BlockIndexInfo::Edge(edge) => crate::sir::SIRBlockIndexInfo::Edge(SIRBranchEdge {
@@ -416,8 +418,14 @@ where
     // Maps instruction index to block index
     let mut block_map: HashMap<usize, BlockIndex> = HashMap::new();
 
-    // Maps exception index to block index
-    let mut exception_block_map: HashMap<usize, BlockIndex> = HashMap::new();
+    enum ExceptionState {
+        PrevBlockPopped,
+        EmptyBlockCreated,
+        Finished,
+    }
+
+    // Keeps track of which exception indexes we already processed
+    let mut exceptions_processed: HashMap<usize, ExceptionState> = HashMap::new();
 
     let jump_map = instructions.get_jump_map();
 
@@ -452,22 +460,27 @@ where
             DoesJump,
             StopsExecution,
             ExceptionStart,
+            EmptyBlockCreated,
         }
 
         let exit_reason = loop {
-            if exception_block_map.contains_key(&index) {
-                if !curr_block.is_empty() {
-                    // encountered a jump target while processing a block
-                    blocks.push(Block {
-                        instructions: curr_block,
-                        branch_block: BlockIndexInfo::NoIndex,
-                        default_block: BlockIndexInfo::Fallthrough(
-                            exception_block_map[&index].clone(),
-                        ),
-                    });
-                }
+            let exception_start = exception_map.get(&(index as u32));
 
-                break ExitReason::BlockExists;
+            if exception_start.is_some() && !exceptions_processed.contains_key(&index) {
+                // Push current block that falls through to the empty exception block
+                blocks.push(Block {
+                    instructions: curr_block,
+                    branch_block: BlockIndexInfo::NoIndex,
+                    default_block: BlockIndexInfo::Fallthrough(BlockIndex::Index(
+                        curr_block_index + 1 + block_queue.len(),
+                    )),
+                });
+
+                block_queue.push_front(index);
+
+                exceptions_processed.insert(index, ExceptionState::PrevBlockPopped);
+
+                break ExitReason::ExceptionStart;
             } else if block_map.contains_key(&index) {
                 if !curr_block.is_empty() {
                     // encountered a jump target while processing a block
@@ -478,7 +491,16 @@ where
                     });
                 }
 
-                break ExitReason::BlockExists;
+                if let Some(exception_state) = exceptions_processed.get(&index) {
+                    match exception_state {
+                        ExceptionState::Finished => break ExitReason::BlockExists,
+                        _ => {
+                            curr_block = vec![];
+                        }
+                    }
+                } else {
+                    break ExitReason::BlockExists;
+                }
             } else if jump_map
                 .values()
                 .chain(exception_map.values().map(|(target, _)| target))
@@ -503,23 +525,22 @@ where
 
             let instruction = instructions[index].clone();
 
-            let exception_start = exception_map.get(&(index as u32));
-
             if let Some((exception_target, lasti)) = exception_start
-                && !exception_block_map.contains_key(&index)
+                && let Some(ExceptionState::PrevBlockPopped) = exceptions_processed.get(&index)
             {
+                // Empty block for the exception start, jumps to exception target and falls through to the exception start index
                 blocks.push(Block {
-                    instructions: curr_block,
+                    instructions: vec![],
                     branch_block: BlockIndexInfo::Edge(BranchEdge {
                         reason: BranchReason::from_exception(*lasti)?,
-                        block_index: if exception_block_map
-                            .contains_key(&(*exception_target as usize))
-                        {
-                            exception_block_map[&(*exception_target as usize)].clone()
-                        } else {
+                        block_index: if block_map.contains_key(&(*exception_target as usize)) {
+                            block_map[&(*exception_target as usize)].clone()
+                        } else if *exception_target < instructions.len() as u32 {
                             block_queue.push_front(*exception_target as usize);
 
                             BlockIndex::Index(curr_block_index + 1)
+                        } else {
+                            BlockIndex::InvalidIndex(*exception_target as usize)
                         },
                     }),
                     default_block: {
@@ -531,7 +552,7 @@ where
                                 curr_block_index
                                     + 1
                                     // If branch block also exists add another 1
-                                    + if !exception_block_map.contains_key(&(*exception_target as usize))
+                                    + if !block_map.contains_key(&(*exception_target as usize))
                                     {
                                         1
                                     } else {
@@ -542,7 +563,11 @@ where
                     },
                 });
 
-                break ExitReason::ExceptionStart;
+                exceptions_processed.entry(index).and_modify(|v| {
+                    *v = ExceptionState::EmptyBlockCreated;
+                });
+
+                break ExitReason::EmptyBlockCreated;
             } else if instruction.is_jump() {
                 let next_instruction =
                     if index + 1 < instructions.len() && instruction.is_conditional_jump() {
@@ -652,17 +677,24 @@ where
         };
 
         match exit_reason {
-            ExitReason::StopsExecution | ExitReason::DoesJump => {
-                block_map.insert(start_index, BlockIndex::Index(curr_block_index));
+            ExitReason::StopsExecution | ExitReason::DoesJump | ExitReason::EmptyBlockCreated => {
+                if !block_map.contains_key(&start_index) {
+                    // Might already exist if it is at the start of an exception
+                    block_map.insert(start_index, BlockIndex::Index(curr_block_index));
+
+                    if let Some(ExceptionState::EmptyBlockCreated) =
+                        exceptions_processed.get(&start_index)
+                        && !matches!(exit_reason, ExitReason::EmptyBlockCreated)
+                    {
+                        exceptions_processed.entry(start_index).and_modify(|v| {
+                            *v = ExceptionState::Finished;
+                        });
+                    }
+                }
 
                 curr_block_index += 1;
             }
-            ExitReason::ExceptionStart => {
-                exception_block_map.insert(start_index, BlockIndex::Index(curr_block_index));
-
-                curr_block_index += 1;
-            }
-            ExitReason::IsJumpTarget => {
+            ExitReason::IsJumpTarget | ExitReason::ExceptionStart => {
                 curr_block_index += 1;
             }
             ExitReason::BlockExists => {}
@@ -860,6 +892,31 @@ mod test {
 
         let cfg: ControlFlowGraph<_, BranchReason> =
             create_cfg(instructions.to_vec(), None).unwrap();
+
+        println!("{}", cfg.make_dot_graph());
+    }
+
+    #[test]
+    fn test_exception_block_311() {
+        // print("hi")
+        // try:
+        //     print(1)
+        // except:
+        //     print(2)
+        let program = crate::load_code(&b"\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\xf3Z\x00\x00\x00\x97\x00\x02\x00e\x00d\x00\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\t\x00\x02\x00e\x00d\x01\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00d\x03S\x00#\x00\x01\x00\x02\x00e\x00d\x02\xa6\x01\x00\x00\xab\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00Y\x00d\x03S\x00x\x03Y\x00w\x01)\x04\xda\x02hi\xe9\x01\x00\x00\x00\xe9\x02\x00\x00\x00N)\x01\xda\x05print\xa9\x00\xf3\x00\x00\x00\x00z\x08<string>\xfa\x08<module>r\x08\x00\x00\x00\x01\x00\x00\x00sD\x00\x00\x00\xf0\x03\x01\x01\x01\xe0\x00\x05\x80\x05\x80d\x81\x0b\x84\x0b\x80\x0b\xf0\x02\x03\x01\r\xd8\x04\t\x80E\x88!\x81H\x84H\x80H\x80H\x80H\xf8\xf0\x02\x01\x01\r\xd8\x04\t\x80E\x88!\x81H\x84H\x80H\x80H\x80H\x80H\xf8\xf8\xf8s\x08\x00\x00\x00\x8d\x0b\x1a\x00\x9a\r*\x03"[..], (3, 11).into()).unwrap();
+
+        let (instructions, exception_table) = match program {
+            CodeObject::V311(code) => (code.code.clone(), code.exception_table().unwrap()),
+            _ => unreachable!(),
+        };
+
+        let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
+
+        let cfg =
+            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
+                &cfg,
+            )
+            .unwrap();
 
         println!("{}", cfg.make_dot_graph());
     }

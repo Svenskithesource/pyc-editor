@@ -467,14 +467,23 @@ pub trait GenericSIRNode: Clone + Debug + PartialEq {
     fn get_inputs(&self) -> &[StackItem];
 }
 
+pub trait GenericSIRException: Clone + Debug + PartialEq {
+    type Opcode: GenericOpcode;
+
+    fn new(lasti: bool) -> Self;
+
+    fn get_outputs(&self) -> &[StackItem];
+
+    fn get_inputs(&self) -> &[StackItem];
+}
+
 /// A trait to indicate that the SIR statements are owned.
-pub trait SIROwned<SIRNode>: std::fmt::Display {
-    fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;
+pub trait SIROwned<SIRNode, SIRException>: std::fmt::Display {
+    fn new(statements: Vec<SIRStatement<SIRNode, SIRException>>) -> Self;
 }
 
 /// Trait to show what the branch reason is (opcode or exception)
-pub trait BranchReasonTrait: Clone + Debug
-{
+pub trait BranchReasonTrait: Clone + Debug {
     type Opcode: GenericOpcode;
 
     fn from_opcode(opcode: Self::Opcode) -> Result<Self, Error>;
@@ -486,6 +495,8 @@ pub trait BranchReasonTrait: Clone + Debug
     fn is_exception(&self) -> bool;
 
     fn get_opcode(&self) -> Option<&Self::Opcode>;
+
+    fn get_lasti(&self) -> Option<bool>;
 }
 
 #[cfg(all(test, feature = "v311"))]

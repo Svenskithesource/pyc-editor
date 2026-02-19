@@ -329,4 +329,11 @@ impl BranchReasonTrait for BranchReason {
             BranchReason::Exception(_) => None,
         }
     }
+
+    fn get_lasti(&self) -> Option<bool> {
+        match self {
+            BranchReason::Opcode(_) => None,
+            BranchReason::Exception(lasti) => Some(*lasti),
+        }
+    }
 }

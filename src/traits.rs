@@ -483,7 +483,7 @@ pub trait SIROwned<SIRNode, SIRException>: std::fmt::Display {
 }
 
 /// Trait to show what the branch reason is (opcode or exception)
-pub trait BranchReasonTrait: Clone + Debug {
+pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display {
     type Opcode: GenericOpcode;
 
     fn from_opcode(opcode: Self::Opcode) -> Result<Self, Error>;

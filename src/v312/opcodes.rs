@@ -340,6 +340,21 @@ pub enum BranchReason {
     Exception(bool),
 }
 
+impl std::fmt::Display for BranchReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BranchReason::Opcode(opcode) => write!(f, "{:#?}", opcode),
+            BranchReason::Exception(lasti) => {
+                write!(
+                    f,
+                    "EXCEPTION({})",
+                    if *lasti { "lasti" } else { "no lasti" }
+                )
+            }
+        }
+    }
+}
+
 impl BranchReasonTrait for BranchReason {
     type Opcode = Opcode;
 

@@ -35,7 +35,9 @@ pub struct StackEffect {
 /// Offsets are for instructions (not bytes)
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExceptionTableEntry {
+    /// Inclusive offset
     pub start: u32,
+    /// Exclusive offset
     pub end: u32,
     pub target: u32,
     /// Stack depth at the start of the try block

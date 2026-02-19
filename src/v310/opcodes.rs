@@ -245,3 +245,9 @@ impl BranchReasonTrait for Opcode {
         None
     }
 }
+
+impl std::fmt::Display for Opcode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self)
+    }
+}

@@ -11,6 +11,8 @@ use python_instruction_dsl_proc::define_opcodes;
 
 // From https://github.com/python/cpython/blob/3.12/Include/opcode.h
 define_opcodes!(
+    // Custom syntax to specify what values get pushed when an exception is raised
+    *EXCEPTION ( -- lasti[if lasti && jump {1} else {0}], exc[if jump {1} else {0}]),
     CACHE = 0 ( -- ),
     POP_TOP = 1 (value -- ),
     PUSH_NULL = 2 (-- res),

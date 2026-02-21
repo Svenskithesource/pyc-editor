@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use std::collections::{HashMap, VecDeque};
 
 /// The amount of extended_args necessary to represent the arg.
 /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.
@@ -226,4 +225,156 @@ pub fn generate_var_name(
     }
 
     format!("{}_{}", stack_name, names[stack_name])
+}
+
+/// A vector that allows for negative indexes and automatically fills elements with an "empty" value when inserting at an arbitrary index below 0.
+#[derive(Debug, Clone)]
+pub struct InfiniteVec<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    data: VecDeque<Option<T>>,
+    /// This is the offset that indicates where index "0" is really at
+    negative_offset: usize,
+}
+
+impl<T> InfiniteVec<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    pub fn new() -> Self {
+        InfiniteVec {
+            data: vec![].into(),
+            negative_offset: 0,
+        }
+    }
+
+    pub fn insert(&mut self, index: isize, value: T) {
+        let real_index = index + self.negative_offset as isize;
+
+        if real_index < 0 {
+            for _ in 0..(real_index.abs() - 1) {
+                self.data.push_front(None)
+            }
+
+            self.data.push_front(Some(value));
+
+            self.negative_offset += real_index.abs() as usize;
+        } else {
+            self.data.insert(real_index as usize, Some(value));
+        }
+    }
+
+    pub fn push(&mut self, value: T) {
+        self.data.push_back(Some(value));
+    }
+
+    pub fn get(&self, index: isize) -> Option<&Option<T>> {
+        let real_index = index + self.negative_offset as isize;
+
+        if real_index < 0 {
+            None
+        } else {
+            self.data.get(real_index as usize)
+        }
+    }
+
+    pub fn get_mut(&mut self, index: isize) -> Option<&mut Option<T>> {
+        let real_index = index + self.negative_offset as isize;
+
+        if real_index < 0 {
+            None
+        } else {
+            self.data.get_mut(real_index as usize)
+        }
+    }
+
+    pub fn remove(&mut self, index: isize) {
+        let real_index = index + self.negative_offset as isize;
+
+        if index < 0 {
+            self.negative_offset -= 1;
+        }
+
+        self.data.remove(real_index.try_into().unwrap());
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn positive_len(&self) -> usize {
+        self.data.len() - self.negative_offset
+    }
+
+    pub fn negative_len(&self) -> usize {
+        debug_assert!(self.data.len() >= self.negative_offset);
+
+        self.negative_offset
+    }
+
+    /// Collects the values with Some() value and their index
+    pub fn collect_pairs(&self) -> Vec<(isize, &T)> {
+        self.data
+            .iter()
+            .enumerate()
+            .filter(|(_, value)| value.is_some())
+            .map(|(i, value)| {
+                (
+                    i as isize - self.negative_offset as isize,
+                    value.as_ref().unwrap(),
+                )
+            })
+            .collect()
+    }
+
+    /// Tells us whether negative items were used
+    pub fn no_negative_items(&self) -> bool {
+        self.negative_offset == 0
+    }
+
+    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, Option<T>> {
+        self.data.iter()
+    }
+
+    /// Only iter over negative indexed values
+    pub fn iter_negative(
+        &self,
+    ) -> std::iter::Take<std::collections::vec_deque::Iter<'_, Option<T>>> {
+        self.data.iter().take(self.negative_offset)
+    }
+}
+
+impl<T> From<Vec<T>> for InfiniteVec<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    fn from(value: Vec<T>) -> Self {
+        InfiniteVec {
+            data: value.into_iter().map(|e| Some(e)).collect(),
+            negative_offset: 0,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::utils::InfiniteVec;
+
+    #[test]
+    fn test_infinite_vec() {
+        let mut infinite_vec = InfiniteVec::new();
+
+        infinite_vec.push(1);
+        infinite_vec.insert(-5, 5);
+
+        assert_eq!(
+            infinite_vec.iter().collect::<Vec<_>>(),
+            vec![Some(5), None, None, None, None, Some(1)]
+                .iter()
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(infinite_vec.get(0).unwrap(), &Some(1));
+    }
 }

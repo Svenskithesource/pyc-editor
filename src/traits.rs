@@ -470,7 +470,7 @@ pub trait GenericSIRNode: Clone + Debug + PartialEq {
 pub trait GenericSIRException: Clone + Debug + PartialEq {
     type Opcode: GenericOpcode;
 
-    fn new(lasti: bool) -> Self;
+    fn new(lasti: bool, jump: bool) -> Self;
 
     fn get_outputs(&self) -> &[StackItem];
 

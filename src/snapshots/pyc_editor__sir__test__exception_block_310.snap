@@ -129,22 +129,22 @@ SIRControlFlowGraph {
                                 TupleAssignment(
                                     [
                                         AuxVar {
-                                            name: "exceptions_5",
-                                        },
-                                        AuxVar {
-                                            name: "exceptions_4",
-                                        },
-                                        AuxVar {
-                                            name: "exceptions_3",
-                                        },
-                                        AuxVar {
-                                            name: "exceptions_2",
+                                            name: "exceptions_0",
                                         },
                                         AuxVar {
                                             name: "exceptions_1",
                                         },
                                         AuxVar {
-                                            name: "exceptions_0",
+                                            name: "exceptions_2",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_3",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_4",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_5",
                                         },
                                     ],
                                     Call(
@@ -215,7 +215,7 @@ SIRControlFlowGraph {
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "exceptions_0",
+                                    name: "exceptions_5",
                                 },
                             ],
                         ),
@@ -250,7 +250,7 @@ SIRControlFlowGraph {
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "exceptions_1",
+                                    name: "exceptions_4",
                                 },
                             ],
                         ),
@@ -285,7 +285,7 @@ SIRControlFlowGraph {
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "exceptions_2",
+                                    name: "exceptions_3",
                                 },
                             ],
                         ),
@@ -431,7 +431,7 @@ SIRControlFlowGraph {
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "exceptions_5",
+                                    name: "exceptions_0",
                                 },
                             ],
                         ),
@@ -443,7 +443,7 @@ SIRControlFlowGraph {
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "exceptions_4",
+                                    name: "exceptions_1",
                                 },
                             ],
                         ),
@@ -455,7 +455,7 @@ SIRControlFlowGraph {
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "exceptions_3",
+                                    name: "exceptions_2",
                                 },
                             ],
                         ),

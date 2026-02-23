@@ -313,6 +313,15 @@ where
         self.negative_offset
     }
 
+    pub fn collect_negative_indexes(&self) -> Vec<usize> {
+        self.data
+            .iter()
+            .enumerate()
+            .take(self.negative_offset)
+            .filter_map(|(i, e)| e.as_ref().and_then(|_| Some(i)))
+            .collect()
+    }
+
     /// Collects the values with Some() value and their index
     pub fn collect_pairs(&self) -> Vec<(isize, &T)> {
         self.data

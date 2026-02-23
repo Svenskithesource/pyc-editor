@@ -288,12 +288,12 @@ SIRControlFlowGraph {
                                             ],
                                             output: [
                                                 StackItem {
-                                                    name: "next",
+                                                    name: "iter",
                                                     count: 0,
                                                     index: 0,
                                                 },
                                                 StackItem {
-                                                    name: "iter",
+                                                    name: "next",
                                                     count: 0,
                                                     index: 0,
                                                 },
@@ -362,12 +362,12 @@ SIRControlFlowGraph {
                                                 ],
                                                 output: [
                                                     StackItem {
-                                                        name: "next",
+                                                        name: "iter",
                                                         count: 1,
                                                         index: 0,
                                                     },
                                                     StackItem {
-                                                        name: "iter",
+                                                        name: "next",
                                                         count: 1,
                                                         index: 1,
                                                     },

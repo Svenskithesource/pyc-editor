@@ -12,7 +12,7 @@ use crate::{
         ExtInstructionAccess, ExtInstructionsOwned, GenericInstruction, InstructionAccess,
         InstructionsOwned, Oparg, SimpleInstructionAccess,
     },
-    utils::{get_extended_args_count, UnusedArgument},
+    utils::{UnusedArgument, get_extended_args_count},
     v310::{
         code_objects::{
             AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,

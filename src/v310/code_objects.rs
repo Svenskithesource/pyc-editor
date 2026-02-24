@@ -5,7 +5,7 @@ use indexmap::IndexSet;
 use num_bigint::BigInt;
 use num_complex::Complex;
 use ordered_float::OrderedFloat;
-use python_marshal::{extract_object, resolver::resolve_all_refs, CodeFlags, Object, PyString};
+use python_marshal::{CodeFlags, Object, PyString, extract_object, resolver::resolve_all_refs};
 
 use crate::{error::Error, v310::instructions::Instructions};
 use std::fmt;
@@ -712,7 +712,10 @@ impl fmt::Display for Reraise {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Reraise::ReraiseTOS => write!(f, "reraise TOS"),
-            Reraise::ReraiseTOSAndSetLasti(_) => write!(f, "raise TOS and set the last_i of the current frame to its value when the exception was raised."),
+            Reraise::ReraiseTOSAndSetLasti(_) => write!(
+                f,
+                "raise TOS and set the last_i of the current frame to its value when the exception was raised."
+            ),
         }
     }
 }

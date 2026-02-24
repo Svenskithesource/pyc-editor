@@ -9,7 +9,7 @@ use crate::{
         ExtInstructionsOwned, GenericInstruction, InstructionAccess, InstructionsOwned, Oparg,
         SimpleInstructionAccess,
     },
-    utils::{get_extended_args_count, UnusedArgument},
+    utils::{UnusedArgument, get_extended_args_count},
     v313::{
         cache::get_cache_count,
         code_objects::{

@@ -486,6 +486,91 @@ fn test_stacksize_standard_lib() {
 }
 
 #[test]
+fn test_create_cfg_standard_lib() {
+    use pyc_editor::cfg::create_cfg;
+
+    LOGGER_INIT.call_once(|| {
+        common::setup();
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let parsed_pyc = load_pyc(reader).unwrap();
+
+            fn create_cfg_from_code(code: pyc_editor::CodeObject) {
+                macro_rules! create_cfg {
+                    (V310, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v310::opcodes::Opcode>(
+                            $code_clone.code.to_vec(),
+                            None,
+                        )
+                    };
+                    (V311, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v311::opcodes::BranchReason>(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                    (V312, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v312::opcodes::BranchReason>(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                    (V313, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v313::opcodes::BranchReason>(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                }
+
+                macro_rules! cfg_from_instructions {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        let code_clone = $code.clone();
+
+                        dbg!(&code_clone.name);
+
+                        create_cfg!($variant, code_clone).unwrap();
+
+                        for constant in code_clone.consts {
+                            if let $module::code_objects::Constant::CodeObject(const_code) =
+                                constant
+                            {
+                                create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ));
+                            }
+                        }
+                    }};
+                }
+
+                handle_code_object_versions!(code, cfg_from_instructions)
+            }
+
+            macro_rules! create_cfgs {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    ));
+                }};
+            }
+
+            handle_pyc_versions!(parsed_pyc, create_cfgs, immutable);
+        });
+    });
+}
+
+#[test]
 #[ignore = "This test will write the files to disk so we can run the Python tests on them. That way we're sure the files are correct."]
 fn test_write_standard_lib() {
     LOGGER_INIT.call_once(|| {

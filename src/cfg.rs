@@ -415,8 +415,21 @@ where
     // Used for keeping track of finished blocks
     let mut temp_blocks: BTreeMap<usize, Block<I, BranchReason>> = BTreeMap::new();
 
+    enum BlockState {
+        BlockIndexAssigned(BlockIndex),
+        BlockProcessed(BlockIndex),
+    }
+
+    impl BlockState {
+        pub fn get_index(&self) -> &BlockIndex {
+            match &self {
+                BlockState::BlockIndexAssigned(index) | BlockState::BlockProcessed(index) => index,
+            }
+        }
+    }
+
     // Maps instruction index to block index
-    let mut block_map: HashMap<usize, BlockIndex> = HashMap::new();
+    let mut block_map: HashMap<usize, BlockState> = HashMap::new();
 
     enum ExceptionState {
         PrevBlockPopped,
@@ -447,7 +460,22 @@ where
 
     // Keeps indexes of instructions that start new blocks and still need to be processed with their corresponding block index they should get.
     let mut block_queue: VecDeque<(usize, usize)> = VecDeque::new();
-    block_queue.push_front((0, 0));
+
+    fn add_block_to_queue(
+        instruction_index: usize,
+        block_index: usize,
+        block_map: &mut HashMap<usize, BlockState>,
+        block_queue: &mut VecDeque<(usize, usize)>,
+    ) {
+        block_map.insert(
+            instruction_index,
+            BlockState::BlockIndexAssigned(BlockIndex::Index(block_index)),
+        );
+
+        block_queue.push_front((instruction_index, block_index));
+    }
+
+    add_block_to_queue(0, 0, &mut block_map, &mut block_queue);
 
     // A list of block indexes that will be used to fix a unique EXTENDED_ARG pattern. See `fix_extended_args`.
     let mut block_indexes_to_fix = vec![];
@@ -461,6 +489,16 @@ where
         let mut curr_block = vec![];
 
         let start_index = instruction_index;
+
+        macro_rules! block_exists {
+            ($instruction_index:expr) => {
+                (block_map.contains_key(&$instruction_index) && $instruction_index != start_index)
+                    || (matches!(
+                        block_map.get(&$instruction_index),
+                        Some(BlockState::BlockProcessed(_))
+                    ))
+            };
+        }
 
         enum ExitReason {
             BlockExists,
@@ -489,12 +527,17 @@ where
                     },
                 );
 
-                block_queue.push_front((instruction_index, curr_block_index));
+                add_block_to_queue(
+                    instruction_index,
+                    curr_block_index,
+                    &mut block_map,
+                    &mut block_queue,
+                );
 
                 exceptions_processed.insert(instruction_index, ExceptionState::PrevBlockPopped);
 
                 break ExitReason::ExceptionStart;
-            } else if block_map.contains_key(&instruction_index) {
+            } else if block_exists!(instruction_index) {
                 if !curr_block.is_empty() {
                     // encountered a jump target while processing a block
                     temp_blocks.insert(
@@ -503,7 +546,7 @@ where
                             instructions: curr_block,
                             branch_block: BlockIndexInfo::NoIndex,
                             default_block: BlockIndexInfo::Fallthrough(
-                                block_map[&instruction_index].clone(),
+                                block_map[&instruction_index].get_index().clone(),
                             ),
                         },
                     );
@@ -540,7 +583,12 @@ where
                     },
                 );
 
-                block_queue.push_front((instruction_index, curr_block_index));
+                add_block_to_queue(
+                    instruction_index,
+                    curr_block_index,
+                    &mut block_map,
+                    &mut block_queue,
+                );
 
                 break ExitReason::IsJumpTarget;
             }
@@ -558,13 +606,17 @@ where
                         instructions: vec![],
                         branch_block: BlockIndexInfo::Edge(BranchEdge {
                             reason: BranchReason::from_exception(*lasti)?,
-                            block_index: if block_map.contains_key(&(*exception_target as usize)) {
-                                block_map[&(*exception_target as usize)].clone()
+                            block_index: if block_exists!(*exception_target as usize) {
+                                block_map[&(*exception_target as usize)].get_index().clone()
                             } else if *exception_target < instructions.len() as u32 {
                                 curr_block_index += 1;
 
-                                block_queue
-                                    .push_front((*exception_target as usize, curr_block_index));
+                                add_block_to_queue(
+                                    *exception_target as usize,
+                                    curr_block_index,
+                                    &mut block_map,
+                                    &mut block_queue,
+                                );
 
                                 BlockIndex::Index(curr_block_index)
                             } else {
@@ -574,7 +626,12 @@ where
                         default_block: {
                             curr_block_index += 1;
 
-                            block_queue.push_front((instruction_index, curr_block_index));
+                            add_block_to_queue(
+                                instruction_index,
+                                curr_block_index,
+                                &mut block_map,
+                                &mut block_queue,
+                            );
 
                             BlockIndexInfo::Edge(BranchEdge {
                                 reason: BranchReason::from_exception(*lasti)?,
@@ -629,12 +686,17 @@ where
                         branch_block: BlockIndexInfo::Edge(BranchEdge {
                             reason: BranchReason::from_opcode(instruction.get_opcode())?,
                             block_index: if let Some(jump_index) = jump_instruction {
-                                if block_map.contains_key(&(jump_index as usize)) {
-                                    block_map[&(jump_index as usize)].clone()
+                                if block_exists!(jump_index as usize) {
+                                    block_map[&(jump_index as usize)].get_index().clone()
                                 } else {
                                     curr_block_index += 1;
 
-                                    block_queue.push_front((jump_index as usize, curr_block_index));
+                                    add_block_to_queue(
+                                        jump_index as usize,
+                                        curr_block_index,
+                                        &mut block_map,
+                                        &mut block_queue,
+                                    );
 
                                     BlockIndex::Index(curr_block_index)
                                 }
@@ -648,15 +710,20 @@ where
                             },
                         }),
                         default_block: if let Some(next_index) = next_instruction {
-                            if block_map.contains_key(&next_index) {
+                            if block_exists!(next_index) {
                                 BlockIndexInfo::Edge(BranchEdge {
                                     reason: BranchReason::from_opcode(instruction.get_opcode())?,
-                                    block_index: block_map[&next_index].clone(),
+                                    block_index: block_map[&next_index].get_index().clone(),
                                 })
                             } else {
                                 curr_block_index += 1;
 
-                                block_queue.push_front((next_index, curr_block_index));
+                                add_block_to_queue(
+                                    next_index,
+                                    curr_block_index,
+                                    &mut block_map,
+                                    &mut block_queue,
+                                );
 
                                 BlockIndexInfo::Edge(BranchEdge {
                                     reason: BranchReason::from_opcode(instruction.get_opcode())?,
@@ -705,9 +772,12 @@ where
 
         match exit_reason {
             ExitReason::StopsExecution | ExitReason::DoesJump | ExitReason::EmptyBlockCreated => {
-                if !block_map.contains_key(&start_index) {
+                if let Some(BlockState::BlockIndexAssigned(target_block)) =
+                    block_map.get(&start_index)
+                {
                     // Might already exist if it is at the start of an exception
-                    block_map.insert(start_index, BlockIndex::Index(block_index));
+                    *block_map.get_mut(&start_index).unwrap() =
+                        BlockState::BlockProcessed(target_block.clone());
 
                     if let Some(ExceptionState::EmptyBlockCreated) =
                         exceptions_processed.get(&start_index)
@@ -718,12 +788,8 @@ where
                         });
                     }
                 }
-
-                curr_block_index += 1;
             }
-            ExitReason::IsJumpTarget | ExitReason::ExceptionStart => {
-                curr_block_index += 1;
-            }
+            ExitReason::IsJumpTarget | ExitReason::ExceptionStart => {}
             ExitReason::BlockExists => {}
         }
     }

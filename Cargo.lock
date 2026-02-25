@@ -722,6 +722,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 
 [[package]]
+name = "heck"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
 name = "hermit-abi"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1505,7 +1511,7 @@ dependencies = [
 
 [[package]]
 name = "pyc_editor"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bitflags 2.10.0",
  "cmd_lib",
@@ -1531,9 +1537,11 @@ dependencies = [
 
 [[package]]
 name = "python-instruction-dsl-proc"
-version = "0.1.6"
-source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc#e2c16230d27037d6e91b2d1cbdc6b353ea167723"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d06958e132b21dd262fac1a1d8502883b01a191c6d0fecfd4cb4fba7402c1e35"
 dependencies = [
+ "heck",
  "paste",
  "quote",
  "syn",
@@ -2712,3 +2720,8 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "python-instruction-dsl-proc"
+version = "0.1.6"
+source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc#e2c16230d27037d6e91b2d1cbdc6b353ea167723"

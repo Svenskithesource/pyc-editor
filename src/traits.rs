@@ -394,6 +394,7 @@ pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug + Clone
     fn is_conditional_jump(&self) -> bool;
     fn stops_execution(&self) -> bool;
     fn is_extended_arg(&self) -> bool;
+    fn is_cache(&self) -> bool;
     fn get_nop() -> Self;
 }
 
@@ -437,6 +438,10 @@ pub trait GenericInstruction: PartialEq + Debug + Clone {
 
     fn is_extended_arg(&self) -> bool {
         self.get_opcode().is_extended_arg()
+    }
+
+    fn is_cache(&self) -> bool {
+        self.get_opcode().is_cache()
     }
 
     fn get_nop() -> Self;

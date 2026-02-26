@@ -1,7 +1,11 @@
 use core::panic;
 use pyc_editor::{
-    dump_pyc, load_pyc, prelude::*, traits::GenericInstruction, utils::ExceptionTableEntry, v310,
-    v311, v312, v313,
+    cfg::{BlockIndexInfo, BranchEdge, ControlFlowGraph},
+    dump_pyc, load_pyc,
+    prelude::*,
+    traits::GenericInstruction,
+    utils::ExceptionTableEntry,
+    v310, v311, v312, v313,
 };
 
 use python_marshal::CodeFlags;
@@ -489,16 +493,46 @@ fn test_stacksize_standard_lib() {
 fn test_create_cfg_standard_lib() {
     use pyc_editor::cfg::create_cfg;
 
+    fn get_len_without_cache<I>(instructions: &[I]) -> usize
+    where
+        I: GenericInstruction,
+    {
+        instructions.iter().filter(|i| !i.is_cache()).count()
+    }
+
+    fn count_cfg_instructions<I, BranchReason>(cfg: ControlFlowGraph<I, BranchReason>) -> usize
+    where
+        I: GenericInstruction,
+        BranchReason: BranchReasonTrait,
+    {
+        let mut instruction_count = 0;
+
+        for block in cfg.blocks {
+            instruction_count += get_len_without_cache(&block.instructions);
+
+            match block.branch_block {
+                BlockIndexInfo::Edge(BranchEdge { reason, .. }) => {
+                    if reason.is_opcode() {
+                        instruction_count += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        instruction_count
+    }
+
     LOGGER_INIT.call_once(|| {
         common::setup();
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
 
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
@@ -538,9 +572,12 @@ fn test_create_cfg_standard_lib() {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let code_clone = $code.clone();
 
-                        dbg!(&code_clone.name);
+                        let cfg = create_cfg!($variant, code_clone).unwrap();
 
-                        create_cfg!($variant, code_clone).unwrap();
+                        assert_eq!(
+                            count_cfg_instructions(cfg),
+                            get_len_without_cache(&code_clone.code)
+                        );
 
                         for constant in code_clone.consts {
                             if let $module::code_objects::Constant::CodeObject(const_code) =

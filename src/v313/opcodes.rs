@@ -343,6 +343,10 @@ impl GenericOpcode for Opcode {
         matches!(self, Opcode::EXTENDED_ARG)
     }
 
+    fn is_cache(&self) -> bool {
+        matches!(self, Opcode::CACHE)
+    }
+
     fn get_nop() -> Self {
         Opcode::NOP
     }

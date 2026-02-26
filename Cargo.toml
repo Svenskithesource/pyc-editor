@@ -22,7 +22,7 @@ store-interval-tree = "0.4.0"
 petgraph = { version = "0.8.3", optional = true }
 
 [patch.crates-io]
-python-instruction-dsl-proc = { git = "https://github.com/Svenskithesource/python-instruction-dsl-proc" }
+python-instruction-dsl-proc = { git = "https://github.com/Svenskithesource/python-instruction-dsl-proc", branch = "sir-models"}
 
 [dev-dependencies]
 # Enable all features for testing purposes

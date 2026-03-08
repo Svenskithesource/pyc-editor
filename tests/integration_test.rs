@@ -497,20 +497,23 @@ fn test_create_cfg_standard_lib() {
     where
         I: GenericInstruction,
     {
-        instructions.iter().filter(|i| !i.is_cache()).count()
+        instructions
+            .iter()
+            .filter(|i| !i.is_cache() && !i.is_extended_arg())
+            .count()
     }
 
-    fn count_cfg_instructions<I, BranchReason>(cfg: ControlFlowGraph<I, BranchReason>) -> usize
+    fn count_cfg_instructions<I, BranchReason>(cfg: &ControlFlowGraph<I, BranchReason>) -> usize
     where
         I: GenericInstruction,
         BranchReason: BranchReasonTrait,
     {
         let mut instruction_count = 0;
 
-        for block in cfg.blocks {
+        for block in &cfg.blocks {
             instruction_count += get_len_without_cache(&block.instructions);
 
-            match block.branch_block {
+            match &block.branch_block {
                 BlockIndexInfo::Edge(BranchEdge { reason, .. }) => {
                     if reason.is_opcode() {
                         instruction_count += 1;
@@ -572,12 +575,15 @@ fn test_create_cfg_standard_lib() {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let code_clone = $code.clone();
 
-                        let cfg = create_cfg!($variant, code_clone).unwrap();
+                        let _cfg = create_cfg!($variant, code_clone).unwrap();
 
-                        assert_eq!(
-                            count_cfg_instructions(cfg),
-                            get_len_without_cache(&code_clone.code)
-                        );
+                        // I thought this would be a good way to find bugs but it turns out that Python
+                        // generates bytecode that can't be reached and will be automatically removed by the cfg construction.
+
+                        // assert_eq!(
+                        //     count_cfg_instructions(&cfg),
+                        //     get_len_without_cache(&code_clone.code)
+                        // );
 
                         for constant in code_clone.consts {
                             if let $module::code_objects::Constant::CodeObject(const_code) =

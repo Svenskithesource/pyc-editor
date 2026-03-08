@@ -681,8 +681,6 @@ fn test_create_sir_standard_lib() {
                         >(&cfg)
                         .unwrap();
 
-                        println!("{}", cfg.make_dot_graph());
-
                         let is_generator = $code.flags.intersects(
                             CodeFlags::GENERATOR
                                 | CodeFlags::COROUTINE

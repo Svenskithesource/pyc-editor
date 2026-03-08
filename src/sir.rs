@@ -172,7 +172,7 @@ where
     let mut to_delete = vec![];
 
     for input in inputs {
-        for count in (0..input.count).rev() {
+        for count in 0..input.count {
             let index = ((original_len as i32 - 1) - (input.index + count) as i32) as isize;
 
             // If we pushed a value that replaced a phi item we need to offset that
@@ -275,6 +275,8 @@ where
             }
         }
     }
+
+    to_delete.sort();
 
     for index in to_delete.iter().rev() {
         if *index < 0 {

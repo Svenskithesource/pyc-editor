@@ -36,6 +36,9 @@ pub enum SIRExpression<SIRNode, SIRException> {
     Exception(ExceptionCall<SIRNode, SIRException>),
     AuxVar(AuxVar),
     PhiNode(Vec<AuxVar>),
+    /// This value is used to represent the value that comes from the start of a generator
+    /// In practice this should be `None` but we don't care about that
+    GeneratorStart,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -75,14 +78,23 @@ where
     // Add the item to the phi node
     // Loop both the branch statements and the actual basic block statements
     for statement in statements.iter_mut() {
-        if let (
-            SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
-            SIRExpression::AuxVar(item),
-        ) = (statement, stack_item)
-            && var == phi_var
-        {
-            values.push(item.clone());
-            found = true;
+        match (statement, stack_item) {
+            (
+                SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
+                SIRExpression::AuxVar(item),
+            ) => {
+                if var == phi_var {
+                    values.push(item.clone());
+                    found = true;
+                }
+            }
+            (SIRStatement::Assignment(var, value), SIRExpression::GeneratorStart) => {
+                if var == phi_var {
+                    *value = SIRExpression::GeneratorStart;
+                    found = true;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -101,14 +113,10 @@ where
     // Indexes of items we have to delete in the curr stack (needs to be done after fully processing the new stack)
     let mut items_to_delete: Vec<isize> = vec![];
 
-    dbg!(phi_map);
-
     for (stack_index, aux_var) in phi_map {
         let found;
 
         let item_index = (curr_stack.len() as i32 + (*stack_index as i32)) as usize;
-
-        dbg!(item_index, &curr_stack);
 
         if let Some(item) = curr_stack.get(item_index) {
             found = process_phi_item(&aux_var, item, statements);
@@ -124,8 +132,6 @@ where
     }
 
     items_to_delete.sort();
-
-    dbg!(&items_to_delete, &curr_stack);
 
     Ok(items_to_delete)
 }
@@ -166,26 +172,28 @@ where
     let mut to_delete = vec![];
 
     for input in inputs {
-        for count in 0..input.count {
+        for count in (0..input.count).rev() {
             let index = ((original_len as i32 - 1) - (input.index + count) as i32) as isize;
 
             // If we pushed a value that replaced a phi item we need to offset that
             let mut og_phi_count = 0;
 
-            loop {
-                let mut finished = true;
-                for (i, _) in phi_map.iter() {
-                    if *i == index - og_phi_count {
-                        og_phi_count += 1;
+            if !phi_map.is_empty() {
+                loop {
+                    let mut finished = true;
+                    for (i, _) in phi_map.iter() {
+                        if *i == index - og_phi_count {
+                            og_phi_count += 1;
 
-                        finished = false;
+                            finished = false;
 
+                            break;
+                        }
+                    }
+
+                    if finished {
                         break;
                     }
-                }
-
-                if finished {
-                    break;
                 }
             }
 
@@ -199,14 +207,10 @@ where
                 lowest_stack_input = index;
             }
 
-            dbg!(index);
-
             if index < 0 && (stack.get(index).is_none() || stack.get(index).unwrap().is_none()) {
                 // Stack item from other basic block, create an empty phi node that we populate later.
 
                 let phi_count = temp_phi_map.iter().filter(|(i, _)| *i <= index).count();
-
-                dbg!(og_phi_count, phi_count, index, original_len, &temp_phi_map,);
 
                 for (i, _) in temp_phi_map.iter_mut() {
                     // Move items to the left by the amount necessary
@@ -214,8 +218,6 @@ where
                 }
 
                 if phi_map.iter().any(|(i, _)| *i == index) {
-                    dbg!(inputs, outputs);
-                    dbg!(stack, phi_map);
                     return Err(Error::StackItemReused);
                 }
 
@@ -247,8 +249,6 @@ where
 
             let real_index =
                 lowest_stack_input as isize + (output.index as i32 + count as i32) as isize;
-
-            dbg!(lowest_stack_input, output);
 
             if let Some(index) = to_delete.iter().position(|v| v == &real_index) {
                 *stack.get_mut(real_index).unwrap() =
@@ -664,8 +664,6 @@ where
 
     let mut items_to_delete = items_to_delete;
 
-    dbg!(&vec_to_extend, infinite_stack);
-
     let pairs = infinite_stack.collect_pairs();
 
     for (i, item) in pairs {
@@ -693,8 +691,10 @@ where
     Ok(())
 }
 
+/// In certain versions a generator starts with a value on the stack so we need to account for that
 pub fn cfg_to_ir<ExtInstruction, SIRNode, SIRException, BranchReason>(
     cfg: &ControlFlowGraph<ExtInstruction, BranchReason>,
+    add_generator_value: bool,
 ) -> Result<SIRControlFlowGraph<SIRNode, SIRException, BranchReason>, Error>
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
@@ -850,7 +850,11 @@ where
     let mut queue: Vec<BlockQueue<SIRNode, SIRException, BranchReason>> = vec![BlockQueue {
         block_index: cfg.start_index.clone(),
         from_block_index: None,
-        curr_stack: vec![],
+        curr_stack: if add_generator_value {
+            vec![SIRExpression::GeneratorStart]
+        } else {
+            vec![]
+        },
     }];
 
     while let Some(mut block_element) = queue.pop() {
@@ -903,17 +907,11 @@ where
             has_changed.insert(index, vec![block_element.curr_stack.clone()]);
         }
 
-        dbg!(&block_element);
-        dbg!(&block_info);
-
         let deleted_items = fill_phi_nodes(
             &mut block_element.curr_stack,
             &mut block_info.statements.0,
             &block_info.phi_map,
         )?;
-
-        dbg!(&block_element);
-        dbg!(&block_info);
 
         extend_merge_stack(
             &mut block_element.curr_stack,
@@ -1452,8 +1450,6 @@ mod test {
 
         extend_merge_stack(&mut curr_stack, &mut stack, deleted_items).unwrap();
 
-        dbg!(&curr_stack, &statements);
-
         assert_eq!(curr_stack.len(), 1);
         assert_eq!(
             *curr_stack.first().unwrap(),
@@ -1572,8 +1568,6 @@ mod test {
         let deleted_items = fill_phi_nodes(&mut curr_stack, &mut statements, &mut phi_map).unwrap();
 
         extend_merge_stack(&mut curr_stack, &mut stack, deleted_items).unwrap();
-
-        dbg!(&curr_stack, &statements);
 
         assert_eq!(curr_stack.len(), 2);
         assert_eq!(
@@ -1904,8 +1898,10 @@ mod test {
             .unwrap();
 
         let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(&cfg)
-                .unwrap();
+            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
+                &cfg, false,
+            )
+            .unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 
@@ -1932,8 +1928,10 @@ mod test {
         .unwrap();
 
         let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(&cfg)
-                .unwrap();
+            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
+                &cfg, false,
+            )
+            .unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
         insta::assert_debug_snapshot!(ir_cfg);
@@ -1970,7 +1968,7 @@ mod test {
             crate::v310::opcodes::sir::SIRNode,
             crate::v310::opcodes::sir::SIRException,
             crate::v310::opcodes::Opcode,
-        >(&cfg)
+        >(&cfg, false)
         .unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
@@ -2002,8 +2000,40 @@ mod test {
         .unwrap();
 
         let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(&cfg)
-                .unwrap();
+            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
+                &cfg, false,
+            )
+            .unwrap();
+
+        println!("{}", ir_cfg.make_dot_graph());
+    }
+
+    #[test]
+    fn test_lot_of_args_call() {
+        let program = crate::load_code(&b"\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\n\x00\x00\x00C\x00\x00\x00s>\x00\x00\x00t\x00j\x01D\x00]\x19}\x00|\x00\xa0\x02t\x00j\x03\xa1\x01\x01\x00t\x00j\x04\xa0\x05t\x00j\x06|\x00t\x00j\x07t\x00t\x00j\x03t\x00j\x08t\x00j\t\xa1\x07\x01\x00q\x03d\x00S\x00)\x01N)\n\xda\x04selfZ\x08_socketsZ\x06listenZ\x08_backlogZ\x05_loopZ\x0e_start_servingZ\x11_protocol_factoryZ\x0c_ssl_contextZ\x16_ssl_handshake_timeoutZ\x15_ssl_shutdown_timeout)\x01Z\x04sock\xa9\x00r\x02\x00\x00\x00\xfa\x07<stdin>\xda\x04test\x01\x00\x00\x00s\x10\x00\x00\x00\n\x01\x0c\x01\x06\x01\n\x01\n\x01\x04\x01\x06\xfd\x04\xfe"[..], (3, 10).into()).unwrap();
+
+        let instructions = match program {
+            CodeObject::V310(code) => code.code.clone(),
+            _ => unreachable!(),
+        };
+
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+
+        let cfg = simple_cfg_to_ext_cfg::<
+            crate::v310::instructions::Instruction,
+            crate::v310::ext_instructions::ExtInstruction,
+            crate::v310::ext_instructions::ExtInstructions,
+            crate::v310::opcodes::Opcode,
+        >(&cfg)
+        .unwrap();
+
+        let ir_cfg = cfg_to_ir::<
+            crate::v310::ext_instructions::ExtInstruction,
+            crate::v310::opcodes::sir::SIRNode,
+            crate::v310::opcodes::sir::SIRException,
+            crate::v310::opcodes::Opcode,
+        >(&cfg, false)
+        .unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
     }

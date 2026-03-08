@@ -77,6 +77,16 @@ macro_rules! handle_pyc_versions {
     };
 }
 
+macro_rules! get_generator_stacksize {
+    (V313) => {
+        0
+    };
+
+    ($variant:ident) => {
+        1
+    };
+}
+
 static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
 
 #[test]
@@ -411,16 +421,6 @@ fn test_stacksize_standard_lib() {
                         };
                     }
 
-                    macro_rules! get_generator_stacksize {
-                        (V313, $code:expr) => {
-                            0
-                        };
-
-                        ($variant:ident, $code:expr) => {
-                            1
-                        };
-                    }
-
                     macro_rules! allow_zero {
                         (V313, $code:expr) => {
                             false
@@ -448,7 +448,7 @@ fn test_stacksize_standard_lib() {
                                     .code
                                     .max_stack_size(
                                         if is_generator {
-                                            get_generator_stacksize!($variant, $code)
+                                            get_generator_stacksize!($variant)
                                         } else {
                                             0
                                         },
@@ -575,7 +575,7 @@ fn test_create_cfg_standard_lib() {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let code_clone = $code.clone();
 
-                        let _cfg = create_cfg!($variant, code_clone).unwrap();
+                        let cfg = create_cfg!($variant, code_clone).unwrap();
 
                         // I thought this would be a good way to find bugs but it turns out that Python
                         // generates bytecode that can't be reached and will be automatically removed by the cfg construction.
@@ -584,6 +584,126 @@ fn test_create_cfg_standard_lib() {
                         //     count_cfg_instructions(&cfg),
                         //     get_len_without_cache(&code_clone.code)
                         // );
+
+                        assert!(count_cfg_instructions(&cfg) <= get_len_without_cache(&code_clone.code));
+
+                        for constant in code_clone.consts {
+                            if let $module::code_objects::Constant::CodeObject(const_code) =
+                                constant
+                            {
+                                create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ));
+                            }
+                        }
+                    }};
+                }
+
+                handle_code_object_versions!(code, cfg_from_instructions)
+            }
+
+            macro_rules! create_cfgs {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    ));
+                }};
+            }
+
+            handle_pyc_versions!(parsed_pyc, create_cfgs, immutable);
+        });
+    });
+}
+
+#[test]
+fn test_create_sir_standard_lib() {
+    use pyc_editor::cfg::{create_cfg, simple_cfg_to_ext_cfg};
+    use pyc_editor::sir::cfg_to_ir;
+
+    LOGGER_INIT.call_once(|| {
+        common::setup();
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let parsed_pyc = load_pyc(reader).unwrap();
+
+            fn create_cfg_from_code(code: pyc_editor::CodeObject) {
+                macro_rules! create_cfg {
+                    (V310, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v310::opcodes::Opcode>(
+                            $code_clone.code.to_vec(),
+                            None,
+                        )
+                    };
+                    (V311, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v311::opcodes::BranchReason>(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                    (V312, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v312::opcodes::BranchReason>(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                    (V313, $code_clone:ident) => {
+                        create_cfg::<_, _, pyc_editor::v313::opcodes::BranchReason>(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                }
+
+                macro_rules! cfg_from_instructions {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        let code_clone = $code.clone();
+
+                        dbg!(&code_clone.name);
+
+                        let cfg = create_cfg!($variant, code_clone).unwrap();
+
+                        let cfg = simple_cfg_to_ext_cfg::<
+                            pyc_editor::$module::instructions::Instruction,
+                            pyc_editor::$module::ext_instructions::ExtInstruction,
+                            pyc_editor::$module::ext_instructions::ExtInstructions,
+                            _,
+                        >(&cfg)
+                        .unwrap();
+
+                        println!("{}", cfg.make_dot_graph());
+
+                        let is_generator = $code.flags.intersects(
+                            CodeFlags::GENERATOR
+                                | CodeFlags::COROUTINE
+                                | CodeFlags::ASYNC_GENERATOR
+                                | CodeFlags::ITERABLE_COROUTINE,
+                        );
+
+                        cfg_to_ir::<
+                            _,
+                            pyc_editor::$module::opcodes::sir::SIRNode,
+                            pyc_editor::$module::opcodes::sir::SIRException,
+                            _,
+                        >(
+                            &cfg,
+                            if is_generator {
+                                get_generator_stacksize!($variant) == 1
+                            } else {
+                                false
+                            },
+                        )
+                        .unwrap();
 
                         for constant in code_clone.consts {
                             if let $module::code_objects::Constant::CodeObject(const_code) =

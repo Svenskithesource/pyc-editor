@@ -671,6 +671,10 @@ fn test_create_sir_standard_lib() {
 
                         dbg!(&code_clone.name);
 
+                        // if code_clone.code.len() > 150 {
+                        //     return;
+                        // }
+
                         let cfg = create_cfg!($variant, code_clone).unwrap();
 
                         let cfg = simple_cfg_to_ext_cfg::<
@@ -680,6 +684,8 @@ fn test_create_sir_standard_lib() {
                             _,
                         >(&cfg)
                         .unwrap();
+
+                        // println!("{}", cfg.make_dot_graph());
 
                         let is_generator = $code.flags.intersects(
                             CodeFlags::GENERATOR

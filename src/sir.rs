@@ -101,10 +101,36 @@ where
     found
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct PhiEntry {
+    /// Index of the value on the stack (should be negative)
+    index: isize,
+    value: AuxVar,
+    /// If there is a value pushed by the current block at this index, the bool should be true.
+    /// See test `test_310_with_block`
+    is_overwritten: bool,
+}
+
+impl PhiEntry {
+    pub fn new(index: isize, value: AuxVar) -> Self {
+        assert!(index < 0);
+
+        PhiEntry {
+            index,
+            value,
+            is_overwritten: false,
+        }
+    }
+
+    pub fn mark_overwritten(&mut self) {
+        self.is_overwritten = true;
+    }
+}
+
 fn fill_phi_nodes<SIRNode, SIRException>(
     curr_stack: &mut Vec<SIRExpression<SIRNode, SIRException>>,
     statements: &mut Vec<SIRStatement<SIRNode, SIRException>>,
-    phi_map: &[(isize, AuxVar)],
+    phi_map: &[PhiEntry],
 ) -> Result<Vec<isize>, Error>
 where
     SIRNode: GenericSIRNode,
@@ -113,13 +139,13 @@ where
     // Indexes of items we have to delete in the curr stack (needs to be done after fully processing the new stack)
     let mut items_to_delete: Vec<isize> = vec![];
 
-    for (stack_index, aux_var) in phi_map {
+    for entry in phi_map {
         let found;
 
-        let item_index = (curr_stack.len() as i32 + (*stack_index as i32)) as usize;
+        let item_index = (curr_stack.len() as i32 + (entry.index as i32)) as usize;
 
         if let Some(item) = curr_stack.get(item_index) {
-            found = process_phi_item(&aux_var, item, statements);
+            found = process_phi_item(&entry.value, item, statements);
         } else {
             return Err(Error::InvalidStackAccess);
         }
@@ -127,7 +153,7 @@ where
         if !found {
             return Err(Error::PhiNodeNotPopulated);
         } else {
-            items_to_delete.push(*stack_index);
+            items_to_delete.push(entry.index);
         }
     }
 
@@ -136,11 +162,27 @@ where
     Ok(items_to_delete)
 }
 
+/// This is used to mark if an item needs to be deleted from the original stack (thus a negative index)
+/// For example if we overwrite a value on the original stack and delete this value afterwards we need to account for that.
+#[derive(Debug, Clone, PartialEq)]
+pub enum InfiniteStackItem<SIRNode, SIRException> {
+    Deleted,
+    Value(SIRExpression<SIRNode, SIRException>),
+}
+
+impl<SIRNode, SIRException> From<SIRExpression<SIRNode, SIRException>>
+    for InfiniteStackItem<SIRNode, SIRException>
+{
+    fn from(value: SIRExpression<SIRNode, SIRException>) -> Self {
+        InfiniteStackItem::Value(value)
+    }
+}
+
 fn process_stack_effects<SIRNode, SIRException>(
     inputs: &[StackItem],
     outputs: &[StackItem],
-    stack: &mut InfiniteVec<SIRExpression<SIRNode, SIRException>>,
-    phi_map: &mut Vec<(isize, AuxVar)>,
+    stack: &mut InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
+    phi_map: &mut Vec<PhiEntry>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<
     (
@@ -181,8 +223,13 @@ where
             if !phi_map.is_empty() {
                 loop {
                     let mut finished = true;
-                    for (i, _) in phi_map.iter() {
-                        if *i == index - og_phi_count {
+                    for PhiEntry {
+                        index: i,
+                        is_overwritten,
+                        ..
+                    } in phi_map.iter()
+                    {
+                        if *i == index - og_phi_count && !is_overwritten {
                             og_phi_count += 1;
 
                             finished = false;
@@ -207,17 +254,28 @@ where
                 lowest_stack_input = index;
             }
 
-            if index < 0 && (stack.get(index).is_none() || stack.get(index).unwrap().is_none()) {
+            let value = stack.get(index);
+
+            if index < 0 && (value.is_none() || value == Some(&None)) {
                 // Stack item from other basic block, create an empty phi node that we populate later.
 
-                let phi_count = temp_phi_map.iter().filter(|(i, _)| *i <= index).count();
+                let phi_count = temp_phi_map
+                    .iter()
+                    .filter(
+                        |PhiEntry {
+                             index: i,
+                             is_overwritten,
+                             ..
+                         }| *i <= index && !*is_overwritten,
+                    )
+                    .count();
 
-                for (i, _) in temp_phi_map.iter_mut() {
+                for PhiEntry { index: i, .. } in temp_phi_map.iter_mut() {
                     // Move items to the left by the amount necessary
                     *i -= (og_phi_count as usize).saturating_sub(phi_count) as isize;
                 }
 
-                if phi_map.iter().any(|(i, _)| *i == index) {
+                if phi_map.iter().any(|PhiEntry { index: i, .. }| *i == index) {
                     return Err(Error::StackItemReused);
                 }
 
@@ -229,10 +287,18 @@ where
 
                 statements.push(SIRStatement::Assignment(var.clone(), phi));
                 stack_inputs.push(SIRExpression::AuxVar(var.clone()));
-                temp_phi_map.push((index, var));
+                temp_phi_map.push(PhiEntry::new(index, var));
             } else {
-                stack_inputs.push((stack.get(index).unwrap().clone().unwrap()).clone());
-                to_delete.push(index);
+                match value {
+                    Some(Some(InfiniteStackItem::Value(value))) => {
+                        stack_inputs.push(value.clone());
+                        to_delete.push(index);
+                    }
+                    _ => {
+                        dbg!(value, index);
+                        unreachable!()
+                    }
+                }
             }
         }
     }
@@ -250,27 +316,37 @@ where
             let real_index =
                 lowest_stack_input as isize + (output.index as i32 + count as i32) as isize;
 
+            if real_index < 0 {
+                for e in phi_map.iter_mut().chain(temp_phi_map.iter_mut()) {
+                    if e.index == real_index {
+                        e.mark_overwritten();
+                    }
+                }
+            }
+
             if let Some(index) = to_delete.iter().position(|v| v == &real_index) {
                 *stack.get_mut(real_index).unwrap() =
-                    Some(SIRExpression::<SIRNode, SIRException>::AuxVar(var));
+                    Some(InfiniteStackItem::Value(SIRExpression::<
+                        SIRNode,
+                        SIRException,
+                    >::AuxVar(var)));
                 to_delete.remove(index);
             } else {
                 // Update offsets
-                if real_index >= 0 {
-                    to_delete
-                        .iter_mut()
-                        .filter(|e| **e > real_index)
-                        .for_each(|e| *e += 1);
-                } else {
-                    to_delete
-                        .iter_mut()
-                        .filter(|e| **e < real_index)
-                        .for_each(|e| *e -= 1);
-                }
+                to_delete
+                    .iter_mut()
+                    .filter(|e| {
+                        if real_index >= 0 {
+                            **e > real_index
+                        } else {
+                            **e < real_index
+                        }
+                    })
+                    .for_each(|e| *e += if real_index >= 0 { 1 } else { -1 });
 
                 stack.insert(
                     real_index,
-                    SIRExpression::<SIRNode, SIRException>::AuxVar(var),
+                    InfiniteStackItem::Value(SIRExpression::<SIRNode, SIRException>::AuxVar(var)),
                 );
             }
         }
@@ -280,8 +356,8 @@ where
 
     for index in to_delete.iter().rev() {
         if *index < 0 {
-            // Don't remove items in the negative part
-            *stack.get_mut(*index).unwrap() = None;
+            // Mark items to be removed in the negative part
+            *stack.get_mut(*index).unwrap() = Some(InfiniteStackItem::Deleted);
         } else {
             stack.remove(*index);
         }
@@ -296,8 +372,8 @@ fn instruction_to_ir<ExtInstruction, SIRNode, SIRException>(
     opcode: ExtInstruction::Opcode,
     oparg: ExtInstruction::OpargType,
     jump: bool,
-    stack: &mut InfiniteVec<SIRExpression<SIRNode, SIRException>>,
-    phi_map: &mut Vec<(isize, AuxVar)>,
+    stack: &mut InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
+    phi_map: &mut Vec<PhiEntry>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
 where
@@ -332,8 +408,8 @@ where
 fn exception_to_ir<SIRNode, SIRException>(
     lasti: bool,
     jump: bool,
-    stack: &mut InfiniteVec<SIRExpression<SIRNode, SIRException>>,
-    phi_map: &mut Vec<(isize, AuxVar)>,
+    stack: &mut InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
+    phi_map: &mut Vec<PhiEntry>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
 where
@@ -380,8 +456,8 @@ fn bb_to_ir<ExtInstruction, SIRNode, SIRException>(
 ) -> Result<
     (
         SIR<SIRNode, SIRException>,
-        InfiniteVec<SIRExpression<SIRNode, SIRException>>,
-        Vec<(isize, AuxVar)>,
+        InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
+        Vec<PhiEntry>,
     ),
     Error,
 >
@@ -395,10 +471,10 @@ where
 
     // Every basic block starts with an empty stack.
     // When we try to access stack items below 0, we know it's accessing items from a different basic block.
-    let mut stack: InfiniteVec<SIRExpression<SIRNode, SIRException>> = vec![].into();
+    let mut stack: InfiniteVec<InfiniteStackItem<SIRNode, SIRException>> = vec![].into();
 
     // When we assign a phi node to a var we keep track of what stack index this phi node is representing
-    let mut phi_map: Vec<(isize, AuxVar)> = vec![];
+    let mut phi_map: Vec<PhiEntry> = vec![];
 
     for instruction in instructions {
         // In a basic block there shouldn't be any jumps. (the last jump instruction is removed in the cfg)
@@ -655,7 +731,7 @@ impl std::fmt::Display for Error {
 /// This will extend the vec and overwrite any items that have a corresponding negative value
 pub fn extend_merge_stack<SIRNode, SIRException>(
     vec_to_extend: &mut Vec<SIRExpression<SIRNode, SIRException>>,
-    infinite_stack: &InfiniteVec<SIRExpression<SIRNode, SIRException>>,
+    infinite_stack: &InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
     items_to_delete: Vec<isize>,
 ) -> Result<(), Error>
 where
@@ -666,20 +742,42 @@ where
 
     let mut items_to_delete = items_to_delete;
 
-    let pairs = infinite_stack.collect_pairs();
+    let pairs = infinite_stack.iter_pairs();
 
     for (i, item) in pairs {
         let real_index: usize = (original_len as isize + i).try_into().unwrap();
 
         if let Some(index) = items_to_delete.iter().position(|v| v == &i) {
-            vec_to_extend[real_index] = item.clone();
+            match item {
+                InfiniteStackItem::Value(item) => {
+                    vec_to_extend[real_index] = item.clone();
+                }
+                InfiniteStackItem::Deleted => {}
+            }
+
             items_to_delete.remove(index);
         } else if i >= 0 {
-            vec_to_extend.insert(real_index.try_into().unwrap(), item.clone());
+            match item {
+                InfiniteStackItem::Value(item) => {
+                    vec_to_extend.insert(real_index.try_into().unwrap(), item.clone());
+                }
+                InfiniteStackItem::Deleted => unreachable!(),
+            }
         } else {
             todo!("pushing into the previous stack without consuming it")
         }
     }
+
+    // Also delete items marked to be deleted in the stack
+    items_to_delete.extend(infinite_stack.iter_pairs().filter_map(|(i, e)| {
+        if i < 0 && *e == InfiniteStackItem::Deleted {
+            Some(i)
+        } else {
+            None
+        }
+    }));
+
+    items_to_delete.sort();
 
     // Loop the items from biggest to smallest
     for i in items_to_delete.iter().rev() {
@@ -711,9 +809,9 @@ where
         SIRNode: Clone + std::fmt::Debug,
         SIRException: Clone + std::fmt::Debug,
     {
-        stack: InfiniteVec<SIRExpression<SIRNode, SIRException>>,
+        stack: InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
         statements: SIR<SIRNode, SIRException>,
-        phi_map: Vec<(isize, AuxVar)>,
+        phi_map: Vec<PhiEntry>,
     }
 
     let mut temp_blocks: Vec<TempBlockInfo<SIRNode, SIRException>> = vec![];
@@ -727,9 +825,9 @@ where
         SIRNode: Clone + std::fmt::Debug,
         SIRException: Clone + std::fmt::Debug,
     {
-        stack: InfiniteVec<SIRExpression<SIRNode, SIRException>>,
+        stack: InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
         statements: Vec<SIRStatement<SIRNode, SIRException>>,
-        phi_map: Vec<(isize, AuxVar)>,
+        phi_map: Vec<PhiEntry>,
     }
 
     // (default, branch)
@@ -980,7 +1078,7 @@ mod test {
 
     use crate::cfg::{ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg};
     use crate::sir::{
-        AuxVar, SIR, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
+        AuxVar, PhiEntry, SIR, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
         instruction_to_ir, process_stack_effects,
     };
     use crate::traits::{GenericInstruction, GenericSIRException};
@@ -1022,9 +1120,10 @@ mod test {
 
         let mut stack: InfiniteVec<_> = vec![].into();
 
-        let fake_var = crate::sir::SIRExpression::AuxVar(AuxVar {
-            name: "test".into(),
-        });
+        let fake_var =
+            crate::sir::InfiniteStackItem::Value(crate::sir::SIRExpression::AuxVar(AuxVar {
+                name: "test".into(),
+            }));
 
         stack.insert(-2, fake_var.clone());
 
@@ -1048,7 +1147,7 @@ mod test {
         .unwrap();
 
         assert_eq!(phi_map.len(), 1);
-        assert_eq!(phi_map.first().unwrap().0, -4);
+        assert_eq!(phi_map.first().unwrap().index, -4);
 
         assert_eq!(stack.positive_len(), 1);
         assert_eq!(stack.negative_len(), 4);
@@ -1056,15 +1155,21 @@ mod test {
         assert_eq!(
             stack.iter().cloned().collect::<Vec<_>>(),
             vec![
-                Some(crate::sir::SIRExpression::AuxVar(AuxVar {
-                    name: "res_first_0".into(),
-                })),
+                Some(
+                    crate::sir::SIRExpression::AuxVar(AuxVar {
+                        name: "res_first_0".into(),
+                    })
+                    .into()
+                ),
                 None,
+                Some(crate::sir::InfiniteStackItem::Deleted),
                 None,
-                None,
-                Some(crate::sir::SIRExpression::AuxVar(AuxVar {
-                    name: "res_second_0".into(),
-                })),
+                Some(
+                    crate::sir::SIRExpression::AuxVar(AuxVar {
+                        name: "res_second_0".into(),
+                    })
+                    .into()
+                ),
             ]
         );
 
@@ -1101,19 +1206,21 @@ mod test {
         assert_eq!(stack.negative_len(), 0);
 
         assert_eq!(
-            stack.collect_pairs(),
+            stack.iter_pairs().collect::<Vec<_>>(),
             vec![
                 (
                     0,
                     &crate::sir::SIRExpression::AuxVar(AuxVar {
                         name: "const_0".into()
                     })
+                    .into()
                 ),
                 (
                     1,
                     &crate::sir::SIRExpression::AuxVar(AuxVar {
                         name: "const_1".into()
                     })
+                    .into()
                 )
             ]
         )
@@ -1149,17 +1256,26 @@ mod test {
 
         let mut stack: InfiniteVec<_> = vec![].into();
 
-        stack.push(crate::sir::SIRExpression::AuxVar(AuxVar {
-            name: "null_0".into(),
-        }));
+        stack.push(
+            crate::sir::SIRExpression::AuxVar(AuxVar {
+                name: "null_0".into(),
+            })
+            .into(),
+        );
 
-        stack.push(crate::sir::SIRExpression::AuxVar(AuxVar {
-            name: "value_0".into(),
-        }));
+        stack.push(
+            crate::sir::SIRExpression::AuxVar(AuxVar {
+                name: "value_0".into(),
+            })
+            .into(),
+        );
 
-        stack.push(crate::sir::SIRExpression::AuxVar(AuxVar {
-            name: "value_1".into(),
-        }));
+        stack.push(
+            crate::sir::SIRExpression::AuxVar(AuxVar {
+                name: "value_1".into(),
+            })
+            .into(),
+        );
 
         assert_eq!(stack.negative_len(), 0);
         assert_eq!(stack.positive_len(), 3);
@@ -1183,9 +1299,12 @@ mod test {
 
         assert_eq!(
             stack.iter().cloned().collect::<Vec<_>>(),
-            vec![Some(crate::sir::SIRExpression::AuxVar(AuxVar {
-                name: "res_0".into(),
-            })),]
+            vec![Some(
+                crate::sir::SIRExpression::AuxVar(AuxVar {
+                    name: "res_0".into(),
+                })
+                .into()
+            ),]
         );
 
         // POP_TOP the result
@@ -1269,19 +1388,19 @@ mod test {
         let mut stack: InfiniteVec<_> = vec![].into();
 
         let mut phi_map = vec![
-            (
+            PhiEntry::new(
                 -1,
                 AuxVar {
                     name: "test_1".into(),
                 },
             ),
-            (
+            PhiEntry::new(
                 -2,
                 AuxVar {
                     name: "test_2".into(),
                 },
             ),
-            (
+            PhiEntry::new(
                 -3,
                 AuxVar {
                     name: "test_3".into(),
@@ -1302,42 +1421,42 @@ mod test {
 
         let mut phi_indexes = phi_map.iter().cloned().collect::<Vec<_>>();
 
-        phi_indexes.sort_by_key(|(i, _)| *i);
+        phi_indexes.sort_by_key(|PhiEntry { index: i, .. }| *i);
 
         assert_eq!(
             phi_indexes,
             vec![
-                (
+                PhiEntry::new(
                     -6,
                     AuxVar {
                         name: "phi_0".into()
                     }
                 ),
-                (
+                PhiEntry::new(
                     -5,
                     AuxVar {
                         name: "phi_1".into()
                     }
                 ),
-                (
+                PhiEntry::new(
                     -4,
                     AuxVar {
                         name: "phi_2".into()
                     }
                 ),
-                (
+                PhiEntry::new(
                     -3,
                     AuxVar {
                         name: "test_3".into()
                     }
                 ),
-                (
+                PhiEntry::new(
                     -2,
                     AuxVar {
                         name: "test_2".into()
                     }
                 ),
-                (
+                PhiEntry::new(
                     -1,
                     AuxVar {
                         name: "test_1".into()
@@ -1384,24 +1503,24 @@ mod test {
 
         let mut phi_indexes = phi_map.iter().cloned().collect::<Vec<_>>();
 
-        phi_indexes.sort_by_key(|(i, _)| *i);
+        phi_indexes.sort_by_key(|PhiEntry { index: i, .. }| *i);
 
         assert_eq!(
             phi_indexes,
             vec![
-                (
+                PhiEntry::new(
                     -3,
                     AuxVar {
                         name: "phi_0".into()
                     }
                 ),
-                (
+                PhiEntry::new(
                     -2,
                     AuxVar {
                         name: "phi_1".into()
                     }
                 ),
-                (
+                PhiEntry::new(
                     -1,
                     AuxVar {
                         name: "phi_2".into()
@@ -1418,10 +1537,12 @@ mod test {
             crate::v311::instructions::Instruction::StoreName(0),
         ];
 
-        let mut curr_stack: Vec<crate::sir::SIRExpression<SIRNode, SIRException>> =
-            vec![crate::sir::SIRExpression::AuxVar(AuxVar {
+        let mut curr_stack = vec![
+            crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "og_iter".into(),
-            })];
+            })
+            .into(),
+        ];
 
         let mut statements = vec![];
 
@@ -1457,7 +1578,8 @@ mod test {
             *curr_stack.first().unwrap(),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "iter_0".into()
-            },),
+            },)
+            .into(),
         );
 
         assert_eq!(
@@ -1533,13 +1655,15 @@ mod test {
             crate::v311::instructions::Instruction::LoadConst(0),
         ];
 
-        let mut curr_stack: Vec<crate::sir::SIRExpression<SIRNode, SIRException>> = vec![
+        let mut curr_stack = vec![
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "iter_0".into(),
-            }),
+            })
+            .into(),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "next_0".into(),
-            }),
+            })
+            .into(),
         ];
 
         let mut statements = vec![];
@@ -1615,16 +1739,19 @@ mod test {
         ]
         .as_slice();
 
-        let mut curr_stack: Vec<crate::sir::SIRExpression<SIRNode, SIRException>> = vec![
+        let mut curr_stack = vec![
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "first".into(),
-            }),
+            })
+            .into(),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "second".into(),
-            }),
+            })
+            .into(),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "third".into(),
-            }),
+            })
+            .into(),
         ];
 
         let mut stack: InfiniteVec<_> = vec![].into();
@@ -1685,16 +1812,19 @@ mod test {
         ]
         .as_slice();
 
-        let mut curr_stack: Vec<crate::sir::SIRExpression<SIRNode, SIRException>> = vec![
+        let mut curr_stack = vec![
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "first".into(),
-            }),
+            })
+            .into(),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "second".into(),
-            }),
+            })
+            .into(),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "third".into(),
-            }),
+            })
+            .into(),
         ];
 
         let mut stack: InfiniteVec<_> = vec![].into();
@@ -2008,6 +2138,8 @@ mod test {
             .unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
+
+        insta::assert_debug_snapshot!(ir_cfg);
     }
 
     #[test]
@@ -2038,5 +2170,39 @@ mod test {
         .unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
+
+        insta::assert_debug_snapshot!(ir_cfg);
+    }
+
+    #[test]
+    fn test_310_with_block() {
+        use crate::v310::ext_instructions::ExtInstruction;
+        use crate::v310::instructions::{Instruction, Instructions};
+        use crate::v310::opcodes::{
+            Opcode,
+            sir::{SIRException, SIRNode},
+        };
+
+        let ext_instructions = Instructions::new(vec![
+            Instruction::LoadConst(0),
+            Instruction::JumpForward(0), // We do this so the value comes from a different BB
+            Instruction::PopBlock(0),
+            Instruction::LoadConst(0),
+            Instruction::DupTop(0),
+            Instruction::DupTop(0),
+            Instruction::CallFunction(3),
+            Instruction::PopTop(0),
+        ])
+        .to_resolved()
+        .unwrap();
+
+        let cfg = create_cfg::<_, _, Opcode>(ext_instructions.to_vec(), None).unwrap();
+
+        let ir_cfg =
+            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, Opcode>(&cfg, false).unwrap();
+
+        println!("{}", ir_cfg.make_dot_graph());
+
+        insta::assert_debug_snapshot!(ir_cfg);
     }
 }

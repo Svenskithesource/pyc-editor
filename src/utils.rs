@@ -323,7 +323,7 @@ where
     }
 
     /// Collects the values with Some() value and their index
-    pub fn collect_pairs(&self) -> Vec<(isize, &T)> {
+    pub fn iter_pairs(&self) -> impl Iterator<Item = (isize, &T)> {
         self.data
             .iter()
             .enumerate()
@@ -334,7 +334,6 @@ where
                     value.as_ref().unwrap(),
                 )
             })
-            .collect()
     }
 
     /// Tells us whether negative items were used

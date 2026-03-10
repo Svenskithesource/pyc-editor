@@ -2205,4 +2205,36 @@ mod test {
 
         insta::assert_debug_snapshot!(ir_cfg);
     }
+
+    #[test]
+    fn test_310_nested_try() {
+        use crate::v310::ext_instructions::ExtInstruction;
+        use crate::v310::instructions::{Instruction, Instructions};
+        use crate::v310::opcodes::{
+            Opcode,
+            sir::{SIRException, SIRNode},
+        };
+
+        let ext_instructions = Instructions::new(vec![
+            Instruction::SetupFinally(0),
+            Instruction::PopTop(0), // exc, tb, type, exc, tb, type
+            Instruction::PopTop(0),
+            Instruction::PopTop(0),
+            Instruction::LoadFast(0),
+            Instruction::RotFour(0), // Accesses 3 values from a different BB
+            Instruction::PopExcept(0),
+            Instruction::ReturnValue(0),
+        ])
+        .to_resolved()
+        .unwrap();
+
+        let cfg = create_cfg::<_, _, Opcode>(ext_instructions.to_vec(), None).unwrap();
+
+        let ir_cfg =
+            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, Opcode>(&cfg, false).unwrap();
+
+        println!("{}", ir_cfg.make_dot_graph());
+
+        // insta::assert_debug_snapshot!(ir_cfg);
+    }
 }

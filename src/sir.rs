@@ -8,7 +8,7 @@ use crate::{
     traits::{
         BranchReasonTrait, GenericInstruction, GenericSIRException, GenericSIRNode, SIROwned,
     },
-    utils::{InfiniteVec, generate_var_name},
+    utils::{InfiniteStack, InfiniteVec, generate_var_name},
 };
 
 #[cfg(feature = "dot")]
@@ -27,7 +27,7 @@ pub struct StackItem {
     pub name: &'static str,
     pub count: u32,
     /// Index of the (first) item on the stack (0 = TOS)
-    pub index: u32,
+    pub index: isize,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -130,59 +130,59 @@ impl PhiEntry {
 fn fill_phi_nodes<SIRNode, SIRException>(
     curr_stack: &mut Vec<SIRExpression<SIRNode, SIRException>>,
     statements: &mut Vec<SIRStatement<SIRNode, SIRException>>,
-    phi_map: &[PhiEntry],
-) -> Result<Vec<isize>, Error>
+    phi_stack: &InfiniteStack<AuxVar>,
+) -> Result<(), Error>
 where
     SIRNode: GenericSIRNode,
     SIRException: GenericSIRException,
 {
-    // Indexes of items we have to delete in the curr stack (needs to be done after fully processing the new stack)
-    let mut items_to_delete: Vec<isize> = vec![];
-
-    for entry in phi_map {
+    for (i, var) in phi_stack.data.iter_pairs() {
         let found;
 
-        let item_index = (curr_stack.len() as i32 + (entry.index as i32)) as usize;
+        let item_index = (curr_stack.len() as isize + i) as usize;
 
         if let Some(item) = curr_stack.get(item_index) {
-            found = process_phi_item(&entry.value, item, statements);
+            found = process_phi_item(&var, item, statements);
         } else {
             return Err(Error::InvalidStackAccess);
         }
 
         if !found {
             return Err(Error::PhiNodeNotPopulated);
-        } else {
-            items_to_delete.push(entry.index);
         }
     }
 
-    items_to_delete.sort();
-
-    Ok(items_to_delete)
+    Ok(())
 }
 
-/// This is used to mark if an item needs to be deleted from the original stack (thus a negative index)
-/// For example if we overwrite a value on the original stack and delete this value afterwards we need to account for that.
-#[derive(Debug, Clone, PartialEq)]
-pub enum InfiniteStackItem<SIRNode, SIRException> {
-    Deleted,
-    Value(SIRExpression<SIRNode, SIRException>),
-}
-
-impl<SIRNode, SIRException> From<SIRExpression<SIRNode, SIRException>>
-    for InfiniteStackItem<SIRNode, SIRException>
+fn insert_replace_stack<T>(
+    phi_stack: &mut InfiniteStack<T>,
+    index: isize,
+    value: T,
+) -> Result<(), Error>
+where
+    T: Clone + std::fmt::Debug,
 {
-    fn from(value: SIRExpression<SIRNode, SIRException>) -> Self {
-        InfiniteStackItem::Value(value)
+    assert!(index < 0);
+
+    let entry = phi_stack.data.get_mut(index);
+    if let Some(Some(_)) = entry {
+        return Err(Error::StackItemReused);
+    } else if let Some(val) = entry {
+        *val = Some(value);
+    } else {
+        phi_stack.data.insert(index, value);
     }
+
+    Ok(())
 }
 
 fn process_stack_effects<SIRNode, SIRException>(
     inputs: &[StackItem],
     outputs: &[StackItem],
-    stack: &mut InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
-    phi_map: &mut Vec<PhiEntry>,
+    net_stack_delta: isize,
+    stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+    phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<
     (
@@ -200,84 +200,16 @@ where
 
     let mut statements = vec![];
 
-    // We don't want to offset by items in the current input list
-    // So we store those separately here first, and then extend later
-    let mut temp_phi_map = vec![];
-
-    // This var shows what index the lowest stack input is at.
-    // We need it to determine where to start pushing our outputs.
-    let mut lowest_stack_input = stack.positive_len() as isize;
-
-    let original_len = stack.positive_len() as i32;
-
-    // Items we have to delete after using them as input
-    let mut to_delete = vec![];
+    let mut tos = stack.get_tos_index().ok_or(Error::InvalidStackAccess)?;
 
     for input in inputs {
         for count in 0..input.count {
-            let index = ((original_len as i32 - 1) - (input.index + count) as i32) as isize;
+            let index = (stack.carrot) + (input.index + count as isize) as isize;
 
-            // If we pushed a value that replaced a phi item we need to offset that
-            let mut og_phi_count = 0;
+            let value = stack.data.get_mut(index);
 
-            if !phi_map.is_empty() {
-                loop {
-                    let mut finished = true;
-                    for PhiEntry {
-                        index: i,
-                        is_overwritten,
-                        ..
-                    } in phi_map.iter()
-                    {
-                        if *i == index - og_phi_count && !is_overwritten {
-                            og_phi_count += 1;
-
-                            finished = false;
-
-                            break;
-                        }
-                    }
-
-                    if finished {
-                        break;
-                    }
-                }
-            }
-
-            let index = if index < 0 {
-                index - og_phi_count
-            } else {
-                index
-            };
-
-            if index < lowest_stack_input {
-                lowest_stack_input = index;
-            }
-
-            let value = stack.get(index);
-
-            if index < 0 && (value.is_none() || value == Some(&None)) {
+            if index < 0 && (value.is_none() || value == Some(&mut None)) {
                 // Stack item from other basic block, create an empty phi node that we populate later.
-
-                let phi_count = temp_phi_map
-                    .iter()
-                    .filter(
-                        |PhiEntry {
-                             index: i,
-                             is_overwritten,
-                             ..
-                         }| *i <= index && !*is_overwritten,
-                    )
-                    .count();
-
-                for PhiEntry { index: i, .. } in temp_phi_map.iter_mut() {
-                    // Move items to the left by the amount necessary
-                    *i -= (og_phi_count as usize).saturating_sub(phi_count) as isize;
-                }
-
-                if phi_map.iter().any(|PhiEntry { index: i, .. }| *i == index) {
-                    return Err(Error::StackItemReused);
-                }
 
                 let phi = SIRExpression::PhiNode(vec![]);
 
@@ -287,17 +219,28 @@ where
 
                 statements.push(SIRStatement::Assignment(var.clone(), phi));
                 stack_inputs.push(SIRExpression::AuxVar(var.clone()));
-                temp_phi_map.push(PhiEntry::new(index, var));
+
+                insert_replace_stack(phi_stack, index, var);
             } else {
                 match value {
-                    Some(Some(InfiniteStackItem::Value(value))) => {
+                    Some(Some(value)) => {
                         stack_inputs.push(value.clone());
-                        to_delete.push(index);
                     }
-                    _ => {
-                        dbg!(value, index);
-                        unreachable!()
-                    }
+                    _ => unreachable!(),
+                }
+
+                if index != tos {
+                    // This means the value is not at the top of the stack
+                    // We will place None here since it is guaranteed that in the outputs we will write a value here
+
+                    *value.unwrap() = None;
+                } else {
+                    stack.data.remove(tos);
+
+                    tos -= 1;
+
+                    // The new TOS should always have a value
+                    debug_assert!(matches!(stack.data.get(tos), Some(Some(_))));
                 }
             }
         }
@@ -313,57 +256,24 @@ where
 
             stack_outputs.push(var.clone());
 
-            let real_index =
-                lowest_stack_input as isize + (output.index as i32 + count as i32) as isize;
+            let index = stack.carrot + (output.index as i32 + count as i32) as isize;
 
-            if real_index < 0 {
-                for e in phi_map.iter_mut().chain(temp_phi_map.iter_mut()) {
-                    if e.index == real_index {
-                        e.mark_overwritten();
-                    }
-                }
+            let value = stack.data.get(index);
+
+            if index < 0 && (value.is_none() || value == Some(&None)) {
+                debug_assert!(phi_stack.data.get(index).is_some());
             }
 
-            if let Some(index) = to_delete.iter().position(|v| v == &real_index) {
-                *stack.get_mut(real_index).unwrap() =
-                    Some(InfiniteStackItem::Value(SIRExpression::<
-                        SIRNode,
-                        SIRException,
-                    >::AuxVar(var)));
-                to_delete.remove(index);
-            } else {
-                // Update offsets
-                to_delete
-                    .iter_mut()
-                    .filter(|e| {
-                        if real_index >= 0 {
-                            **e > real_index
-                        } else {
-                            **e < real_index
-                        }
-                    })
-                    .for_each(|e| *e += if real_index >= 0 { 1 } else { -1 });
-
-                stack.insert(
-                    real_index,
-                    InfiniteStackItem::Value(SIRExpression::<SIRNode, SIRException>::AuxVar(var)),
-                );
-            }
+            insert_replace_stack(
+                stack,
+                index,
+                SIRExpression::<SIRNode, SIRException>::AuxVar(var),
+            );
         }
     }
 
-    to_delete.sort();
-
-    for index in to_delete.iter().rev() {
-        if *index < 0 {
-            // Mark items to be removed in the negative part
-            *stack.get_mut(*index).unwrap() = Some(InfiniteStackItem::Deleted);
-        } else {
-            stack.remove(*index);
-        }
-    }
-
-    phi_map.extend(temp_phi_map);
+    // Move carrot to the new correct position
+    stack.carrot += net_stack_delta;
 
     Ok((stack_inputs, stack_outputs, statements))
 }
@@ -372,8 +282,8 @@ fn instruction_to_ir<ExtInstruction, SIRNode, SIRException>(
     opcode: ExtInstruction::Opcode,
     oparg: ExtInstruction::OpargType,
     jump: bool,
-    stack: &mut InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
-    phi_map: &mut Vec<PhiEntry>,
+    stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+    phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
 where
@@ -383,8 +293,14 @@ where
 {
     let node = SIRNode::new(opcode.clone(), oparg, jump);
 
-    let (stack_inputs, stack_outputs, mut statements) =
-        process_stack_effects(node.get_inputs(), node.get_outputs(), stack, phi_map, names)?;
+    let (stack_inputs, stack_outputs, mut statements) = process_stack_effects(
+        node.get_inputs(),
+        node.get_outputs(),
+        node.get_net_stack_delta(),
+        stack,
+        phi_stack,
+        names,
+    )?;
 
     let call = Call::<SIRNode, SIRException> { node, stack_inputs };
 
@@ -408,8 +324,8 @@ where
 fn exception_to_ir<SIRNode, SIRException>(
     lasti: bool,
     jump: bool,
-    stack: &mut InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
-    phi_map: &mut Vec<PhiEntry>,
+    stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+    phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
 where
@@ -421,8 +337,9 @@ where
     let (stack_inputs, stack_outputs, mut statements) = process_stack_effects(
         exception.get_inputs(),
         exception.get_outputs(),
+        exception.get_net_stack_delta(),
         stack,
-        phi_map,
+        phi_stack,
         names,
     )?;
 
@@ -456,8 +373,8 @@ fn bb_to_ir<ExtInstruction, SIRNode, SIRException>(
 ) -> Result<
     (
         SIR<SIRNode, SIRException>,
-        InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
-        Vec<PhiEntry>,
+        InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+        InfiniteStack<AuxVar>,
     ),
     Error,
 >
@@ -471,10 +388,10 @@ where
 
     // Every basic block starts with an empty stack.
     // When we try to access stack items below 0, we know it's accessing items from a different basic block.
-    let mut stack: InfiniteVec<InfiniteStackItem<SIRNode, SIRException>> = vec![].into();
+    let mut stack: InfiniteStack<SIRExpression<SIRNode, SIRException>> = vec![].into();
 
     // When we assign a phi node to a var we keep track of what stack index this phi node is representing
-    let mut phi_map: Vec<PhiEntry> = vec![];
+    let mut phi_stack: InfiniteStack<AuxVar> = vec![].into();
 
     for instruction in instructions {
         // In a basic block there shouldn't be any jumps. (the last jump instruction is removed in the cfg)
@@ -485,12 +402,12 @@ where
             instruction.get_raw_value(),
             false,
             &mut stack,
-            &mut phi_map,
+            &mut phi_stack,
             names,
         )?);
     }
 
-    Ok((SIR::new(statements), stack, phi_map))
+    Ok((SIR::new(statements), stack, phi_stack))
 }
 
 /// Used to represent the opcode that was used for this branch and the block index it's jumping to.
@@ -731,8 +648,8 @@ impl std::fmt::Display for Error {
 /// This will extend the vec and overwrite any items that have a corresponding negative value
 pub fn extend_merge_stack<SIRNode, SIRException>(
     vec_to_extend: &mut Vec<SIRExpression<SIRNode, SIRException>>,
-    infinite_stack: &InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
-    items_to_delete: Vec<isize>,
+    infinite_stack: &InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+    phi_stack: &InfiniteStack<AuxVar>,
 ) -> Result<(), Error>
 where
     SIRNode: GenericSIRNode,
@@ -740,52 +657,28 @@ where
 {
     let original_len = vec_to_extend.len();
 
-    let mut items_to_delete = items_to_delete;
-
-    let pairs = infinite_stack.iter_pairs();
+    let pairs = infinite_stack.data.iter_pairs();
 
     for (i, item) in pairs {
         let real_index: usize = (original_len as isize + i).try_into().unwrap();
 
-        if let Some(index) = items_to_delete.iter().position(|v| v == &i) {
-            match item {
-                InfiniteStackItem::Value(item) => {
-                    vec_to_extend[real_index] = item.clone();
-                }
-                InfiniteStackItem::Deleted => {}
-            }
-
-            items_to_delete.remove(index);
-        } else if i >= 0 {
-            match item {
-                InfiniteStackItem::Value(item) => {
-                    vec_to_extend.insert(real_index.try_into().unwrap(), item.clone());
-                }
-                InfiniteStackItem::Deleted => unreachable!(),
-            }
+        if i < 0 {
+            vec_to_extend[real_index] = item.clone();
         } else {
-            todo!("pushing into the previous stack without consuming it")
+            debug_assert!(real_index == vec_to_extend.len() - 1);
+
+            vec_to_extend.push(item.clone());
         }
     }
 
-    // Also delete items marked to be deleted in the stack
-    items_to_delete.extend(infinite_stack.iter_pairs().filter_map(|(i, e)| {
-        if i < 0 && *e == InfiniteStackItem::Deleted {
-            Some(i)
-        } else {
-            None
-        }
-    }));
-
-    items_to_delete.sort();
-
-    // Loop the items from biggest to smallest
-    for i in items_to_delete.iter().rev() {
-        // Remove item from the stack after it was used
-
+    for (i, _) in phi_stack.data.iter_pairs().rev() {
         let real_index: usize = (original_len as isize + i).try_into().unwrap();
 
-        vec_to_extend.remove(real_index);
+        if i < 0 && real_index == vec_to_extend.len() - 1 {
+            // if we use the TOS as phi item we pop
+
+            vec_to_extend.pop();
+        }
     }
 
     Ok(())
@@ -809,9 +702,9 @@ where
         SIRNode: Clone + std::fmt::Debug,
         SIRException: Clone + std::fmt::Debug,
     {
-        stack: InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
+        stack: InfiniteStack<SIRExpression<SIRNode, SIRException>>,
         statements: SIR<SIRNode, SIRException>,
-        phi_map: Vec<PhiEntry>,
+        phi_stack: InfiniteStack<AuxVar>,
     }
 
     let mut temp_blocks: Vec<TempBlockInfo<SIRNode, SIRException>> = vec![];
@@ -825,9 +718,9 @@ where
         SIRNode: Clone + std::fmt::Debug,
         SIRException: Clone + std::fmt::Debug,
     {
-        stack: InfiniteVec<InfiniteStackItem<SIRNode, SIRException>>,
+        stack: InfiniteStack<SIRExpression<SIRNode, SIRException>>,
         statements: Vec<SIRStatement<SIRNode, SIRException>>,
-        phi_map: Vec<PhiEntry>,
+        phi_stack: InfiniteStack<AuxVar>,
     }
 
     // (default, branch)
@@ -845,17 +738,17 @@ where
 
     // Create isolated IR blocks
     for block in &cfg.blocks {
-        let (statements, stack, phi_map) =
+        let (statements, stack, phi_stack) =
             bb_to_ir::<ExtInstruction, SIRNode, SIRException>(&block.instructions, &mut names)?;
 
         temp_blocks.push(TempBlockInfo {
             stack,
             statements,
-            phi_map,
+            phi_stack,
         });
 
         let mut default_stack = vec![].into();
-        let mut default_phi_map = vec![];
+        let mut default_phi_stack = vec![].into();
 
         let default_statements = match &block.default_block {
             BlockIndexInfo::Edge(BranchEdge {
@@ -868,7 +761,7 @@ where
                         0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
                         false, // Don't take the jump for the default block
                         &mut default_stack,
-                        &mut default_phi_map,
+                        &mut default_phi_stack,
                         &mut names,
                     )?
                 } else if let Some(lasti) = branch_reason.get_lasti() {
@@ -876,7 +769,7 @@ where
                         lasti.clone(),
                         false,
                         &mut default_stack,
-                        &mut default_phi_map,
+                        &mut default_phi_stack,
                         &mut names,
                     )?
                 } else {
@@ -887,7 +780,7 @@ where
         };
 
         let mut branch_stack = vec![].into();
-        let mut branch_phi_map = vec![];
+        let mut branch_phi_stack = vec![].into();
 
         let branch_statements = match &block.branch_block {
             BlockIndexInfo::Edge(BranchEdge {
@@ -900,7 +793,7 @@ where
                         0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
                         true, // Take the jump for the branch block
                         &mut branch_stack,
-                        &mut branch_phi_map,
+                        &mut branch_phi_stack,
                         &mut names,
                     )?
                 } else if let Some(lasti) = branch_reason.get_lasti() {
@@ -908,7 +801,7 @@ where
                         lasti.clone(),
                         true,
                         &mut branch_stack,
-                        &mut branch_phi_map,
+                        &mut branch_phi_stack,
                         &mut names,
                     )?
                 } else {
@@ -922,12 +815,12 @@ where
             TempEdgeInfo {
                 stack: default_stack,
                 statements: default_statements,
-                phi_map: default_phi_map,
+                phi_stack: default_phi_stack,
             },
             TempEdgeInfo {
                 stack: branch_stack,
                 statements: branch_statements,
-                phi_map: branch_phi_map,
+                phi_stack: branch_phi_stack,
             },
         ));
     }
@@ -979,17 +872,17 @@ where
 
         if let Some(edge_info) = edge_info {
             // Fill empty phi nodes in the edge statements
-            let deleted_items = fill_phi_nodes(
+            fill_phi_nodes(
                 &mut block_element.curr_stack,
                 &mut edge_info.statements,
-                &edge_info.phi_map,
+                &edge_info.phi_stack,
             )?;
 
             // Add the branch stack after processing the branch statements
             extend_merge_stack(
                 &mut block_element.curr_stack,
                 &edge_info.stack,
-                deleted_items,
+                &edge_info.phi_stack,
             )?;
         }
 
@@ -1007,16 +900,16 @@ where
             has_changed.insert(index, vec![block_element.curr_stack.clone()]);
         }
 
-        let deleted_items = fill_phi_nodes(
+        fill_phi_nodes(
             &mut block_element.curr_stack,
             &mut block_info.statements.0,
-            &block_info.phi_map,
+            &block_info.phi_stack,
         )?;
 
         extend_merge_stack(
             &mut block_element.curr_stack,
             &block_info.stack,
-            deleted_items,
+            &block_info.phi_stack,
         )?;
 
         queue.push(BlockQueue {
@@ -1094,7 +987,7 @@ mod test {
             StackItem {
                 name: "first",
                 count: 1,
-                index: 3,
+                index: -3,
             },
             StackItem {
                 name: "second",
@@ -1108,7 +1001,7 @@ mod test {
             StackItem {
                 name: "res_first",
                 count: 1,
-                index: 0,
+                index: 3,
             },
             StackItem {
                 name: "res_second",
@@ -1118,36 +1011,36 @@ mod test {
         ]
         .as_slice();
 
-        let mut stack: InfiniteVec<_> = vec![].into();
+        let mut stack: crate::utils::InfiniteStack<_> = vec![].into();
 
-        let fake_var =
-            crate::sir::InfiniteStackItem::Value(crate::sir::SIRExpression::AuxVar(AuxVar {
-                name: "test".into(),
-            }));
+        let fake_var = crate::sir::SIRExpression::AuxVar(AuxVar {
+            name: "test".into(),
+        });
 
-        stack.insert(-2, fake_var.clone());
+        stack.data.insert(-2, fake_var.clone());
 
-        assert_eq!(stack.negative_len(), 2);
-        assert_eq!(stack.positive_len(), 0);
+        assert_eq!(stack.data.negative_len(), 2);
+        assert_eq!(stack.data.positive_len(), 0);
         assert_eq!(
-            stack.iter().cloned().collect::<Vec<_>>(),
+            stack.data.iter().cloned().collect::<Vec<_>>(),
             vec![Some(fake_var), None]
         );
 
-        let mut phi_map = vec![];
+        let mut phi_stack = vec![].into();
         let mut names = HashMap::new();
 
         process_stack_effects::<SIRNode, SIRException>(
             inputs,
             outputs,
+            0,
             &mut stack,
-            &mut phi_map,
+            &mut phi_stack,
             &mut names,
         )
         .unwrap();
 
-        assert_eq!(phi_map.len(), 1);
-        assert_eq!(phi_map.first().unwrap().index, -4);
+        assert_eq!(phi_stack.len(), 1);
+        assert_eq!(phi_stack.first().unwrap().index, -4);
 
         assert_eq!(stack.positive_len(), 1);
         assert_eq!(stack.negative_len(), 4);

@@ -470,6 +470,8 @@ pub trait GenericSIRNode: Clone + Debug + PartialEq {
     fn get_outputs(&self) -> &[StackItem];
 
     fn get_inputs(&self) -> &[StackItem];
+
+    fn get_net_stack_delta(&self) -> isize;
 }
 
 pub trait GenericSIRException: Clone + Debug + PartialEq {
@@ -480,6 +482,8 @@ pub trait GenericSIRException: Clone + Debug + PartialEq {
     fn get_outputs(&self) -> &[StackItem];
 
     fn get_inputs(&self) -> &[StackItem];
+
+    fn get_net_stack_delta(&self) -> isize;
 }
 
 /// A trait to indicate that the SIR statements are owned.

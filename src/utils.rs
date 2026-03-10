@@ -323,7 +323,7 @@ where
     }
 
     /// Collects the values with Some() value and their index
-    pub fn iter_pairs(&self) -> impl Iterator<Item = (isize, &T)> {
+    pub fn iter_pairs(&self) -> impl DoubleEndedIterator<Item = (isize, &T)> {
         self.data
             .iter()
             .enumerate()
@@ -350,6 +350,51 @@ where
         &self,
     ) -> std::iter::Take<std::collections::vec_deque::Iter<'_, Option<T>>> {
         self.data.iter().take(self.negative_offset)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    pub data: InfiniteVec<T>,
+    /// This points to where we currently are in the stack
+    pub carrot: isize,
+}
+
+impl<T> InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    pub fn new(stack: InfiniteVec<T>) -> Self {
+        InfiniteStack {
+            data: stack,
+            carrot: 0,
+        }
+    }
+
+    /// Returns the index of the top of the stack (if there is one)
+    pub fn get_tos_index(&self) -> Option<isize> {
+        self.data.iter_pairs().last().map(|(i, _)| i)
+    }
+}
+
+impl<T> From<InfiniteVec<T>> for InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    fn from(value: InfiniteVec<T>) -> Self {
+        InfiniteStack::new(value)
+    }
+}
+
+impl<T> From<Vec<T>> for InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    fn from(value: Vec<T>) -> Self {
+        InfiniteStack::new(value.into())
     }
 }
 

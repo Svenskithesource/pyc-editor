@@ -165,9 +165,9 @@ where
                         "red"
                     };
 
-                    format!("color = {}", color)
+                    format!("shape=rect, color = {}", color)
                 },
-                &|_, (_, s)| format!(r#"label = "{}""#, s),
+                &|_, (_, s)| format!(r#"shape=rect, label = "{}""#, s.replace("\n", r"\l")),
             )
         )
     }

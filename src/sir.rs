@@ -626,9 +626,13 @@ where
                         "red"
                     };
 
-                    format!(r#"label = "{}", color = {}"#, e.weight(), color)
+                    format!(
+                        r#"label = "{}", color = {}, shape=rect"#,
+                        e.weight().replace("\n", r"\l"),
+                        color
+                    )
                 },
-                &|_, (_, s)| format!(r#"label = "{}""#, s),
+                &|_, (_, s)| format!(r#"shape=rect, label = "{}""#, s.replace("\n", r"\l")),
             )
         )
     }

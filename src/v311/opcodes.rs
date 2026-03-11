@@ -26,7 +26,7 @@ define_opcodes!(
     MATCH_MAPPING = 31 (subject -- subject, res),
     MATCH_SEQUENCE = 32 (subject -- subject, res),
     MATCH_KEYS = 33 (subject, keys -- subject, keys, values_or_none),
-    PUSH_EXC_INFO = 35 ( -- exc),
+    PUSH_EXC_INFO = 35 (new_exc -- prev_exc, new_exc),
     CHECK_EXC_MATCH = 36 (left_exc, right_exc -- left_exc, boolean),
     CHECK_EG_MATCH = 37 (exc_value, match_type -- rest, match_group),
     WITH_EXCEPT_START = 49 (exit_func, lasti, unused, val -- exit_func, lasti, unused, val, res),
@@ -307,17 +307,19 @@ impl GenericOpcode for Opcode {
 pub enum BranchReason {
     Opcode(Opcode),
     /// Bool is the `lasti` field of the `ExceptionTableEntry`
-    Exception(bool),
+    /// usize is the `depth` field of the `ExceptionTableEntry`
+    Exception((bool, usize)),
 }
 
 impl std::fmt::Display for BranchReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BranchReason::Opcode(opcode) => write!(f, "{:#?}", opcode),
-            BranchReason::Exception(lasti) => {
+            BranchReason::Exception((lasti, stack_depth)) => {
                 write!(
                     f,
-                    "EXCEPTION({})",
+                    "EXCEPTION(stack depth {}, with {})",
+                    stack_depth,
                     if *lasti { "lasti" } else { "no lasti" }
                 )
             }
@@ -328,8 +330,8 @@ impl std::fmt::Display for BranchReason {
 impl BranchReasonTrait for BranchReason {
     type Opcode = Opcode;
 
-    fn from_exception(lasti: bool) -> Result<Self, Error> {
-        Ok(BranchReason::Exception(lasti))
+    fn from_exception(lasti: bool, stack_depth: usize) -> Result<Self, Error> {
+        Ok(BranchReason::Exception((lasti, stack_depth)))
     }
 
     fn from_opcode(opcode: Opcode) -> Result<Self, Error> {
@@ -354,7 +356,14 @@ impl BranchReasonTrait for BranchReason {
     fn get_lasti(&self) -> Option<bool> {
         match self {
             BranchReason::Opcode(_) => None,
-            BranchReason::Exception(lasti) => Some(*lasti),
+            BranchReason::Exception((lasti, _)) => Some(*lasti),
+        }
+    }
+
+    fn get_stack_depth(&self) -> Option<usize> {
+        match self {
+            BranchReason::Opcode(_) => None,
+            BranchReason::Exception((_, stack_depth)) => Some(*stack_depth),
         }
     }
 }

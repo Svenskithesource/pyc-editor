@@ -186,6 +186,7 @@ fn process_stack_effects<SIRNode, SIRException>(
     inputs: &[StackItem],
     outputs: &[StackItem],
     net_stack_delta: isize,
+    force_stack_depth: Option<usize>,
     stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
@@ -253,6 +254,30 @@ where
         }
     }
 
+    if let Some(stack_depth) = force_stack_depth {
+        // Exceptions can force a stack depth, so we need to pop all items until we reach this stack height
+
+        assert!(stack.data.positive_len() >= stack_depth);
+
+        // We start counting from the TOS (on the negative side)
+        let mut index = 0;
+
+        while stack.data.positive_len() - (-index) as usize > stack_depth {
+            index -= 1;
+            let phi = SIRExpression::PhiNode(vec![]);
+
+            let var = AuxVar {
+                name: generate_var_name("phi", names),
+            };
+
+            statements.push(SIRStatement::Assignment(var.clone(), phi));
+
+            insert_replace_stack(phi_stack, index, var, false)?;
+
+            stack.carrot -= 1;
+        }
+    }
+
     let mut stack_outputs = vec![];
 
     for output in outputs {
@@ -305,6 +330,7 @@ where
         node.get_inputs(),
         node.get_outputs(),
         node.get_net_stack_delta(),
+        None,
         stack,
         phi_stack,
         names,
@@ -331,6 +357,7 @@ where
 
 fn exception_to_ir<SIRNode, SIRException>(
     lasti: bool,
+    stack_depth: usize,
     jump: bool,
     stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
@@ -340,12 +367,13 @@ where
     SIRNode: GenericSIRNode,
     SIRException: GenericSIRException,
 {
-    let exception = SIRException::new(lasti, jump);
+    let exception = SIRException::new(lasti, stack_depth, jump);
 
     let (stack_inputs, stack_outputs, mut statements) = process_stack_effects(
         exception.get_inputs(),
         exception.get_outputs(),
         exception.get_net_stack_delta(),
+        None,
         stack,
         phi_stack,
         names,
@@ -369,6 +397,24 @@ where
     } else {
         // There was no exception raised
     }
+
+    Ok(statements)
+}
+
+fn force_exception_stack_depth<SIRNode, SIRException>(
+    stack_depth: usize,
+    stack: &mut Vec<SIRExpression<SIRNode, SIRException>>,
+    phi_stack: &mut InfiniteStack<AuxVar>,
+    names: &mut HashMap<&'static str, u32>,
+) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
+where
+    SIRNode: GenericSIRNode,
+    SIRException: GenericSIRException,
+{
+    let mut stack: InfiniteStack<_> = InfiniteVec::from_vec(stack.clone()).into();
+
+    let (_, _, statements) =
+        process_stack_effects(&[], &[], 0, Some(stack_depth), &mut stack, phi_stack, names)?;
 
     Ok(statements)
 }
@@ -781,9 +827,13 @@ where
                         &mut default_phi_stack,
                         &mut names,
                     )?
-                } else if let Some(lasti) = branch_reason.get_lasti() {
+                } else if branch_reason.is_exception() {
+                    let lasti = branch_reason.get_lasti().unwrap();
+                    let stack_depth = branch_reason.get_stack_depth().unwrap();
+
                     exception_to_ir::<SIRNode, SIRException>(
-                        lasti.clone(),
+                        lasti,
+                        stack_depth,
                         false,
                         &mut default_stack,
                         &mut default_phi_stack,
@@ -813,9 +863,13 @@ where
                         &mut branch_phi_stack,
                         &mut names,
                     )?
-                } else if let Some(lasti) = branch_reason.get_lasti() {
+                } else if branch_reason.is_exception() {
+                    let lasti = branch_reason.get_lasti().unwrap();
+                    let stack_depth = branch_reason.get_stack_depth().unwrap();
+
                     exception_to_ir::<SIRNode, SIRException>(
-                        lasti.clone(),
+                        lasti,
+                        stack_depth,
                         true,
                         &mut branch_stack,
                         &mut branch_phi_stack,
@@ -888,6 +942,38 @@ where
         let already_analysed = visited_blocks.contains(&index);
 
         if let Some(edge_info) = edge_info {
+            // We need to force the stack depth specified by the exception here
+            match block_element.block_index {
+                BlockIndexInfo::Edge(BranchEdge { ref reason, .. }) => {
+                    if reason.is_exception()
+                        && reason.get_stack_depth().unwrap() < block_element.curr_stack.len()
+                    {
+                        let mut phi_stack = vec![].into();
+
+                        let mut statements = force_exception_stack_depth(
+                            reason.get_stack_depth().unwrap(),
+                            &mut block_element.curr_stack,
+                            &mut phi_stack,
+                            &mut names,
+                        )?;
+
+                        // Fill empty phi nodes in the new exception statements
+                        fill_phi_nodes(&mut block_element.curr_stack, &mut statements, &phi_stack)?;
+
+                        statements.extend(edge_info.statements.clone());
+                        edge_info.statements = statements;
+
+                        // This will pop the used phi items
+                        extend_merge_stack(
+                            &mut block_element.curr_stack,
+                            &vec![].into(),
+                            &edge_info.phi_stack,
+                        )?;
+                    }
+                }
+                _ => {}
+            }
+
             // Fill empty phi nodes in the edge statements
             fill_phi_nodes(
                 &mut block_element.curr_stack,
@@ -905,11 +991,30 @@ where
 
         if already_analysed {
             if let Some(stacks) = has_changed.get_mut(&index) {
-                if stacks.contains(&block_element.curr_stack) {
-                    // Already processed this block but we still processed the statements of the edge
+                if block_element
+                    .curr_stack
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .all(|(i, v)| {
+                        stacks.iter().any(|l| {
+                            let relative_index = block_element.curr_stack.len() - i;
+                            l.len() >= relative_index
+                                && l.get(l.len() - relative_index).is_some()
+                                && l[l.len() - relative_index] == *v
+                        })
+                    })
+                {
+                    // Already processed this block with these stack elements but we still processed the statements of the edge
                     continue;
                 } else {
                     // Entered with a different stack
+                    if stacks.len() > 200 {
+                        dbg!(&block_element.block_index);
+                        dbg!(&block_element.curr_stack);
+                        panic!()
+                    }
+
                     stacks.push(block_element.curr_stack.clone());
                 }
             }
@@ -992,7 +1097,7 @@ mod test {
         instruction_to_ir, process_stack_effects,
     };
     use crate::traits::{GenericInstruction, GenericSIRException};
-    use crate::utils::{InfiniteStack, InfiniteVec};
+    use crate::utils::{ExceptionTableEntry, InfiniteStack, InfiniteVec};
     use crate::v311::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v311::instructions::Instruction;
     use crate::v311::opcodes::sir::{SIRException, SIRNode};
@@ -1674,6 +1779,7 @@ mod test {
             inputs,
             outputs,
             0,
+            None,
             &mut stack,
             &mut phi_stack,
             &mut names,
@@ -1748,6 +1854,7 @@ mod test {
             inputs,
             outputs,
             1,
+            None,
             &mut stack,
             &mut phi_stack,
             &mut names,
@@ -1793,6 +1900,7 @@ mod test {
             inputs,
             &[],
             -1,
+            None,
             &mut stack,
             &mut phi_stack,
             &mut names,
@@ -1849,6 +1957,7 @@ mod test {
             inputs,
             outputs,
             -1,
+            None,
             &mut stack,
             &mut phi_stack,
             &mut names,
@@ -2151,6 +2260,48 @@ mod test {
 
         println!("{}", ir_cfg.make_dot_graph());
 
-        // insta::assert_debug_snapshot!(ir_cfg);
+        insta::assert_debug_snapshot!(ir_cfg);
+    }
+
+    #[test]
+    fn test_force_stack_depth() {
+        // An exception table entry can force the stack depth
+
+        let ext_instructions = v311::instructions::Instructions::new(vec![
+            Instruction::LoadConst(0),
+            Instruction::LoadConst(0), // This value should be removed by the forced stack depth
+            Instruction::LoadConst(0), // Exception entry starts here
+            Instruction::ReturnValue(0),
+            Instruction::PopTop(0), // Exception target
+            Instruction::PopTop(0),
+            Instruction::LoadConst(0),
+            Instruction::ReturnValue(0),
+        ])
+        .to_resolved()
+        .unwrap();
+
+        let exception_table = vec![ExceptionTableEntry {
+            start: 2,
+            end: 4,
+            target: 4,
+            depth: 1,
+            lasti: false,
+        }];
+
+        let cfg = create_cfg::<_, _, v311::opcodes::BranchReason>(
+            ext_instructions.to_vec(),
+            Some(exception_table),
+        )
+        .unwrap();
+
+        let ir_cfg =
+            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
+                &cfg, false,
+            )
+            .unwrap();
+
+        println!("{}", ir_cfg.make_dot_graph());
+
+        insta::assert_debug_snapshot!(ir_cfg);
     }
 }

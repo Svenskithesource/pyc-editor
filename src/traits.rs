@@ -477,13 +477,15 @@ pub trait GenericSIRNode: Clone + Debug + PartialEq {
 pub trait GenericSIRException: Clone + Debug + PartialEq {
     type Opcode: GenericOpcode;
 
-    fn new(lasti: bool, jump: bool) -> Self;
+    fn new(lasti: bool, stack_depth: usize, jump: bool) -> Self;
 
     fn get_outputs(&self) -> &[StackItem];
 
     fn get_inputs(&self) -> &[StackItem];
 
     fn get_net_stack_delta(&self) -> isize;
+
+    fn get_stack_depth(&self) -> usize;
 }
 
 /// A trait to indicate that the SIR statements are owned.
@@ -497,7 +499,7 @@ pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display {
 
     fn from_opcode(opcode: Self::Opcode) -> Result<Self, Error>;
 
-    fn from_exception(lasti: bool) -> Result<Self, Error>;
+    fn from_exception(lasti: bool, stack_depth: usize) -> Result<Self, Error>;
 
     fn is_opcode(&self) -> bool;
 
@@ -506,6 +508,8 @@ pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display {
     fn get_opcode(&self) -> Option<&Self::Opcode>;
 
     fn get_lasti(&self) -> Option<bool>;
+
+    fn get_stack_depth(&self) -> Option<usize>;
 }
 
 #[cfg(all(test, feature = "v311"))]

@@ -249,6 +249,13 @@ where
         }
     }
 
+    pub fn from_vec(vec: Vec<T>) -> Self {
+        InfiniteVec {
+            data: VecDeque::from(vec.into_iter().map(|v| Some(v)).collect::<Vec<_>>()),
+            negative_offset: 0,
+        }
+    }
+
     pub fn insert(&mut self, index: isize, value: T) {
         let real_index = index + self.negative_offset as isize;
 
@@ -289,14 +296,14 @@ where
         }
     }
 
-    pub fn remove(&mut self, index: isize) {
+    pub fn remove(&mut self, index: isize) -> Option<Option<T>> {
         let real_index = index + self.negative_offset as isize;
 
         if index < 0 {
             self.negative_offset -= 1;
         }
 
-        self.data.remove(real_index.try_into().unwrap());
+        self.data.remove(real_index.try_into().unwrap())
     }
 
     pub fn len(&self) -> usize {

@@ -442,14 +442,12 @@ where
 
     let jump_map = instructions.get_jump_map();
 
-    let exception_map: HashMap<u32, (u32, bool)> = if let Some(exception_table) = &exception_table {
-        exception_table
-            .into_iter()
-            .map(|e| (e.start, (e.target, e.lasti)))
-            .collect()
-    } else {
-        HashMap::new()
-    };
+    let exception_map: HashMap<u32, &ExceptionTableEntry> =
+        if let Some(exception_table) = &exception_table {
+            exception_table.into_iter().map(|e| (e.start, e)).collect()
+        } else {
+            HashMap::new()
+        };
 
     // End indexes
     let exception_ends = if let Some(exception_table) = &exception_table {
@@ -520,23 +518,29 @@ where
                 && !exceptions_processed.contains_key(&instruction_index)
                 && !block_exists!(instruction_index, is_curr_instruction)
             {
-                // Push current block that falls through to the empty exception block
-                curr_block_index += 1;
+                let block_index = if !curr_block.is_empty() {
+                    // Push current block that falls through to the empty exception block
+                    curr_block_index += 1;
 
-                temp_blocks.insert(
-                    block_index,
-                    Block {
-                        instructions: curr_block,
-                        branch_block: BlockIndexInfo::NoIndex,
-                        default_block: BlockIndexInfo::Fallthrough(BlockIndex::Index(
-                            curr_block_index,
-                        )),
-                    },
-                );
+                    temp_blocks.insert(
+                        block_index,
+                        Block {
+                            instructions: curr_block,
+                            branch_block: BlockIndexInfo::NoIndex,
+                            default_block: BlockIndexInfo::Fallthrough(BlockIndex::Index(
+                                curr_block_index,
+                            )),
+                        },
+                    );
+
+                    curr_block_index
+                } else {
+                    block_index
+                };
 
                 add_block_to_queue(
                     instruction_index,
-                    curr_block_index,
+                    block_index,
                     &mut block_map,
                     &mut block_queue,
                 );
@@ -589,7 +593,11 @@ where
                 }
             } else if jump_map
                 .values()
-                .chain(exception_map.values().map(|(target, _)| target))
+                .chain(
+                    exception_map
+                        .values()
+                        .map(|ExceptionTableEntry { target, .. }| target),
+                )
                 .chain(exception_ends.iter())
                 .any(|e| *e == (instruction_index as u32))
                 && !curr_block.is_empty()
@@ -620,7 +628,7 @@ where
 
             let instruction = instructions[instruction_index].clone();
 
-            if let Some((exception_target, lasti)) = exception_start
+            if let Some(exception_entry) = exception_start
                 && let Some(ExceptionState::PrevBlockPopped) =
                     exceptions_processed.get(&instruction_index)
             {
@@ -630,14 +638,19 @@ where
                     Block {
                         instructions: vec![],
                         branch_block: BlockIndexInfo::Edge(BranchEdge {
-                            reason: BranchReason::from_exception(*lasti)?,
-                            block_index: if block_exists!(*exception_target as usize) {
-                                block_map[&(*exception_target as usize)].get_index().clone()
-                            } else if *exception_target < instructions.len() as u32 {
+                            reason: BranchReason::from_exception(
+                                exception_entry.lasti,
+                                exception_entry.depth as usize,
+                            )?,
+                            block_index: if block_exists!(exception_entry.target as usize) {
+                                block_map[&(exception_entry.target as usize)]
+                                    .get_index()
+                                    .clone()
+                            } else if exception_entry.target < instructions.len() as u32 {
                                 curr_block_index += 1;
 
                                 add_block_to_queue(
-                                    *exception_target as usize,
+                                    exception_entry.target as usize,
                                     curr_block_index,
                                     &mut block_map,
                                     &mut block_queue,
@@ -645,7 +658,7 @@ where
 
                                 BlockIndex::Index(curr_block_index)
                             } else {
-                                BlockIndex::InvalidIndex(*exception_target as usize)
+                                BlockIndex::InvalidIndex(exception_entry.target as usize)
                             },
                         }),
                         default_block: {
@@ -659,7 +672,10 @@ where
                             );
 
                             BlockIndexInfo::Edge(BranchEdge {
-                                reason: BranchReason::from_exception(*lasti)?,
+                                reason: BranchReason::from_exception(
+                                    exception_entry.lasti,
+                                    exception_entry.depth as usize,
+                                )?,
                                 block_index: BlockIndex::Index(curr_block_index),
                             })
                         },

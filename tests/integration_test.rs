@@ -669,7 +669,7 @@ fn test_create_sir_standard_lib() {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let code_clone = $code.clone();
 
-                        // dbg!(&code_clone.name);
+                        dbg!(&code_clone.name);
 
                         let cfg = create_cfg!($variant, code_clone).unwrap();
 

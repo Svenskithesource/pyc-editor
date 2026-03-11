@@ -267,7 +267,10 @@ SIRControlFlowGraph {
             branch_block: Edge(
                 SIRBranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     statements: Some(
                         SIR(
@@ -280,6 +283,7 @@ SIRControlFlowGraph {
                                         ExceptionCall {
                                             exception: SIRException {
                                                 lasti: false,
+                                                stack_depth: 0,
                                                 input: [],
                                                 output: [
                                                     StackItem {
@@ -310,7 +314,10 @@ SIRControlFlowGraph {
             default_block: Edge(
                 SIRBranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     statements: None,
                     block_index: Index(
@@ -323,11 +330,71 @@ SIRControlFlowGraph {
             nodes: SIR(
                 [],
             ),
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    4,
-                ),
+            branch_block: Edge(
+                SIRBranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            1,
+                        ),
+                    ),
+                    statements: Some(
+                        SIR(
+                            [
+                                TupleAssignment(
+                                    [
+                                        AuxVar {
+                                            name: "lasti_0",
+                                        },
+                                        AuxVar {
+                                            name: "exc_1",
+                                        },
+                                    ],
+                                    Exception(
+                                        ExceptionCall {
+                                            exception: SIRException {
+                                                lasti: true,
+                                                stack_depth: 1,
+                                                input: [],
+                                                output: [
+                                                    StackItem {
+                                                        name: "lasti",
+                                                        count: 1,
+                                                        index: 0,
+                                                    },
+                                                    StackItem {
+                                                        name: "exc",
+                                                        count: 1,
+                                                        index: 1,
+                                                    },
+                                                ],
+                                                net_stack_delta: 2,
+                                            },
+                                            stack_inputs: [],
+                                        },
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                    block_index: Index(
+                        5,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                SIRBranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            1,
+                        ),
+                    ),
+                    statements: None,
+                    block_index: Index(
+                        6,
+                    ),
+                },
             ),
         },
         SIRBlock {
@@ -534,72 +601,8 @@ SIRControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    5,
+                    4,
                 ),
-            ),
-        },
-        SIRBlock {
-            nodes: SIR(
-                [],
-            ),
-            branch_block: Edge(
-                SIRBranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    statements: Some(
-                        SIR(
-                            [
-                                TupleAssignment(
-                                    [
-                                        AuxVar {
-                                            name: "lasti_0",
-                                        },
-                                        AuxVar {
-                                            name: "exc_1",
-                                        },
-                                    ],
-                                    Exception(
-                                        ExceptionCall {
-                                            exception: SIRException {
-                                                lasti: true,
-                                                input: [],
-                                                output: [
-                                                    StackItem {
-                                                        name: "lasti",
-                                                        count: 1,
-                                                        index: 0,
-                                                    },
-                                                    StackItem {
-                                                        name: "exc",
-                                                        count: 1,
-                                                        index: 1,
-                                                    },
-                                                ],
-                                                net_stack_delta: 2,
-                                            },
-                                            stack_inputs: [],
-                                        },
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-                    block_index: Index(
-                        6,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                SIRBranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    statements: None,
-                    block_index: Index(
-                        7,
-                    ),
-                },
             ),
         },
         SIRBlock {
@@ -856,24 +859,58 @@ SIRControlFlowGraph {
                 [
                     Assignment(
                         AuxVar {
-                            name: "exc_2",
+                            name: "phi_4",
                         },
+                        PhiNode(
+                            [
+                                AuxVar {
+                                    name: "exc_0",
+                                },
+                            ],
+                        ),
+                    ),
+                    TupleAssignment(
+                        [
+                            AuxVar {
+                                name: "prev_exc_0",
+                            },
+                            AuxVar {
+                                name: "new_exc_0",
+                            },
+                        ],
                         Call(
                             Call {
                                 node: SIRNode {
                                     opcode: PUSH_EXC_INFO,
                                     oparg: 0,
-                                    input: [],
+                                    input: [
+                                        StackItem {
+                                            name: "new_exc",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
                                     output: [
                                         StackItem {
-                                            name: "exc",
+                                            name: "prev_exc",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                        StackItem {
+                                            name: "new_exc",
                                             count: 1,
                                             index: 0,
                                         },
                                     ],
                                     net_stack_delta: 1,
                                 },
-                                stack_inputs: [],
+                                stack_inputs: [
+                                    AuxVar(
+                                        AuxVar {
+                                            name: "phi_4",
+                                        },
+                                    ),
+                                ],
                             },
                         ),
                     ),
@@ -895,7 +932,7 @@ SIRControlFlowGraph {
                             stack_inputs: [
                                 AuxVar(
                                     AuxVar {
-                                        name: "exc_2",
+                                        name: "new_exc_0",
                                     },
                                 ),
                             ],
@@ -1102,7 +1139,7 @@ SIRControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    8,
+                    7,
                 ),
             ),
         },
@@ -1111,7 +1148,7 @@ SIRControlFlowGraph {
                 [
                     Assignment(
                         AuxVar {
-                            name: "phi_4",
+                            name: "phi_5",
                         },
                         PhiNode(
                             [
@@ -1139,7 +1176,7 @@ SIRControlFlowGraph {
                             stack_inputs: [
                                 AuxVar(
                                     AuxVar {
-                                        name: "phi_4",
+                                        name: "phi_5",
                                     },
                                 ),
                             ],
@@ -1147,12 +1184,12 @@ SIRControlFlowGraph {
                     ),
                     Assignment(
                         AuxVar {
-                            name: "phi_5",
+                            name: "phi_6",
                         },
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "exc_0",
+                                    name: "prev_exc_0",
                                 },
                             ],
                         ),
@@ -1175,7 +1212,7 @@ SIRControlFlowGraph {
                             stack_inputs: [
                                 AuxVar(
                                     AuxVar {
-                                        name: "phi_5",
+                                        name: "phi_6",
                                     },
                                 ),
                             ],

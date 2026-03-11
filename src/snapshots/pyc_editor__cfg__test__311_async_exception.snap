@@ -2499,7 +2499,10 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
                         40,
@@ -2509,7 +2512,10 @@ ControlFlowGraph {
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
                         41,
@@ -2808,11 +2814,31 @@ ControlFlowGraph {
         },
         Block {
             instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    45,
-                ),
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            1,
+                        ),
+                    ),
+                    block_index: Index(
+                        48,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            1,
+                        ),
+                    ),
+                    block_index: Index(
+                        49,
+                    ),
+                },
             ),
         },
         Block {
@@ -2831,7 +2857,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    46,
+                    45,
                 ),
             ),
         },
@@ -3000,7 +3026,7 @@ ControlFlowGraph {
                         SEND,
                     ),
                     block_index: Index(
-                        47,
+                        46,
                     ),
                 },
             ),
@@ -3010,7 +3036,7 @@ ControlFlowGraph {
                         SEND,
                     ),
                     block_index: Index(
-                        48,
+                        47,
                     ),
                 },
             ),
@@ -3019,44 +3045,21 @@ ControlFlowGraph {
             instructions: [],
             branch_block: Edge(
                 BranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    block_index: Index(
-                        49,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        true,
+                    reason: Opcode(
+                        FOR_ITER,
                     ),
                     block_index: Index(
                         50,
                     ),
                 },
             ),
-        },
-        Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        FOR_ITER,
-                    ),
-                    block_index: Index(
-                        51,
-                    ),
-                },
-            ),
             default_block: Edge(
                 BranchEdge {
                     reason: Opcode(
                         FOR_ITER,
                     ),
                     block_index: Index(
-                        52,
+                        51,
                     ),
                 },
             ),
@@ -3137,7 +3140,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_TRUE,
                     ),
                     block_index: Index(
-                        53,
+                        52,
                     ),
                 },
             ),
@@ -3147,7 +3150,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_TRUE,
                     ),
                     block_index: Index(
-                        54,
+                        53,
                     ),
                 },
             ),
@@ -3163,7 +3166,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    55,
+                    54,
                 ),
             ),
         },
@@ -3211,7 +3214,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    56,
+                    55,
                 ),
             ),
         },
@@ -3240,7 +3243,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    57,
+                    56,
                 ),
             ),
         },
@@ -3263,7 +3266,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_TRUE,
                     ),
                     block_index: Index(
-                        58,
+                        57,
                     ),
                 },
             ),
@@ -3273,7 +3276,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_TRUE,
                     ),
                     block_index: Index(
-                        59,
+                        58,
                     ),
                 },
             ),
@@ -3294,7 +3297,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    60,
+                    59,
                 ),
             ),
         },
@@ -3306,7 +3309,7 @@ ControlFlowGraph {
                         FOR_ITER,
                     ),
                     block_index: Index(
-                        61,
+                        60,
                     ),
                 },
             ),
@@ -3316,7 +3319,7 @@ ControlFlowGraph {
                         FOR_ITER,
                     ),
                     block_index: Index(
-                        62,
+                        61,
                     ),
                 },
             ),
@@ -3351,7 +3354,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    63,
+                    62,
                 ),
             ),
         },
@@ -3360,20 +3363,26 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            1,
+                        ),
                     ),
                     block_index: Index(
-                        64,
+                        63,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            1,
+                        ),
                     ),
                     block_index: Index(
-                        65,
+                        64,
                     ),
                 },
             ),
@@ -3497,7 +3506,7 @@ ControlFlowGraph {
                         JUMP_BACKWARD,
                     ),
                     block_index: Index(
-                        57,
+                        56,
                     ),
                 },
             ),
@@ -3511,7 +3520,7 @@ ControlFlowGraph {
                         FOR_ITER,
                     ),
                     block_index: Index(
-                        58,
+                        57,
                     ),
                 },
             ),
@@ -3521,18 +3530,38 @@ ControlFlowGraph {
                         FOR_ITER,
                     ),
                     block_index: Index(
-                        66,
+                        65,
                     ),
                 },
             ),
         },
         Block {
             instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    67,
-                ),
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        67,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        68,
+                    ),
+                },
             ),
         },
         Block {
@@ -3672,7 +3701,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    68,
+                    66,
                 ),
             ),
         },
@@ -3786,34 +3815,11 @@ ControlFlowGraph {
                         JUMP_BACKWARD,
                     ),
                     block_index: Index(
-                        63,
+                        62,
                     ),
                 },
             ),
             default_block: NoIndex,
-        },
-        Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    block_index: Index(
-                        69,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    block_index: Index(
-                        70,
-                    ),
-                },
-            ),
         },
         Block {
             instructions: [
@@ -3826,17 +3832,37 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    71,
+                    69,
                 ),
             ),
         },
         Block {
             instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    72,
-                ),
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        49,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        73,
+                    ),
+                },
             ),
         },
         Block {
@@ -3913,7 +3939,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        73,
+                        70,
                     ),
                 },
             ),
@@ -3923,7 +3949,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        74,
+                        71,
                     ),
                 },
             ),
@@ -3933,20 +3959,26 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
-                        50,
+                        49,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
-                        75,
+                        72,
                     ),
                 },
             ),
@@ -3956,31 +3988,28 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            true,
+                            2,
+                        ),
                     ),
                     block_index: Index(
-                        50,
+                        73,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            true,
+                            2,
+                        ),
                     ),
                     block_index: Index(
-                        76,
+                        77,
                     ),
                 },
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    77,
-                ),
             ),
         },
         Block {
@@ -4027,7 +4056,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        78,
+                        74,
                     ),
                 },
             ),
@@ -4037,7 +4066,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        79,
+                        75,
                     ),
                 },
             ),
@@ -4050,7 +4079,7 @@ ControlFlowGraph {
                         JUMP_FORWARD,
                     ),
                     block_index: Index(
-                        80,
+                        76,
                     ),
                 },
             ),
@@ -4080,31 +4109,28 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        true,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
-                        76,
+                        49,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        true,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
                         81,
                     ),
                 },
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    82,
-                ),
             ),
         },
         Block {
@@ -4259,7 +4285,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    83,
+                    78,
                 ),
             ),
         },
@@ -4378,7 +4404,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        84,
+                        79,
                     ),
                 },
             ),
@@ -4388,7 +4414,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        85,
+                        80,
                     ),
                 },
             ),
@@ -4403,29 +4429,6 @@ ControlFlowGraph {
             default_block: NoIndex,
         },
         Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        false,
-                    ),
-                    block_index: Index(
-                        50,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        false,
-                    ),
-                    block_index: Index(
-                        86,
-                    ),
-                },
-            ),
-        },
-        Block {
             instructions: [
                 PopTop(
                     UnusedArgument(
@@ -4436,7 +4439,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    86,
+                    81,
                 ),
             ),
         },
@@ -4454,7 +4457,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        87,
+                        82,
                     ),
                 },
             ),
@@ -4464,7 +4467,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        88,
+                        83,
                     ),
                 },
             ),
@@ -4686,7 +4689,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    84,
+                    79,
                 ),
             ),
         },
@@ -4701,7 +4704,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    89,
+                    84,
                 ),
             ),
         },
@@ -4744,7 +4747,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        90,
+                        85,
                     ),
                 },
             ),
@@ -4754,7 +4757,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        91,
+                        86,
                     ),
                 },
             ),
@@ -4836,7 +4839,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    87,
+                    82,
                 ),
             ),
         },
@@ -4848,7 +4851,7 @@ ControlFlowGraph {
                         JUMP_BACKWARD,
                     ),
                     block_index: Index(
-                        46,
+                        45,
                     ),
                 },
             ),
@@ -4865,7 +4868,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    92,
+                    87,
                 ),
             ),
         },
@@ -4951,7 +4954,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        90,
+                        85,
                     ),
                 },
             ),
@@ -4961,7 +4964,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        93,
+                        88,
                     ),
                 },
             ),
@@ -4971,20 +4974,26 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            1,
+                        ),
                     ),
                     block_index: Index(
-                        94,
+                        89,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            1,
+                        ),
                     ),
                     block_index: Index(
-                        95,
+                        90,
                     ),
                 },
             ),
@@ -5094,7 +5103,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        90,
+                        85,
                     ),
                 },
             ),
@@ -5104,18 +5113,38 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        96,
+                        91,
                     ),
                 },
             ),
         },
         Block {
             instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    97,
-                ),
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        94,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        95,
+                    ),
+                },
             ),
         },
         Block {
@@ -5220,7 +5249,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    98,
+                    92,
                 ),
             ),
         },
@@ -5436,7 +5465,37 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    99,
+                    93,
+                ),
+            ),
+        },
+        Block {
+            instructions: [
+                PopTop(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: Fallthrough(
+                Index(
+                    96,
+                ),
+            ),
+        },
+        Block {
+            instructions: [
+                PopTop(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: Fallthrough(
+                Index(
+                    85,
                 ),
             ),
         },
@@ -5445,61 +5504,28 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        true,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
-                        100,
+                        49,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        true,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
-                        101,
+                        100,
                     ),
                 },
-            ),
-        },
-        Block {
-            instructions: [
-                PopTop(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    102,
-                ),
-            ),
-        },
-        Block {
-            instructions: [
-                PopTop(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    90,
-                ),
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    103,
-                ),
             ),
         },
         Block {
@@ -5551,7 +5577,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        104,
+                        97,
                     ),
                 },
             ),
@@ -5561,7 +5587,7 @@ ControlFlowGraph {
                         POP_JUMP_FORWARD_IF_FALSE,
                     ),
                     block_index: Index(
-                        105,
+                        98,
                     ),
                 },
             ),
@@ -5571,43 +5597,26 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
-                        50,
+                        49,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
-                        106,
-                    ),
-                },
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        false,
-                    ),
-                    block_index: Index(
-                        50,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        false,
-                    ),
-                    block_index: Index(
-                        107,
+                        99,
                     ),
                 },
             ),
@@ -5632,7 +5641,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    108,
+                    101,
                 ),
             ),
         },
@@ -5641,7 +5650,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    109,
+                    102,
                 ),
             ),
         },
@@ -5669,20 +5678,26 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        true,
+                        (
+                            true,
+                            2,
+                        ),
                     ),
                     block_index: Index(
-                        110,
+                        103,
                     ),
                 },
             ),
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        true,
+                        (
+                            true,
+                            2,
+                        ),
                     ),
                     block_index: Index(
-                        111,
+                        104,
                     ),
                 },
             ),
@@ -5695,7 +5710,7 @@ ControlFlowGraph {
                         JUMP_BACKWARD,
                     ),
                     block_index: Index(
-                        46,
+                        45,
                     ),
                 },
             ),
@@ -5703,11 +5718,31 @@ ControlFlowGraph {
         },
         Block {
             instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    112,
-                ),
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        100,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        106,
+                    ),
+                },
             ),
         },
         Block {
@@ -5956,31 +5991,8 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    113,
+                    105,
                 ),
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    block_index: Index(
-                        107,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    block_index: Index(
-                        114,
-                    ),
-                },
             ),
         },
         Block {

@@ -105,7 +105,7 @@ define_opcodes!(
     DELETE_DEREF = 139 ( -- ),
     JUMP_BACKWARD = 140 ( -- ),
     LOAD_SUPER_ATTR = 141 (global_super, class, self_ -- res2[if oparg & 1 != 0 {1} else {0}], res),
-    CALL_FUNCTION_EX = 142 (unused, callable, args, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- res),
+    CALL_FUNCTION_EX = 142 (null, callable, args, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- res),
     LOAD_FAST_AND_CLEAR = 143 ( -- value),
     EXTENDED_ARG = 144 ( -- ),
     LIST_APPEND = 145 (list, unused[oparg-1], value -- list, unused[oparg-1]),

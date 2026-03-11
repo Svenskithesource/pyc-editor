@@ -79,7 +79,7 @@ SIRControlFlowGraph {
                             [
                                 Assignment(
                                     AuxVar {
-                                        name: "phi_3",
+                                        name: "phi_5",
                                     },
                                     PhiNode(
                                         [
@@ -133,24 +133,7 @@ SIRControlFlowGraph {
                             1,
                         ),
                     ),
-                    statements: Some(
-                        SIR(
-                            [
-                                Assignment(
-                                    AuxVar {
-                                        name: "phi_4",
-                                    },
-                                    PhiNode(
-                                        [
-                                            AuxVar {
-                                                name: "value_1",
-                                            },
-                                        ],
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
+                    statements: None,
                     block_index: Index(
                         3,
                     ),
@@ -203,7 +186,7 @@ SIRControlFlowGraph {
                         PhiNode(
                             [
                                 AuxVar {
-                                    name: "value_1",
+                                    name: "value_0",
                                 },
                             ],
                         ),
@@ -289,6 +272,78 @@ SIRControlFlowGraph {
                 [
                     Assignment(
                         AuxVar {
+                            name: "phi_2",
+                        },
+                        PhiNode(
+                            [
+                                AuxVar {
+                                    name: "value_1",
+                                },
+                            ],
+                        ),
+                    ),
+                    DisregardCall(
+                        Call {
+                            node: SIRNode {
+                                opcode: POP_TOP,
+                                oparg: 0,
+                                input: [
+                                    StackItem {
+                                        name: "top",
+                                        count: 1,
+                                        index: -1,
+                                    },
+                                ],
+                                output: [],
+                                net_stack_delta: -1,
+                            },
+                            stack_inputs: [
+                                AuxVar(
+                                    AuxVar {
+                                        name: "phi_2",
+                                    },
+                                ),
+                            ],
+                        },
+                    ),
+                    Assignment(
+                        AuxVar {
+                            name: "phi_3",
+                        },
+                        PhiNode(
+                            [
+                                AuxVar {
+                                    name: "value_0",
+                                },
+                            ],
+                        ),
+                    ),
+                    DisregardCall(
+                        Call {
+                            node: SIRNode {
+                                opcode: POP_TOP,
+                                oparg: 0,
+                                input: [
+                                    StackItem {
+                                        name: "top",
+                                        count: 1,
+                                        index: -1,
+                                    },
+                                ],
+                                output: [],
+                                net_stack_delta: -1,
+                            },
+                            stack_inputs: [
+                                AuxVar(
+                                    AuxVar {
+                                        name: "phi_3",
+                                    },
+                                ),
+                            ],
+                        },
+                    ),
+                    Assignment(
+                        AuxVar {
                             name: "value_3",
                         },
                         Call(
@@ -324,7 +379,7 @@ SIRControlFlowGraph {
                 [
                     Assignment(
                         AuxVar {
-                            name: "phi_2",
+                            name: "phi_4",
                         },
                         PhiNode(
                             [
@@ -352,7 +407,7 @@ SIRControlFlowGraph {
                             stack_inputs: [
                                 AuxVar(
                                     AuxVar {
-                                        name: "phi_2",
+                                        name: "phi_4",
                                     },
                                 ),
                             ],

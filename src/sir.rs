@@ -273,8 +273,6 @@ where
             statements.push(SIRStatement::Assignment(var.clone(), phi));
 
             insert_replace_stack(phi_stack, index, var, false)?;
-
-            stack.carrot -= 1;
         }
     }
 
@@ -943,9 +941,10 @@ where
 
         if let Some(edge_info) = edge_info {
             // We need to force the stack depth specified by the exception here
-            match block_element.block_index {
-                BlockIndexInfo::Edge(BranchEdge { ref reason, .. }) => {
-                    if reason.is_exception()
+            match (&block_element.block_index, &block_element.from_block_index) {
+                (BlockIndexInfo::Edge(BranchEdge { reason, .. }), Some((_, is_branch))) => {
+                    if *is_branch
+                        && reason.is_exception()
                         && reason.get_stack_depth().unwrap() < block_element.curr_stack.len()
                     {
                         let mut phi_stack = vec![].into();
@@ -967,8 +966,13 @@ where
                         extend_merge_stack(
                             &mut block_element.curr_stack,
                             &vec![].into(),
-                            &edge_info.phi_stack,
+                            &phi_stack,
                         )?;
+
+                        assert_eq!(
+                            reason.get_stack_depth().unwrap(),
+                            block_element.curr_stack.len()
+                        )
                     }
                 }
                 _ => {}
@@ -980,7 +984,7 @@ where
                 &mut edge_info.statements,
                 &edge_info.phi_stack,
             )?;
-
+            
             // Add the branch stack after processing the branch statements
             extend_merge_stack(
                 &mut block_element.curr_stack,
@@ -2270,6 +2274,8 @@ mod test {
         let ext_instructions = v311::instructions::Instructions::new(vec![
             Instruction::LoadConst(0),
             Instruction::LoadConst(0), // This value should be removed by the forced stack depth
+            Instruction::PopTop(0),
+            Instruction::PopTop(0),
             Instruction::LoadConst(0), // Exception entry starts here
             Instruction::ReturnValue(0),
             Instruction::PopTop(0), // Exception target
@@ -2282,8 +2288,8 @@ mod test {
 
         let exception_table = vec![ExceptionTableEntry {
             start: 2,
-            end: 4,
-            target: 4,
+            end: 6,
+            target: 6,
             depth: 1,
             lasti: false,
         }];
@@ -2293,6 +2299,8 @@ mod test {
             Some(exception_table),
         )
         .unwrap();
+
+        println!("{}", cfg.make_dot_graph());
 
         let ir_cfg =
             cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(

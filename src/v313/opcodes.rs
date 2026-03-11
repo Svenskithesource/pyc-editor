@@ -67,7 +67,7 @@ define_opcodes!(
     BUILD_TUPLE = 52 (values[oparg] -- tuple),
     CALL = 53 (callable, self_or_null, args[oparg] -- res),
     // See https://github.com/python/cpython/pull/107788
-    CALL_FUNCTION_EX = 54 (callable, unused, callargs, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- result),
+    CALL_FUNCTION_EX = 54 (callable, null, callargs, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- result),
     CALL_INTRINSIC_1 = 55 (value -- res),
     CALL_INTRINSIC_2 = 56 (value2, value1 -- res),
     CALL_KW = 57 (callable, self_or_null, args[oparg], kwnames -- res),

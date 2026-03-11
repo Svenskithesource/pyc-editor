@@ -104,7 +104,7 @@ define_opcodes!(
     STORE_DEREF = 138 (value -- ),
     DELETE_DEREF = 139 ( -- ),
     JUMP_BACKWARD = 140 ( -- ),
-    CALL_FUNCTION_EX = 142 (unused, callable, args, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- res),
+    CALL_FUNCTION_EX = 142 (null, callable, args, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- res),
     EXTENDED_ARG = 144 ( -- ),
     LIST_APPEND = 145 (list, unused[oparg-1], value -- list, unused[oparg-1]),
     SET_ADD = 146 (set, unused[oparg-1], value -- set, unused[oparg-1]),

@@ -78,7 +78,10 @@ ControlFlowGraph {
             branch_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
                         2,
@@ -88,7 +91,10 @@ ControlFlowGraph {
             default_block: Edge(
                 BranchEdge {
                     reason: Exception(
-                        false,
+                        (
+                            false,
+                            0,
+                        ),
                     ),
                     block_index: Index(
                         3,
@@ -98,11 +104,31 @@ ControlFlowGraph {
         },
         Block {
             instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    4,
-                ),
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            1,
+                        ),
+                    ),
+                    block_index: Index(
+                        5,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            1,
+                        ),
+                    ),
+                    block_index: Index(
+                        6,
+                    ),
+                },
             ),
         },
         Block {
@@ -157,31 +183,8 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    5,
+                    4,
                 ),
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    block_index: Index(
-                        6,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        true,
-                    ),
-                    block_index: Index(
-                        7,
-                    ),
-                },
             ),
         },
         Block {
@@ -286,7 +289,7 @@ ControlFlowGraph {
             branch_block: NoIndex,
             default_block: Fallthrough(
                 Index(
-                    8,
+                    7,
                 ),
             ),
         },

@@ -24,6 +24,7 @@ SIRControlFlowGraph {
                                             index: 0,
                                         },
                                     ],
+                                    net_stack_delta: 1,
                                 },
                                 stack_inputs: [],
                             },
@@ -44,6 +45,7 @@ SIRControlFlowGraph {
                                             oparg: 0,
                                             input: [],
                                             output: [],
+                                            net_stack_delta: 0,
                                         },
                                         stack_inputs: [],
                                     },
@@ -68,6 +70,7 @@ SIRControlFlowGraph {
                                 oparg: 0,
                                 input: [],
                                 output: [],
+                                net_stack_delta: 0,
                             },
                             stack_inputs: [],
                         },
@@ -89,6 +92,7 @@ SIRControlFlowGraph {
                                             index: 0,
                                         },
                                     ],
+                                    net_stack_delta: 1,
                                 },
                                 stack_inputs: [],
                             },
@@ -112,21 +116,22 @@ SIRControlFlowGraph {
                                         StackItem {
                                             name: "top",
                                             count: 1,
-                                            index: 0,
+                                            index: -1,
                                         },
                                     ],
                                     output: [
                                         StackItem {
                                             name: "top",
                                             count: 1,
-                                            index: 0,
+                                            index: -1,
                                         },
                                         StackItem {
                                             name: "top",
                                             count: 1,
-                                            index: 1,
+                                            index: 0,
                                         },
                                     ],
+                                    net_stack_delta: 1,
                                 },
                                 stack_inputs: [
                                     AuxVar(
@@ -156,21 +161,22 @@ SIRControlFlowGraph {
                                         StackItem {
                                             name: "top",
                                             count: 1,
-                                            index: 0,
+                                            index: -1,
                                         },
                                     ],
                                     output: [
                                         StackItem {
                                             name: "top",
                                             count: 1,
-                                            index: 0,
+                                            index: -1,
                                         },
                                         StackItem {
                                             name: "top",
                                             count: 1,
-                                            index: 1,
+                                            index: 0,
                                         },
                                     ],
+                                    net_stack_delta: 1,
                                 },
                                 stack_inputs: [
                                     AuxVar(
@@ -207,21 +213,22 @@ SIRControlFlowGraph {
                                         StackItem {
                                             name: "callable",
                                             count: 1,
-                                            index: 3,
+                                            index: -4,
                                         },
                                         StackItem {
                                             name: "pos_args",
                                             count: 3,
-                                            index: 0,
+                                            index: -3,
                                         },
                                     ],
                                     output: [
                                         StackItem {
                                             name: "res",
                                             count: 1,
-                                            index: 0,
+                                            index: -4,
                                         },
                                     ],
+                                    net_stack_delta: -3,
                                 },
                                 stack_inputs: [
                                     AuxVar(
@@ -231,7 +238,7 @@ SIRControlFlowGraph {
                                     ),
                                     AuxVar(
                                         AuxVar {
-                                            name: "top_3",
+                                            name: "top_0",
                                         },
                                     ),
                                     AuxVar(
@@ -241,7 +248,7 @@ SIRControlFlowGraph {
                                     ),
                                     AuxVar(
                                         AuxVar {
-                                            name: "top_0",
+                                            name: "top_3",
                                         },
                                     ),
                                 ],
@@ -257,10 +264,11 @@ SIRControlFlowGraph {
                                     StackItem {
                                         name: "top",
                                         count: 1,
-                                        index: 0,
+                                        index: -1,
                                     },
                                 ],
                                 output: [],
+                                net_stack_delta: -1,
                             },
                             stack_inputs: [
                                 AuxVar(

@@ -1644,7 +1644,7 @@ dependencies = [
 [[package]]
 name = "python-instruction-dsl-proc"
 version = "0.1.9"
-source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc?branch=sir-models#b2a151921dbf580c15ae89ce78fff274f5d72a86"
+source = "git+https://github.com/Svenskithesource/python-instruction-dsl-proc?branch=sir-models#f2dc7795fc669199b0a9afbbe1a62d1c06cf1382"
 dependencies = [
  "heck",
  "paste",

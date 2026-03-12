@@ -386,6 +386,8 @@ where
 
 /// Generic opcode functions each version has to implement
 pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug + Clone {
+    type BranchReason: BranchReasonTrait;
+
     fn is_jump(&self) -> bool;
     fn is_absolute_jump(&self) -> bool;
     fn is_relative_jump(&self) -> bool;
@@ -402,6 +404,12 @@ pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug + Clone
 pub trait GenericInstruction: PartialEq + Debug + Clone {
     type OpargType: Oparg;
     type Opcode: GenericOpcode;
+
+    /// This is the "list" version of the actual instruction (e.g. ExtInstructions)
+    type Instructions: InstructionAccess<Self::OpargType, Self>;
+
+    /// This is the related type. For example for Instruction this would be ExtInstruction and visa versa.
+    type OtherType: GenericInstruction;
 
     fn get_opcode(&self) -> Self::Opcode;
 
@@ -464,6 +472,7 @@ pub trait StackEffectTrait {
 
 pub trait GenericSIRNode: Clone + Debug + PartialEq {
     type Opcode: GenericOpcode;
+    type SIRException: GenericSIRException;
 
     fn new(opcode: Self::Opcode, oparg: u32, jump: bool) -> Self;
 
@@ -489,12 +498,12 @@ pub trait GenericSIRException: Clone + Debug + PartialEq {
 }
 
 /// A trait to indicate that the SIR statements are owned.
-pub trait SIROwned<SIRNode, SIRException>: std::fmt::Display {
-    fn new(statements: Vec<SIRStatement<SIRNode, SIRException>>) -> Self;
+pub trait SIROwned<SIRNode: GenericSIRNode>: std::fmt::Display {
+    fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;
 }
 
 /// Trait to show what the branch reason is (opcode or exception)
-pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display {
+pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display + PartialEq {
     type Opcode: GenericOpcode;
 
     fn from_opcode(opcode: Self::Opcode) -> Result<Self, Error>;

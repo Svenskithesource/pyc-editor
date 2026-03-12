@@ -148,6 +148,8 @@ define_opcodes!(
 );
 
 impl GenericOpcode for Opcode {
+    type BranchReason = Self;
+
     /// From (by removing relative jumps): https://github.com/python/cpython/blob/fdc9d214c01cb4588f540cfa03726bbf2a33fc15/Include/opcode.h#L149-L158
     fn is_absolute_jump(&self) -> bool {
         matches!(

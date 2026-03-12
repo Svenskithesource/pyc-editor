@@ -229,6 +229,8 @@ define_opcodes!(
 );
 
 impl GenericOpcode for Opcode {
+    type BranchReason = BranchReason;
+
     /// There are no absolute jumps in 3.12. Only an exception unwind can trigger an absolute jump.
     fn is_absolute_jump(&self) -> bool {
         false
@@ -339,7 +341,7 @@ impl GenericOpcode for Opcode {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BranchReason {
     Opcode(Opcode),
     /// Bool is the `lasti` field of the `ExceptionTableEntry`

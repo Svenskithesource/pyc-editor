@@ -41,18 +41,15 @@ where
     NoIndex,
 }
 
-impl<BranchReason> BlockIndexInfo<BranchReason>
-where
-    BranchReason: BranchReasonTrait,
-{
-    pub fn into_sir<SIRNode, SIRException>(
+impl<BranchReason: BranchReasonTrait> BlockIndexInfo<BranchReason> {
+    pub fn into_sir<SIRNode>(
         &self,
-        statements: Option<Vec<crate::sir::SIRStatement<SIRNode, SIRException>>>,
-    ) -> crate::sir::SIRBlockIndexInfo<SIRNode, SIRException, BranchReason>
+        statements: Option<Vec<crate::sir::SIRStatement<SIRNode>>>,
+    ) -> crate::sir::SIRBlockIndexInfo<SIRNode>
     where
         SIRNode: GenericSIRNode,
-        SIRException: GenericSIRException,
-        crate::sir::SIR<SIRNode, SIRException>: SIROwned<SIRNode, SIRException>,
+        crate::sir::SIR<SIRNode>: SIROwned<SIRNode>,
+        <SIRNode as GenericSIRNode>::Opcode: GenericOpcode<BranchReason = BranchReason>,
     {
         match &self {
             BlockIndexInfo::Edge(edge) => crate::sir::SIRBlockIndexInfo::Edge(SIRBranchEdge {
@@ -92,24 +89,22 @@ where
     pub block_index: BlockIndex,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 /// Represents a block in the control flow graph
-pub struct Block<I, BranchReason>
+pub struct Block<I>
 where
     I: GenericInstruction,
-    BranchReason: BranchReasonTrait,
 {
     pub instructions: Vec<I>,
     /// Index to block for conditional jump
-    pub branch_block: BlockIndexInfo<BranchReason>,
+    pub branch_block: BlockIndexInfo<<I::Opcode as GenericOpcode>::BranchReason>,
     /// Index to default block (unconditional)
-    pub default_block: BlockIndexInfo<BranchReason>,
+    pub default_block: BlockIndexInfo<<I::Opcode as GenericOpcode>::BranchReason>,
 }
 
-impl<T, BranchReason> Block<T, BranchReason>
+impl<T> Block<T>
 where
     T: GenericInstruction,
-    BranchReason: BranchReasonTrait,
 {
     pub fn is_terminating(&self) -> bool {
         matches!(self.default_block, BlockIndexInfo::NoIndex)
@@ -128,20 +123,18 @@ where
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ControlFlowGraph<I, BranchReason>
+pub struct ControlFlowGraph<I>
 where
     I: GenericInstruction,
-    BranchReason: BranchReasonTrait,
 {
-    pub blocks: Vec<Block<I, BranchReason>>,
-    pub start_index: BlockIndexInfo<BranchReason>,
+    pub blocks: Vec<Block<I>>,
+    pub start_index: BlockIndexInfo<<I::Opcode as GenericOpcode>::BranchReason>,
 }
 
 #[cfg(feature = "dot")]
-impl<I, BranchReason> ControlFlowGraph<I, BranchReason>
+impl<I> ControlFlowGraph<I>
 where
     I: GenericInstruction,
-    BranchReason: BranchReasonTrait,
 {
     pub fn make_dot_graph(&self) -> String {
         let mut graph = petgraph::Graph::<String, String>::new();
@@ -174,7 +167,7 @@ where
 
     fn add_block<'a>(
         graph: &mut petgraph::Graph<String, String>,
-        blocks: &'a [Block<I, BranchReason>],
+        blocks: &'a [Block<I>],
         block_index: Option<&'a BlockIndex>,
         block_map: &mut HashMap<Option<&'a BlockIndex>, NodeIndex>,
     ) -> Option<NodeIndex> {
@@ -291,12 +284,9 @@ impl<I, T> SimpleInstructionAccess<I> for T where
 ///
 /// `blocks_to_fix` contains a list of blocks indexes that jump over an EXTENDED_ARG
 /// TODO: This fix doesn't work if the target instruction is another jump
-fn fix_extended_args<I, BranchReason>(
-    cfg: &mut ControlFlowGraph<I, BranchReason>,
-    blocks_to_fix: &[BlockIndex],
-) where
+fn fix_extended_args<I>(cfg: &mut ControlFlowGraph<I>, blocks_to_fix: &[BlockIndex])
+where
     I: GenericInstruction,
-    BranchReason: BranchReasonTrait,
 {
     for block_to_fix in blocks_to_fix {
         match block_to_fix {
@@ -402,18 +392,17 @@ fn fix_extended_args<I, BranchReason>(
 }
 
 /// Exception table should be passed for 3.11+
-pub fn create_cfg<OpargType, I, BranchReason>(
+pub fn create_cfg<I>(
     instructions: Vec<I>,
     exception_table: Option<Vec<ExceptionTableEntry>>,
-) -> Result<ControlFlowGraph<I, BranchReason>, Error>
+) -> Result<ControlFlowGraph<I>, Error>
 where
-    OpargType: Oparg,
     I: GenericInstruction,
-    BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
-    Vec<I>: InstructionAccess<OpargType, I>,
+    Vec<I>: InstructionAccess<I::OpargType, I>,
+    <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
 {
     // Used for keeping track of finished blocks
-    let mut temp_blocks: BTreeMap<usize, Block<I, BranchReason>> = BTreeMap::new();
+    let mut temp_blocks: BTreeMap<usize, Block<I>> = BTreeMap::new();
 
     enum BlockState {
         BlockIndexAssigned(BlockIndex),
@@ -638,7 +627,7 @@ where
                     Block {
                         instructions: vec![],
                         branch_block: BlockIndexInfo::Edge(BranchEdge {
-                            reason: BranchReason::from_exception(
+                            reason: <I::Opcode as GenericOpcode>::BranchReason::from_exception(
                                 exception_entry.lasti,
                                 exception_entry.depth as usize,
                             )?,
@@ -672,7 +661,7 @@ where
                             );
 
                             BlockIndexInfo::Edge(BranchEdge {
-                                reason: BranchReason::from_exception(
+                                reason: <I::Opcode as GenericOpcode>::BranchReason::from_exception(
                                     exception_entry.lasti,
                                     exception_entry.depth as usize,
                                 )?,
@@ -725,7 +714,9 @@ where
                     Block {
                         instructions: curr_block,
                         branch_block: BlockIndexInfo::Edge(BranchEdge {
-                            reason: BranchReason::from_opcode(instruction.get_opcode())?,
+                            reason: <I::Opcode as GenericOpcode>::BranchReason::from_opcode(
+                                instruction.get_opcode(),
+                            )?,
                             block_index: if let Some(jump_index) = jump_instruction {
                                 if block_exists!(jump_index as usize) {
                                     block_map[&(jump_index as usize)].get_index().clone()
@@ -753,7 +744,10 @@ where
                         default_block: if let Some(next_index) = next_instruction {
                             if block_exists!(next_index) {
                                 BlockIndexInfo::Edge(BranchEdge {
-                                    reason: BranchReason::from_opcode(instruction.get_opcode())?,
+                                    reason:
+                                        <I::Opcode as GenericOpcode>::BranchReason::from_opcode(
+                                            instruction.get_opcode(),
+                                        )?,
                                     block_index: block_map[&next_index].get_index().clone(),
                                 })
                             } else {
@@ -767,7 +761,10 @@ where
                                 );
 
                                 BlockIndexInfo::Edge(BranchEdge {
-                                    reason: BranchReason::from_opcode(instruction.get_opcode())?,
+                                    reason:
+                                        <I::Opcode as GenericOpcode>::BranchReason::from_opcode(
+                                            instruction.get_opcode(),
+                                        )?,
                                     block_index: BlockIndex::Index(curr_block_index),
                                 })
                             }
@@ -869,9 +866,9 @@ where
         replace_block_index(&mut block.default_block, &order_map);
     }
 
-    let blocks: Vec<Block<I, BranchReason>> = temp_blocks.values().cloned().collect();
+    let blocks: Vec<Block<I>> = temp_blocks.values().cloned().collect();
 
-    let mut cfg = ControlFlowGraph::<I, BranchReason> {
+    let mut cfg = ControlFlowGraph::<I> {
         start_index: if !blocks.is_empty() {
             BlockIndexInfo::Fallthrough(BlockIndex::Index(0))
         } else {
@@ -888,11 +885,15 @@ where
 
 // Convert a cfg that consists of simple instructions to a cfg where the extended args are resolved.
 pub fn simple_cfg_to_ext_cfg<SimpleI, ExtI, ExtInstructions, BranchReason>(
-    simple_cfg: &ControlFlowGraph<SimpleI, BranchReason>,
-) -> Result<ControlFlowGraph<ExtI, BranchReason>, Error>
+    simple_cfg: &ControlFlowGraph<SimpleI>,
+) -> Result<ControlFlowGraph<ExtI>, Error>
 where
-    SimpleI: GenericInstruction<OpargType = u8>,
-    ExtI: GenericInstruction<OpargType = u32, Opcode = SimpleI::Opcode>,
+    SimpleI: GenericInstruction<OpargType = u8, OtherType = ExtI>,
+    ExtI: GenericInstruction<
+            OpargType = u32,
+            Opcode = SimpleI::Opcode,
+            Instructions = ExtInstructions,
+        >,
     BranchReason: BranchReasonTrait,
     ExtInstructions: ExtInstructionAccess<SimpleI, ExtI>,
 {
@@ -908,7 +909,7 @@ where
         });
     }
 
-    Ok(ControlFlowGraph::<ExtI, BranchReason> {
+    Ok(ControlFlowGraph::<ExtI> {
         blocks,
         start_index: simple_cfg.start_index.clone(),
     })
@@ -992,11 +993,7 @@ mod test {
 
         println!("{}", cfg.make_dot_graph());
 
-        let cfg: ControlFlowGraph<ExtInstruction, BranchReason> =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
-                &cfg,
-            )
-            .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 

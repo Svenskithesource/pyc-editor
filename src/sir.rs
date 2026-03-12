@@ -6,7 +6,8 @@ use std::{
 use crate::{
     cfg::{BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph},
     traits::{
-        BranchReasonTrait, GenericInstruction, GenericSIRException, GenericSIRNode, SIROwned,
+        BranchReasonTrait, GenericInstruction, GenericOpcode, GenericSIRException, GenericSIRNode,
+        SIROwned,
     },
     utils::{InfiniteStack, InfiniteVec, generate_var_name},
 };
@@ -31,9 +32,9 @@ pub struct StackItem {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum SIRExpression<SIRNode, SIRException> {
-    Call(Call<SIRNode, SIRException>),
-    Exception(ExceptionCall<SIRNode, SIRException>),
+pub enum SIRExpression<SIRNode: GenericSIRNode> {
+    Call(Call<SIRNode>),
+    Exception(ExceptionCall<SIRNode>),
     AuxVar(AuxVar),
     PhiNode(Vec<AuxVar>),
     /// This value is used to represent the value that comes from the start of a generator
@@ -42,36 +43,35 @@ pub enum SIRExpression<SIRNode, SIRException> {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Call<SIRNode, SIRException> {
+pub struct Call<SIRNode: GenericSIRNode> {
     pub node: SIRNode,
-    pub stack_inputs: Vec<SIRExpression<SIRNode, SIRException>>, // Allow direct usage of a call as an input
+    pub stack_inputs: Vec<SIRExpression<SIRNode>>, // Allow direct usage of a call as an input
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct ExceptionCall<SIRNode, SIRException> {
-    pub exception: SIRException,
-    pub stack_inputs: Vec<SIRExpression<SIRNode, SIRException>>, // Allow direct usage of a call as an input
+pub struct ExceptionCall<SIRNode: GenericSIRNode> {
+    pub exception: SIRNode::SIRException,
+    pub stack_inputs: Vec<SIRExpression<SIRNode>>, // Allow direct usage of a call as an input
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum SIRStatement<SIRNode, SIRException> {
-    Assignment(AuxVar, SIRExpression<SIRNode, SIRException>),
-    TupleAssignment(Vec<AuxVar>, SIRExpression<SIRNode, SIRException>),
+pub enum SIRStatement<SIRNode: GenericSIRNode> {
+    Assignment(AuxVar, SIRExpression<SIRNode>),
+    TupleAssignment(Vec<AuxVar>, SIRExpression<SIRNode>),
     /// For when there is no output value (or it is not used)
-    DisregardCall(Call<SIRNode, SIRException>),
+    DisregardCall(Call<SIRNode>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct SIR<SIRNode, SIRException>(pub Vec<SIRStatement<SIRNode, SIRException>>);
+pub struct SIR<SIRNode: GenericSIRNode>(pub Vec<SIRStatement<SIRNode>>);
 
-fn process_phi_item<SIRNode, SIRException>(
+fn process_phi_item<SIRNode>(
     phi_var: &AuxVar,
-    stack_item: &SIRExpression<SIRNode, SIRException>,
-    statements: &mut Vec<SIRStatement<SIRNode, SIRException>>,
+    stack_item: &SIRExpression<SIRNode>,
+    statements: &mut Vec<SIRStatement<SIRNode>>,
 ) -> bool
 where
     SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
 {
     let mut found = false;
 
@@ -127,15 +127,11 @@ impl PhiEntry {
     }
 }
 
-fn fill_phi_nodes<SIRNode, SIRException>(
-    curr_stack: &mut Vec<SIRExpression<SIRNode, SIRException>>,
-    statements: &mut Vec<SIRStatement<SIRNode, SIRException>>,
+fn fill_phi_nodes<SIRNode: GenericSIRNode>(
+    curr_stack: &mut Vec<SIRExpression<SIRNode>>,
+    statements: &mut Vec<SIRStatement<SIRNode>>,
     phi_stack: &InfiniteStack<AuxVar>,
-) -> Result<(), Error>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-{
+) -> Result<(), Error> {
     for (i, var) in phi_stack.data.iter_pairs() {
         let found;
 
@@ -182,25 +178,24 @@ where
     Ok(())
 }
 
-fn process_stack_effects<SIRNode, SIRException>(
+fn process_stack_effects<SIRNode>(
     inputs: &[StackItem],
     outputs: &[StackItem],
     net_stack_delta: isize,
     force_stack_depth: Option<usize>,
-    stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+    stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<
     (
-        Vec<SIRExpression<SIRNode, SIRException>>,
+        Vec<SIRExpression<SIRNode>>,
         Vec<AuxVar>,
-        Vec<SIRStatement<SIRNode, SIRException>>,
+        Vec<SIRStatement<SIRNode>>,
     ),
     Error,
 >
 where
     SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
 {
     let mut stack_inputs = vec![];
 
@@ -294,12 +289,7 @@ where
                 debug_assert!(phi_stack.data.get(index).is_some());
             }
 
-            insert_replace_stack(
-                stack,
-                index,
-                SIRExpression::<SIRNode, SIRException>::AuxVar(var),
-                true,
-            )?;
+            insert_replace_stack(stack, index, SIRExpression::<SIRNode>::AuxVar(var), true)?;
         }
     }
 
@@ -309,18 +299,17 @@ where
     Ok((stack_inputs, stack_outputs, statements))
 }
 
-fn instruction_to_ir<ExtInstruction, SIRNode, SIRException>(
+fn instruction_to_ir<ExtInstruction, SIRNode>(
     opcode: ExtInstruction::Opcode,
     oparg: ExtInstruction::OpargType,
     jump: bool,
-    stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+    stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
-) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
+) -> Result<Vec<SIRStatement<SIRNode>>, Error>
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
     SIRNode: GenericSIRNode<Opcode = ExtInstruction::Opcode>,
-    SIRException: GenericSIRException,
 {
     let node = SIRNode::new(opcode.clone(), oparg, jump);
 
@@ -334,7 +323,7 @@ where
         names,
     )?;
 
-    let call = Call::<SIRNode, SIRException> { node, stack_inputs };
+    let call = Call::<SIRNode> { node, stack_inputs };
 
     if stack_outputs.len() > 1 {
         statements.push(SIRStatement::TupleAssignment(
@@ -353,19 +342,18 @@ where
     Ok(statements)
 }
 
-fn exception_to_ir<SIRNode, SIRException>(
+fn exception_to_ir<SIRNode>(
     lasti: bool,
     stack_depth: usize,
     jump: bool,
-    stack: &mut InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+    stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
-) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
+) -> Result<Vec<SIRStatement<SIRNode>>, Error>
 where
     SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
 {
-    let exception = SIRException::new(lasti, stack_depth, jump);
+    let exception = SIRNode::SIRException::new(lasti, stack_depth, jump);
 
     let (stack_inputs, stack_outputs, mut statements) = process_stack_effects(
         exception.get_inputs(),
@@ -377,7 +365,7 @@ where
         names,
     )?;
 
-    let call = ExceptionCall::<SIRNode, SIRException> {
+    let call = ExceptionCall::<SIRNode> {
         exception,
         stack_inputs,
     };
@@ -399,16 +387,12 @@ where
     Ok(statements)
 }
 
-fn force_exception_stack_depth<SIRNode, SIRException>(
+fn force_exception_stack_depth<SIRNode: GenericSIRNode>(
     stack_depth: usize,
-    stack: &mut Vec<SIRExpression<SIRNode, SIRException>>,
+    stack: &mut Vec<SIRExpression<SIRNode>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
-) -> Result<Vec<SIRStatement<SIRNode, SIRException>>, Error>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-{
+) -> Result<Vec<SIRStatement<SIRNode>>, Error> {
     let mut stack: InfiniteStack<_> = InfiniteVec::from_vec(stack.clone()).into();
 
     let (_, _, statements) =
@@ -419,28 +403,27 @@ where
 
 /// Internal function that is used while converting an Ext CFG to SIR nodes.
 /// This function is meant to process a single block.
-fn bb_to_ir<ExtInstruction, SIRNode, SIRException>(
+fn bb_to_ir<ExtInstruction, SIRNode>(
     instructions: &[ExtInstruction],
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<
     (
-        SIR<SIRNode, SIRException>,
-        InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+        SIR<SIRNode>,
+        InfiniteStack<SIRExpression<SIRNode>>,
         InfiniteStack<AuxVar>,
     ),
     Error,
 >
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
-    SIR<SIRNode, SIRException>: SIROwned<SIRNode, SIRException>,
+    SIR<SIRNode>: SIROwned<SIRNode>,
     SIRNode: GenericSIRNode<Opcode = ExtInstruction::Opcode>,
-    SIRException: GenericSIRException,
 {
-    let mut statements: Vec<SIRStatement<SIRNode, SIRException>> = vec![];
+    let mut statements: Vec<SIRStatement<SIRNode>> = vec![];
 
     // Every basic block starts with an empty stack.
     // When we try to access stack items below 0, we know it's accessing items from a different basic block.
-    let mut stack: InfiniteStack<SIRExpression<SIRNode, SIRException>> = vec![].into();
+    let mut stack: InfiniteStack<SIRExpression<SIRNode>> = vec![].into();
 
     // When we assign a phi node to a var we keep track of what stack index this phi node is representing
     let mut phi_stack: InfiniteStack<AuxVar> = vec![].into();
@@ -449,7 +432,7 @@ where
         // In a basic block there shouldn't be any jumps. (the last jump instruction is removed in the cfg)
         debug_assert!(!instruction.is_jump());
 
-        statements.extend_from_slice(&instruction_to_ir::<ExtInstruction, SIRNode, SIRException>(
+        statements.extend_from_slice(&instruction_to_ir::<ExtInstruction, SIRNode>(
             instruction.get_opcode(),
             instruction.get_raw_value(),
             false,
@@ -466,37 +449,22 @@ where
 /// We do this so the value of the branch instruction cannot represent a wrong index.
 /// This also shows which inputs and outputs the opcode uses.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SIRBranchEdge<SIRNode, SIRException, BranchReason>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-    BranchReason: BranchReasonTrait,
-{
-    pub reason: BranchReason,
-    pub statements: Option<SIR<SIRNode, SIRException>>,
+pub struct SIRBranchEdge<SIRNode: GenericSIRNode> {
+    pub reason: <SIRNode::Opcode as GenericOpcode>::BranchReason,
+    pub statements: Option<SIR<SIRNode>>,
     pub block_index: BlockIndex,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum SIRBlockIndexInfo<SIRNode, SIRException, BranchReason>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-    BranchReason: BranchReasonTrait,
-{
-    Edge(SIRBranchEdge<SIRNode, SIRException, BranchReason>),
+pub enum SIRBlockIndexInfo<SIRNode: GenericSIRNode> {
+    Edge(SIRBranchEdge<SIRNode>),
     /// For blocks that fallthrough with no opcode (cannot be generated by Python, used by internal algorithms)
     Fallthrough(BlockIndex),
     /// For blocks without a target
     NoIndex,
 }
 
-impl<SIRNode, SIRException, BranchReason> SIRBlockIndexInfo<SIRNode, SIRException, BranchReason>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-    BranchReason: BranchReasonTrait,
-{
+impl<SIRNode: GenericSIRNode> SIRBlockIndexInfo<SIRNode> {
     pub fn get_block_index(&self) -> Option<&BlockIndex> {
         match self {
             SIRBlockIndexInfo::Edge(SIRBranchEdge { block_index, .. }) => Some(block_index),
@@ -508,45 +476,33 @@ where
 
 #[derive(Clone, Debug, PartialEq)]
 /// Represents a block in the control flow graph
-pub struct SIRBlock<SIRNode, SIRException, BranchReason>
+pub struct SIRBlock<SIRNode>
 where
     SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-    BranchReason: BranchReasonTrait,
 {
-    pub nodes: SIR<SIRNode, SIRException>,
+    pub nodes: SIR<SIRNode>,
     /// Index to block for conditional jump
-    pub branch_block: SIRBlockIndexInfo<SIRNode, SIRException, BranchReason>,
+    pub branch_block: SIRBlockIndexInfo<SIRNode>,
     /// Index to default block (unconditional)
-    pub default_block: SIRBlockIndexInfo<SIRNode, SIRException, BranchReason>,
+    pub default_block: SIRBlockIndexInfo<SIRNode>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SIRControlFlowGraph<SIRNode, SIRException, BranchReason>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-    BranchReason: BranchReasonTrait,
-{
-    pub blocks: Vec<SIRBlock<SIRNode, SIRException, BranchReason>>,
-    pub start_index: SIRBlockIndexInfo<SIRNode, SIRException, BranchReason>,
+pub struct SIRControlFlowGraph<SIRNode: GenericSIRNode> {
+    pub blocks: Vec<SIRBlock<SIRNode>>,
+    pub start_index: SIRBlockIndexInfo<SIRNode>,
 }
 
 #[cfg(feature = "dot")]
-impl<SIRNode, SIRException, BranchReason> SIRControlFlowGraph<SIRNode, SIRException, BranchReason>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-    BranchReason: BranchReasonTrait,
-{
+impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
     fn add_block<'a>(
         graph: &mut petgraph::Graph<String, String>,
-        blocks: &'a [SIRBlock<SIRNode, SIRException, BranchReason>],
+        blocks: &'a [SIRBlock<SIRNode>],
         block_index: Option<&'a BlockIndex>,
         block_map: &mut HashMap<Option<&'a BlockIndex>, NodeIndex>,
     ) -> Option<NodeIndex>
     where
-        SIR<SIRNode, SIRException>: SIROwned<SIRNode, SIRException>,
+        SIR<SIRNode>: SIROwned<SIRNode>,
     {
         let block = match block_index {
             Some(BlockIndex::Index(index)) => blocks.get(*index).unwrap(),
@@ -647,7 +603,7 @@ where
     pub fn make_dot_graph(&self) -> String
     where
         SIRNode: GenericSIRNode,
-        SIR<SIRNode, SIRException>: SIROwned<SIRNode, SIRException>,
+        SIR<SIRNode>: SIROwned<SIRNode>,
     {
         let mut graph = petgraph::Graph::<String, String>::new();
 
@@ -702,15 +658,11 @@ impl std::fmt::Display for Error {
 }
 
 /// This will extend the vec and overwrite any items that have a corresponding negative value
-pub fn extend_merge_stack<SIRNode, SIRException>(
-    vec_to_extend: &mut Vec<SIRExpression<SIRNode, SIRException>>,
-    infinite_stack: &InfiniteStack<SIRExpression<SIRNode, SIRException>>,
+pub fn extend_merge_stack<SIRNode: GenericSIRNode>(
+    vec_to_extend: &mut Vec<SIRExpression<SIRNode>>,
+    infinite_stack: &InfiniteStack<SIRExpression<SIRNode>>,
     phi_stack: &InfiniteStack<AuxVar>,
-) -> Result<(), Error>
-where
-    SIRNode: GenericSIRNode,
-    SIRException: GenericSIRException,
-{
+) -> Result<(), Error> {
     let original_len = vec_to_extend.len();
 
     let pairs = infinite_stack.data.iter_pairs();
@@ -746,61 +698,52 @@ where
 }
 
 /// In certain versions a generator starts with a value on the stack so we need to account for that
-pub fn cfg_to_ir<ExtInstruction, SIRNode, SIRException, BranchReason>(
-    cfg: &ControlFlowGraph<ExtInstruction, BranchReason>,
+pub fn cfg_to_ir<ExtInstruction, SIRNode>(
+    cfg: &ControlFlowGraph<ExtInstruction>,
     add_generator_value: bool,
-) -> Result<SIRControlFlowGraph<SIRNode, SIRException, BranchReason>, Error>
+) -> Result<SIRControlFlowGraph<SIRNode>, Error>
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
     SIRNode: GenericSIRNode<Opcode = ExtInstruction::Opcode>,
-    SIRException: GenericSIRException,
-    BranchReason: BranchReasonTrait<Opcode = SIRNode::Opcode>,
-    SIR<SIRNode, SIRException>: SIROwned<SIRNode, SIRException>,
+    <ExtInstruction::Opcode as GenericOpcode>::BranchReason:
+        BranchReasonTrait<Opcode = ExtInstruction::Opcode>,
+    SIR<SIRNode>: SIROwned<SIRNode>,
 {
     #[derive(Debug, Clone)]
-    struct TempBlockInfo<SIRNode, SIRException>
+    struct TempBlockInfo<SIRNode: GenericSIRNode>
     where
         SIRNode: Clone + std::fmt::Debug,
-        SIRException: Clone + std::fmt::Debug,
     {
-        stack: InfiniteStack<SIRExpression<SIRNode, SIRException>>,
-        statements: SIR<SIRNode, SIRException>,
+        stack: InfiniteStack<SIRExpression<SIRNode>>,
+        statements: SIR<SIRNode>,
         phi_stack: InfiniteStack<AuxVar>,
     }
 
-    let mut temp_blocks: Vec<TempBlockInfo<SIRNode, SIRException>> = vec![];
+    let mut temp_blocks: Vec<TempBlockInfo<SIRNode>> = vec![];
 
     // Keep track of which blocks we already processed
     let mut visited_blocks: Vec<usize> = vec![];
 
     #[derive(Debug, Clone)]
-    struct TempEdgeInfo<SIRNode, SIRException>
-    where
-        SIRNode: Clone + std::fmt::Debug,
-        SIRException: Clone + std::fmt::Debug,
-    {
-        stack: InfiniteStack<SIRExpression<SIRNode, SIRException>>,
-        statements: Vec<SIRStatement<SIRNode, SIRException>>,
+    struct TempEdgeInfo<SIRNode: GenericSIRNode> {
+        stack: InfiniteStack<SIRExpression<SIRNode>>,
+        statements: Vec<SIRStatement<SIRNode>>,
         phi_stack: InfiniteStack<AuxVar>,
     }
 
     // (default, branch)
-    let mut temp_edges: Vec<(
-        TempEdgeInfo<SIRNode, SIRException>,
-        TempEdgeInfo<SIRNode, SIRException>,
-    )> = vec![];
+    let mut temp_edges: Vec<(TempEdgeInfo<SIRNode>, TempEdgeInfo<SIRNode>)> = vec![];
 
     let mut names = HashMap::new();
 
     // Keeps track of the different stacks used to enter a basic block
     // TODO: We have to find a way to merge stacks
-    let mut has_changed: HashMap<usize, Vec<Vec<SIRExpression<SIRNode, SIRException>>>> =
-        HashMap::new();
+    let mut has_changed: HashMap<usize, Vec<Vec<SIRExpression<SIRNode>>>> = HashMap::new();
 
     // Create isolated IR blocks
     for block in &cfg.blocks {
         let (statements, stack, phi_stack) =
-            bb_to_ir::<ExtInstruction, SIRNode, SIRException>(&block.instructions, &mut names)?;
+            bb_to_ir::<ExtInstruction, SIRNode>(&block.instructions, &mut names)?;
 
         temp_blocks.push(TempBlockInfo {
             stack,
@@ -817,7 +760,7 @@ where
                 ..
             }) => {
                 if let Some(opcode) = branch_reason.get_opcode() {
-                    instruction_to_ir::<ExtInstruction, SIRNode, SIRException>(
+                    instruction_to_ir::<ExtInstruction, SIRNode>(
                         opcode.clone(),
                         0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
                         false, // Don't take the jump for the default block
@@ -829,7 +772,7 @@ where
                     let lasti = branch_reason.get_lasti().unwrap();
                     let stack_depth = branch_reason.get_stack_depth().unwrap();
 
-                    exception_to_ir::<SIRNode, SIRException>(
+                    exception_to_ir::<SIRNode>(
                         lasti,
                         stack_depth,
                         false,
@@ -853,7 +796,7 @@ where
                 ..
             }) => {
                 if let Some(opcode) = branch_reason.get_opcode() {
-                    instruction_to_ir::<ExtInstruction, SIRNode, SIRException>(
+                    instruction_to_ir::<ExtInstruction, SIRNode>(
                         opcode.clone(),
                         0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
                         true, // Take the jump for the branch block
@@ -865,7 +808,7 @@ where
                     let lasti = branch_reason.get_lasti().unwrap();
                     let stack_depth = branch_reason.get_stack_depth().unwrap();
 
-                    exception_to_ir::<SIRNode, SIRException>(
+                    exception_to_ir::<SIRNode>(
                         lasti,
                         stack_depth,
                         true,
@@ -895,21 +838,16 @@ where
     }
 
     #[derive(Debug)]
-    struct BlockQueue<SIRNode, SIRException, BranchReason>
-    where
-        BranchReason: BranchReasonTrait,
-        SIRNode: Clone + std::fmt::Debug,
-        SIRException: Clone + std::fmt::Debug,
-    {
-        block_index: BlockIndexInfo<BranchReason>,
+    struct BlockQueue<SIRNode: GenericSIRNode> {
+        block_index: BlockIndexInfo<<SIRNode::Opcode as GenericOpcode>::BranchReason>,
         /// Only `None` when `block_index` is the first block.
         /// The `bool`` shows if we need to take the `branch` edge or not
         from_block_index: Option<(usize, bool)>,
-        curr_stack: Vec<SIRExpression<SIRNode, SIRException>>,
+        curr_stack: Vec<SIRExpression<SIRNode>>,
     }
 
     // Fill the empty phi nodes with actual values
-    let mut queue: Vec<BlockQueue<SIRNode, SIRException, BranchReason>> = vec![BlockQueue {
+    let mut queue: Vec<BlockQueue<SIRNode>> = vec![BlockQueue {
         block_index: cfg.start_index.clone(),
         from_block_index: None,
         curr_stack: if add_generator_value {
@@ -984,7 +922,7 @@ where
                 &mut edge_info.statements,
                 &edge_info.phi_stack,
             )?;
-            
+
             // Add the branch stack after processing the branch statements
             extend_merge_stack(
                 &mut block_element.curr_stack,
@@ -1081,7 +1019,7 @@ where
         })
         .collect::<Vec<_>>();
 
-    let sir_cfg = SIRControlFlowGraph::<SIRNode, SIRException, BranchReason> {
+    let sir_cfg = SIRControlFlowGraph::<SIRNode> {
         start_index: SIRBlockIndexInfo::Fallthrough(BlockIndex::Index(0)),
         blocks,
     };
@@ -1574,7 +1512,6 @@ mod test {
             let stmts = instruction_to_ir::<
                 crate::v311::ext_instructions::ExtInstruction,
                 SIRNode,
-                SIRException,
             >(
                 instruction.get_opcode(),
                 0,

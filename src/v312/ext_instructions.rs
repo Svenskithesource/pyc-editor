@@ -1108,6 +1108,8 @@ impl TryFrom<(Opcode, u32)> for ExtInstruction {
 impl GenericInstruction for ExtInstruction {
     type OpargType = u32;
     type Opcode = Opcode;
+    type Instructions = ExtInstructions;
+    type OtherType = Instruction;
 
     fn get_opcode(&self) -> Self::Opcode {
         match self {

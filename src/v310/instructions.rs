@@ -6,7 +6,7 @@ use crate::{
     traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess},
     v310::{
         code_objects::{AbsoluteJump, Jump, LinetableEntry, RelativeJump},
-        ext_instructions::ExtInstructions,
+        ext_instructions::{ExtInstruction, ExtInstructions},
         opcodes::Opcode,
     },
 };
@@ -149,6 +149,8 @@ pub enum Instruction {
 impl GenericInstruction for Instruction {
     type OpargType = u8;
     type Opcode = Opcode;
+    type Instructions = Instructions;
+    type OtherType = ExtInstruction;
 
     fn get_opcode(&self) -> Self::Opcode {
         Opcode::from_instruction(self)

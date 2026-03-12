@@ -266,7 +266,7 @@ where
 
             self.data.push_front(Some(value));
 
-            self.negative_offset += real_index.abs() as usize;
+            self.negative_offset += real_index.unsigned_abs();
         } else {
             self.data.insert(real_index as usize, Some(value));
         }
@@ -310,6 +310,10 @@ where
         self.data.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     pub fn positive_len(&self) -> usize {
         self.data.len() - self.negative_offset
     }
@@ -325,7 +329,7 @@ where
             .iter()
             .enumerate()
             .take(self.negative_offset)
-            .filter_map(|(i, e)| e.as_ref().and_then(|_| Some(i)))
+            .filter_map(|(i, e)| e.as_ref().map(|_| i))
             .collect()
     }
 

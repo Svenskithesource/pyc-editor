@@ -244,7 +244,7 @@ impl BranchReasonTrait for Opcode {
     }
 
     fn get_opcode(&self) -> Option<&Opcode> {
-        Some(&self)
+        Some(self)
     }
 
     fn get_lasti(&self) -> Option<bool> {

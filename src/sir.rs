@@ -68,7 +68,7 @@ pub struct SIR<SIRNode: GenericSIRNode>(pub Vec<SIRStatement<SIRNode>>);
 fn process_phi_item<SIRNode>(
     phi_var: &AuxVar,
     stack_item: &SIRExpression<SIRNode>,
-    statements: &mut Vec<SIRStatement<SIRNode>>,
+    statements: &mut [SIRStatement<SIRNode>],
 ) -> bool
 where
     SIRNode: GenericSIRNode,
@@ -101,35 +101,9 @@ where
     found
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct PhiEntry {
-    /// Index of the value on the stack (should be negative)
-    index: isize,
-    value: AuxVar,
-    /// If there is a value pushed by the current block at this index, the bool should be true.
-    /// See test `test_310_with_block`
-    is_overwritten: bool,
-}
-
-impl PhiEntry {
-    pub fn new(index: isize, value: AuxVar) -> Self {
-        assert!(index < 0);
-
-        PhiEntry {
-            index,
-            value,
-            is_overwritten: false,
-        }
-    }
-
-    pub fn mark_overwritten(&mut self) {
-        self.is_overwritten = true;
-    }
-}
-
 fn fill_phi_nodes<SIRNode: GenericSIRNode>(
-    curr_stack: &mut Vec<SIRExpression<SIRNode>>,
-    statements: &mut Vec<SIRStatement<SIRNode>>,
+    curr_stack: &mut [SIRExpression<SIRNode>],
+    statements: &mut [SIRStatement<SIRNode>],
     phi_stack: &InfiniteStack<AuxVar>,
 ) -> Result<(), Error> {
     for (i, var) in phi_stack.data.iter_pairs() {
@@ -138,7 +112,7 @@ fn fill_phi_nodes<SIRNode: GenericSIRNode>(
         let item_index = (curr_stack.len() as isize + i) as usize;
 
         if let Some(item) = curr_stack.get(item_index) {
-            found = process_phi_item(&var, item, statements);
+            found = process_phi_item(var, item, statements);
         } else {
             return Err(Error::InvalidStackAccess);
         }
@@ -168,7 +142,7 @@ where
             return Err(Error::StackItemReused);
         }
     } else if let Some(val) = entry
-        && *val == None
+        && val.is_none()
     {
         *val = Some(value);
     } else {
@@ -205,7 +179,7 @@ where
 
     for input in inputs {
         for count in 0..input.count {
-            let index = (stack.carrot) + (input.index + count as isize) as isize;
+            let index = (stack.carrot) + (input.index + count as isize);
 
             let value = stack.data.get_mut(index);
 
@@ -389,11 +363,11 @@ where
 
 fn force_exception_stack_depth<SIRNode: GenericSIRNode>(
     stack_depth: usize,
-    stack: &mut Vec<SIRExpression<SIRNode>>,
+    stack: &mut [SIRExpression<SIRNode>],
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode>>, Error> {
-    let mut stack: InfiniteStack<_> = InfiniteVec::from_vec(stack.clone()).into();
+    let mut stack: InfiniteStack<_> = InfiniteVec::from_vec(stack.to_owned()).into();
 
     let (_, _, statements) =
         process_stack_effects(&[], &[], 0, Some(stack_depth), &mut stack, phi_stack, names)?;
@@ -686,7 +660,7 @@ pub fn extend_merge_stack<SIRNode: GenericSIRNode>(
 
         if i < 0
             && real_index == vec_to_extend.len() - 1
-            && (value.is_none() || value == Some(&mut None))
+            && (value.is_none() || value == Some(&None))
         {
             // if we use the TOS as phi item we pop
 
@@ -879,41 +853,34 @@ where
 
         if let Some(edge_info) = edge_info {
             // We need to force the stack depth specified by the exception here
-            match (&block_element.block_index, &block_element.from_block_index) {
-                (BlockIndexInfo::Edge(BranchEdge { reason, .. }), Some((_, is_branch))) => {
-                    if *is_branch
-                        && reason.is_exception()
-                        && reason.get_stack_depth().unwrap() < block_element.curr_stack.len()
-                    {
-                        let mut phi_stack = vec![].into();
+            if let (BlockIndexInfo::Edge(BranchEdge { reason, .. }), Some((_, is_branch))) =
+                (&block_element.block_index, &block_element.from_block_index)
+                && *is_branch
+                && reason.is_exception()
+                && reason.get_stack_depth().unwrap() < block_element.curr_stack.len()
+            {
+                let mut phi_stack = vec![].into();
 
-                        let mut statements = force_exception_stack_depth(
-                            reason.get_stack_depth().unwrap(),
-                            &mut block_element.curr_stack,
-                            &mut phi_stack,
-                            &mut names,
-                        )?;
+                let mut statements = force_exception_stack_depth(
+                    reason.get_stack_depth().unwrap(),
+                    &mut block_element.curr_stack,
+                    &mut phi_stack,
+                    &mut names,
+                )?;
 
-                        // Fill empty phi nodes in the new exception statements
-                        fill_phi_nodes(&mut block_element.curr_stack, &mut statements, &phi_stack)?;
+                // Fill empty phi nodes in the new exception statements
+                fill_phi_nodes(&mut block_element.curr_stack, &mut statements, &phi_stack)?;
 
-                        statements.extend(edge_info.statements.clone());
-                        edge_info.statements = statements;
+                statements.extend(edge_info.statements.clone());
+                edge_info.statements = statements;
 
-                        // This will pop the used phi items
-                        extend_merge_stack(
-                            &mut block_element.curr_stack,
-                            &vec![].into(),
-                            &phi_stack,
-                        )?;
+                // This will pop the used phi items
+                extend_merge_stack(&mut block_element.curr_stack, &vec![].into(), &phi_stack)?;
 
-                        assert_eq!(
-                            reason.get_stack_depth().unwrap(),
-                            block_element.curr_stack.len()
-                        )
-                    }
-                }
-                _ => {}
+                assert_eq!(
+                    reason.get_stack_depth().unwrap(),
+                    block_element.curr_stack.len()
+                )
             }
 
             // Fill empty phi nodes in the edge statements
@@ -1035,7 +1002,7 @@ mod test {
 
     use crate::cfg::{ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg};
     use crate::sir::{
-        AuxVar, PhiEntry, SIR, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
+        AuxVar, SIR, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
         instruction_to_ir, process_stack_effects,
     };
     use crate::traits::{GenericInstruction, GenericSIRException};

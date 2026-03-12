@@ -433,14 +433,14 @@ where
 
     let exception_map: HashMap<u32, &ExceptionTableEntry> =
         if let Some(exception_table) = &exception_table {
-            exception_table.into_iter().map(|e| (e.start, e)).collect()
+            exception_table.iter().map(|e| (e.start, e)).collect()
         } else {
             HashMap::new()
         };
 
     // End indexes
     let exception_ends = if let Some(exception_table) = &exception_table {
-        exception_table.into_iter().map(|e| e.end - 1).collect()
+        exception_table.iter().map(|e| e.end - 1).collect()
     } else {
         vec![]
     };
@@ -845,15 +845,12 @@ where
         BranchReason: BranchReasonTrait,
     {
         match block_index {
-            BlockIndexInfo::Edge(edge) => match edge {
-                BranchEdge {
-                    block_index: BlockIndex::Index(block_index),
-                    ..
-                } => {
-                    *block_index = order_map[block_index];
-                }
-                _ => {}
-            },
+            BlockIndexInfo::Edge(BranchEdge {
+                block_index: BlockIndex::Index(block_index),
+                ..
+            }) => {
+                *block_index = order_map[block_index];
+            }
             BlockIndexInfo::Fallthrough(BlockIndex::Index(block_index)) => {
                 *block_index = order_map[block_index];
             }

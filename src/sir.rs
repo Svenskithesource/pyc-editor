@@ -1509,18 +1509,16 @@ mod test {
 
         for instruction in instructions {
             // Pop all 3 values
-            let stmts = instruction_to_ir::<
-                crate::v311::ext_instructions::ExtInstruction,
-                SIRNode,
-            >(
-                instruction.get_opcode(),
-                0,
-                false,
-                &mut stack,
-                &mut phi_stack,
-                &mut names,
-            )
-            .unwrap();
+            let stmts =
+                instruction_to_ir::<crate::v311::ext_instructions::ExtInstruction, SIRNode>(
+                    instruction.get_opcode(),
+                    0,
+                    false,
+                    &mut stack,
+                    &mut phi_stack,
+                    &mut names,
+                )
+                .unwrap();
 
             statements.extend(stmts);
         }
@@ -1632,19 +1630,16 @@ mod test {
 
         for instruction in instructions {
             // Pop all 3 values
-            let stmts = instruction_to_ir::<
-                crate::v311::ext_instructions::ExtInstruction,
-                SIRNode,
-                SIRException,
-            >(
-                instruction.get_opcode(),
-                0,
-                false,
-                &mut stack,
-                &mut phi_stack,
-                &mut names,
-            )
-            .unwrap();
+            let stmts =
+                instruction_to_ir::<crate::v311::ext_instructions::ExtInstruction, SIRNode>(
+                    instruction.get_opcode(),
+                    0,
+                    false,
+                    &mut stack,
+                    &mut phi_stack,
+                    &mut names,
+                )
+                .unwrap();
 
             statements.extend(stmts);
         }
@@ -1716,7 +1711,7 @@ mod test {
         let mut phi_stack = vec![].into();
         let mut names = HashMap::new();
 
-        let (_, _, mut statements) = process_stack_effects::<SIRNode, SIRException>(
+        let (_, _, mut statements) = process_stack_effects::<SIRNode>(
             inputs,
             outputs,
             0,
@@ -1791,7 +1786,7 @@ mod test {
         let mut phi_stack = vec![].into();
         let mut names = HashMap::new();
 
-        let (_, _, stmts) = process_stack_effects::<SIRNode, SIRException>(
+        let (_, _, stmts) = process_stack_effects::<SIRNode>(
             inputs,
             outputs,
             1,
@@ -1837,7 +1832,7 @@ mod test {
         }]
         .as_slice();
 
-        let (_, _, stmts) = process_stack_effects::<SIRNode, SIRException>(
+        let (_, _, stmts) = process_stack_effects::<SIRNode>(
             inputs,
             &[],
             -1,
@@ -1894,7 +1889,7 @@ mod test {
 
         dbg!(&stack, &curr_stack);
 
-        let (_, _, stmts) = process_stack_effects::<SIRNode, SIRException>(
+        let (_, _, stmts) = process_stack_effects::<SIRNode>(
             inputs,
             outputs,
             -1,
@@ -1956,12 +1951,9 @@ mod test {
 
         println!(
             "{}",
-            bb_to_ir::<ExtInstruction, SIRNode, SIRException>(
-                &ext_instructions,
-                &mut HashMap::new()
-            )
-            .unwrap()
-            .0
+            bb_to_ir::<ExtInstruction, SIRNode>(&ext_instructions, &mut HashMap::new())
+                .unwrap()
+                .0
         );
     }
 
@@ -1984,20 +1976,9 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
-        let cfg: ControlFlowGraph<ExtInstruction, v311::opcodes::BranchReason> =
-            simple_cfg_to_ext_cfg::<
-                Instruction,
-                ExtInstruction,
-                ExtInstructions,
-                v311::opcodes::BranchReason,
-            >(&cfg)
-            .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
-        let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
-                &cfg, false,
-            )
-            .unwrap();
+        let ir_cfg = cfg_to_ir::<ExtInstruction, SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 
@@ -2015,19 +1996,9 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
-        let cfg = simple_cfg_to_ext_cfg::<
-            Instruction,
-            ExtInstruction,
-            ExtInstructions,
-            v311::opcodes::BranchReason,
-        >(&cfg)
-        .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
-        let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
-                &cfg, false,
-            )
-            .unwrap();
+        let ir_cfg = cfg_to_ir::<ExtInstruction, SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
         insta::assert_debug_snapshot!(ir_cfg);
@@ -2049,23 +2020,11 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
-        let cfg = simple_cfg_to_ext_cfg::<
-            crate::v310::instructions::Instruction,
-            crate::v310::ext_instructions::ExtInstruction,
-            crate::v310::ext_instructions::ExtInstructions,
-            crate::v310::opcodes::Opcode,
-        >(&cfg)
-        .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
-        let ir_cfg = cfg_to_ir::<
-            crate::v310::ext_instructions::ExtInstruction,
-            crate::v310::opcodes::sir::SIRNode,
-            crate::v310::opcodes::sir::SIRException,
-            crate::v310::opcodes::Opcode,
-        >(&cfg, false)
-        .unwrap();
+        let ir_cfg = cfg_to_ir::<_, crate::v310::opcodes::sir::SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
         insta::assert_debug_snapshot!(ir_cfg);
@@ -2087,19 +2046,9 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
 
-        let cfg = simple_cfg_to_ext_cfg::<
-            Instruction,
-            ExtInstruction,
-            ExtInstructions,
-            v311::opcodes::BranchReason,
-        >(&cfg)
-        .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
-        let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
-                &cfg, false,
-            )
-            .unwrap();
+        let ir_cfg = cfg_to_ir::<_, SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 
@@ -2117,21 +2066,9 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
-        let cfg = simple_cfg_to_ext_cfg::<
-            crate::v310::instructions::Instruction,
-            crate::v310::ext_instructions::ExtInstruction,
-            crate::v310::ext_instructions::ExtInstructions,
-            crate::v310::opcodes::Opcode,
-        >(&cfg)
-        .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
-        let ir_cfg = cfg_to_ir::<
-            crate::v310::ext_instructions::ExtInstruction,
-            crate::v310::opcodes::sir::SIRNode,
-            crate::v310::opcodes::sir::SIRException,
-            crate::v310::opcodes::Opcode,
-        >(&cfg, false)
-        .unwrap();
+        let ir_cfg = cfg_to_ir::<_, crate::v310::opcodes::sir::SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 
@@ -2160,10 +2097,9 @@ mod test {
         .to_resolved()
         .unwrap();
 
-        let cfg = create_cfg::<_, _, Opcode>(ext_instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(ext_instructions.to_vec(), None).unwrap();
 
-        let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, Opcode>(&cfg, false).unwrap();
+        let ir_cfg = cfg_to_ir::<_, SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 
@@ -2194,10 +2130,9 @@ mod test {
         .to_resolved()
         .unwrap();
 
-        let cfg = create_cfg::<_, _, Opcode>(ext_instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(ext_instructions.to_vec(), None).unwrap();
 
-        let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, Opcode>(&cfg, false).unwrap();
+        let ir_cfg = cfg_to_ir::<_, SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 
@@ -2231,19 +2166,11 @@ mod test {
             lasti: false,
         }];
 
-        let cfg = create_cfg::<_, _, v311::opcodes::BranchReason>(
-            ext_instructions.to_vec(),
-            Some(exception_table),
-        )
-        .unwrap();
+        let cfg = create_cfg(ext_instructions.to_vec(), Some(exception_table)).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
-        let ir_cfg =
-            cfg_to_ir::<ExtInstruction, SIRNode, SIRException, v311::opcodes::BranchReason>(
-                &cfg, false,
-            )
-            .unwrap();
+        let ir_cfg = cfg_to_ir::<_, SIRNode>(&cfg, false).unwrap();
 
         println!("{}", ir_cfg.make_dot_graph());
 

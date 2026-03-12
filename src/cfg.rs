@@ -884,7 +884,7 @@ where
 }
 
 // Convert a cfg that consists of simple instructions to a cfg where the extended args are resolved.
-pub fn simple_cfg_to_ext_cfg<SimpleI, ExtI, ExtInstructions, BranchReason>(
+pub fn simple_cfg_to_ext_cfg<SimpleI, ExtI, ExtInstructions>(
     simple_cfg: &ControlFlowGraph<SimpleI>,
 ) -> Result<ControlFlowGraph<ExtI>, Error>
 where
@@ -894,7 +894,6 @@ where
             Opcode = SimpleI::Opcode,
             Instructions = ExtInstructions,
         >,
-    BranchReason: BranchReasonTrait,
     ExtInstructions: ExtInstructionAccess<SimpleI, ExtI>,
 {
     let mut blocks = vec![];
@@ -940,8 +939,7 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg: ControlFlowGraph<_, BranchReason> =
-            create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -965,8 +963,7 @@ mod test {
 
         dbg!(&instructions);
 
-        let cfg: ControlFlowGraph<_, BranchReason> =
-            create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
         dbg!(&cfg);
 
@@ -1018,11 +1015,7 @@ mod test {
 
         println!("{}", cfg.make_dot_graph());
 
-        let cfg: ControlFlowGraph<ExtInstruction, BranchReason> =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
-                &cfg,
-            )
-            .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1039,8 +1032,7 @@ mod test {
             Instruction::StoreName(0),
         ]);
 
-        let cfg: ControlFlowGraph<_, BranchReason> =
-            create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1057,8 +1049,7 @@ mod test {
             Instruction::JumpForward(0),
         ]);
 
-        let cfg: ControlFlowGraph<_, BranchReason> =
-            create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1081,11 +1072,7 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
 
-        let cfg =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
-                &cfg,
-            )
-            .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1109,13 +1096,7 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), None).unwrap();
 
-        let cfg = simple_cfg_to_ext_cfg::<
-            crate::v310::instructions::Instruction,
-            crate::v310::ext_instructions::ExtInstruction,
-            crate::v310::ext_instructions::ExtInstructions,
-            crate::v310::opcodes::Opcode,
-        >(&cfg)
-        .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1135,11 +1116,7 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
 
-        let cfg =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
-                &cfg,
-            )
-            .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1159,11 +1136,7 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
 
-        let cfg =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
-                &cfg,
-            )
-            .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1185,11 +1158,7 @@ mod test {
 
         let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
 
-        let cfg =
-            simple_cfg_to_ext_cfg::<Instruction, ExtInstruction, ExtInstructions, BranchReason>(
-                &cfg,
-            )
-            .unwrap();
+        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 

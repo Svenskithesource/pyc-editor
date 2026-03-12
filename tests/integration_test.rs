@@ -493,21 +493,14 @@ fn test_stacksize_standard_lib() {
 fn test_create_cfg_standard_lib() {
     use pyc_editor::cfg::create_cfg;
 
-    fn get_len_without_cache<I>(instructions: &[I]) -> usize
-    where
-        I: GenericInstruction,
-    {
+    fn get_len_without_cache<I: GenericInstruction>(instructions: &[I]) -> usize {
         instructions
             .iter()
             .filter(|i| !i.is_cache() && !i.is_extended_arg())
             .count()
     }
 
-    fn count_cfg_instructions<I, BranchReason>(cfg: &ControlFlowGraph<I, BranchReason>) -> usize
-    where
-        I: GenericInstruction,
-        BranchReason: BranchReasonTrait,
-    {
+    fn count_cfg_instructions<I: GenericInstruction>(cfg: &ControlFlowGraph<I>) -> usize {
         let mut instruction_count = 0;
 
         for block in &cfg.blocks {
@@ -546,25 +539,13 @@ fn test_create_cfg_standard_lib() {
             fn create_cfg_from_code(code: pyc_editor::CodeObject) {
                 macro_rules! create_cfg {
                     (V310, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v310::opcodes::Opcode>(
+                        create_cfg(
                             $code_clone.code.to_vec(),
                             None,
                         )
                     };
-                    (V311, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v311::opcodes::BranchReason>(
-                            $code_clone.code.to_vec(),
-                            Some($code_clone.exception_table().unwrap()),
-                        )
-                    };
-                    (V312, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v312::opcodes::BranchReason>(
-                            $code_clone.code.to_vec(),
-                            Some($code_clone.exception_table().unwrap()),
-                        )
-                    };
-                    (V313, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v313::opcodes::BranchReason>(
+                    ($variant:ident, $code_clone:ident) => {
+                        create_cfg(
                             $code_clone.code.to_vec(),
                             Some($code_clone.exception_table().unwrap()),
                         )
@@ -640,25 +621,10 @@ fn test_create_sir_standard_lib() {
             fn create_cfg_from_code(code: pyc_editor::CodeObject) {
                 macro_rules! create_cfg {
                     (V310, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v310::opcodes::Opcode>(
-                            $code_clone.code.to_vec(),
-                            None,
-                        )
+                        create_cfg($code_clone.code.to_vec(), None)
                     };
-                    (V311, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v311::opcodes::BranchReason>(
-                            $code_clone.code.to_vec(),
-                            Some($code_clone.exception_table().unwrap()),
-                        )
-                    };
-                    (V312, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v312::opcodes::BranchReason>(
-                            $code_clone.code.to_vec(),
-                            Some($code_clone.exception_table().unwrap()),
-                        )
-                    };
-                    (V313, $code_clone:ident) => {
-                        create_cfg::<_, _, pyc_editor::v313::opcodes::BranchReason>(
+                    ($variant:ident, $code_clone:ident) => {
+                        create_cfg(
                             $code_clone.code.to_vec(),
                             Some($code_clone.exception_table().unwrap()),
                         )
@@ -673,13 +639,7 @@ fn test_create_sir_standard_lib() {
 
                         let cfg = create_cfg!($variant, code_clone).unwrap();
 
-                        let cfg = simple_cfg_to_ext_cfg::<
-                            pyc_editor::$module::instructions::Instruction,
-                            pyc_editor::$module::ext_instructions::ExtInstruction,
-                            pyc_editor::$module::ext_instructions::ExtInstructions,
-                            _,
-                        >(&cfg)
-                        .unwrap();
+                        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
                         // println!("{}", cfg.make_dot_graph());
 
@@ -690,12 +650,7 @@ fn test_create_sir_standard_lib() {
                                 | CodeFlags::ITERABLE_COROUTINE,
                         );
 
-                        cfg_to_ir::<
-                            _,
-                            pyc_editor::$module::opcodes::sir::SIRNode,
-                            pyc_editor::$module::opcodes::sir::SIRException,
-                            _,
-                        >(
+                        cfg_to_ir::<_, pyc_editor::$module::opcodes::sir::SIRNode>(
                             &cfg,
                             if is_generator {
                                 get_generator_stacksize!($variant) == 1

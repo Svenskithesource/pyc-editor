@@ -29,7 +29,8 @@ jobs:
 
         missing_versions=()
         for version in "${versions[@]}"; do
-          if [ ! -d "tests/data/cpython-${version}/Lib" ]; then
+            major_minor="${version%.*}"
+            if [ ! -d "tests/data/cpython-${major_minor}/Lib" ]; then
             missing_versions+=("$version")
           fi
         done

@@ -227,7 +227,7 @@ impl GenericOpcode for Opcode {
 impl BranchReasonTrait for Opcode {
     type Opcode = Opcode;
 
-    fn from_exception(lasti: bool, stack_depth: usize) -> Result<Self, Error> {
+    fn from_exception(_lasti: bool, _stack_depth: usize) -> Result<Self, Error> {
         Err(Error::UnexpectedExceptiontable)
     }
 

@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::HashMap,
     ops::Index,
 };
 
@@ -485,13 +485,13 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
 
         let text = format!("{}", block.nodes);
 
-        let index = if block_map.contains_key(&block_index) {
-            block_map[&block_index]
-        } else {
+        let index = if let std::collections::hash_map::Entry::Vacant(e) = block_map.entry(block_index) {
             let index = graph.add_node(text);
-            block_map.insert(block_index, index);
+            e.insert(index);
 
             index
+        } else {
+            block_map[&block_index]
         };
 
         let (branch_index, branch_statements) = match &block.branch_block {

@@ -9,7 +9,7 @@ use crate::{
     sir::SIRBranchEdge,
     traits::{
         BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode,
-        GenericSIRException, GenericSIRNode, InstructionAccess, Oparg, SIROwned,
+        GenericSIRException, GenericSIRNode, InstructionAccess, SIROwned,
         SimpleInstructionAccess,
     },
     utils::ExceptionTableEntry,
@@ -188,13 +188,13 @@ where
 
         let text = lines.join("\n");
 
-        let index = if block_map.contains_key(&block_index) {
-            block_map[&block_index]
-        } else {
+        let index = if let std::collections::hash_map::Entry::Vacant(e) = block_map.entry(block_index) {
             let index = graph.add_node(text);
-            block_map.insert(block_index, index);
+            e.insert(index);
 
             index
+        } else {
+            block_map[&block_index]
         };
 
         let (branch_index, reason) = match &block.branch_block {

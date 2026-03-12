@@ -998,18 +998,18 @@ where
 mod test {
     use std::collections::HashMap;
 
-    use rayon::vec;
+    
 
-    use crate::cfg::{ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg};
+    use crate::cfg::{create_cfg, simple_cfg_to_ext_cfg};
     use crate::sir::{
-        AuxVar, SIR, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
+        AuxVar, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
         instruction_to_ir, process_stack_effects,
     };
     use crate::traits::{GenericInstruction, GenericSIRException};
-    use crate::utils::{ExceptionTableEntry, InfiniteStack, InfiniteVec};
-    use crate::v311::ext_instructions::{ExtInstruction, ExtInstructions};
+    use crate::utils::{ExceptionTableEntry, InfiniteStack};
+    use crate::v311::ext_instructions::ExtInstruction;
     use crate::v311::instructions::Instruction;
-    use crate::v311::opcodes::sir::{SIRException, SIRNode};
+    use crate::v311::opcodes::sir::SIRNode;
     use crate::{CodeObject, v311};
 
     // #[test]
@@ -1464,8 +1464,7 @@ mod test {
         let mut curr_stack = vec![
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "og_iter".into(),
-            })
-            .into(),
+            }),
         ];
 
         let mut statements = vec![];
@@ -1490,17 +1489,16 @@ mod test {
             statements.extend(stmts);
         }
 
-        fill_phi_nodes(&mut curr_stack, &mut statements, &mut phi_stack).unwrap();
+        fill_phi_nodes(&mut curr_stack, &mut statements, &phi_stack).unwrap();
 
-        extend_merge_stack(&mut curr_stack, &mut stack, &phi_stack).unwrap();
+        extend_merge_stack(&mut curr_stack, &stack, &phi_stack).unwrap();
 
         assert_eq!(curr_stack.len(), 1);
         assert_eq!(
             *curr_stack.first().unwrap(),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "iter_0".into()
-            },)
-            .into(),
+            },),
         );
 
         assert_eq!(
@@ -1581,12 +1579,10 @@ mod test {
         let mut curr_stack = vec![
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "iter_0".into(),
-            })
-            .into(),
+            }),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "next_0".into(),
-            })
-            .into(),
+            }),
         ];
 
         let mut statements = vec![];
@@ -1611,9 +1607,9 @@ mod test {
             statements.extend(stmts);
         }
 
-        fill_phi_nodes(&mut curr_stack, &mut statements, &mut phi_stack).unwrap();
+        fill_phi_nodes(&mut curr_stack, &mut statements, &phi_stack).unwrap();
 
-        extend_merge_stack(&mut curr_stack, &mut stack, &phi_stack).unwrap();
+        extend_merge_stack(&mut curr_stack, &stack, &phi_stack).unwrap();
 
         assert_eq!(curr_stack.len(), 2);
         assert_eq!(
@@ -1662,16 +1658,13 @@ mod test {
         let mut curr_stack = vec![
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "first".into(),
-            })
-            .into(),
+            }),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "second".into(),
-            })
-            .into(),
+            }),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "third".into(),
-            })
-            .into(),
+            }),
         ];
 
         let mut stack: InfiniteStack<_> = vec![].into();
@@ -1689,9 +1682,9 @@ mod test {
         )
         .unwrap();
 
-        fill_phi_nodes(&mut curr_stack, &mut statements, &mut phi_stack).unwrap();
+        fill_phi_nodes(&mut curr_stack, &mut statements, &phi_stack).unwrap();
 
-        extend_merge_stack(&mut curr_stack, &mut stack, &phi_stack).unwrap();
+        extend_merge_stack(&mut curr_stack, &stack, &phi_stack).unwrap();
 
         assert_eq!(
             curr_stack,
@@ -1737,16 +1730,13 @@ mod test {
         let mut curr_stack = vec![
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "first".into(),
-            })
-            .into(),
+            }),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "second".into(),
-            })
-            .into(),
+            }),
             crate::sir::SIRExpression::AuxVar(AuxVar {
                 name: "third".into(),
-            })
-            .into(),
+            }),
         ];
 
         let mut stack: InfiniteStack<_> = vec![].into();
@@ -1768,9 +1758,9 @@ mod test {
 
         let mut sanity_stack = curr_stack.clone();
 
-        fill_phi_nodes(&mut curr_stack, &mut statements.clone(), &mut phi_stack).unwrap();
+        fill_phi_nodes(&mut curr_stack, &mut statements.clone(), &phi_stack).unwrap();
 
-        extend_merge_stack(&mut sanity_stack, &mut stack, &phi_stack).unwrap();
+        extend_merge_stack(&mut sanity_stack, &stack, &phi_stack).unwrap();
 
         assert_eq!(
             sanity_stack,
@@ -1814,9 +1804,9 @@ mod test {
 
         let mut sanity_stack = curr_stack.clone();
 
-        fill_phi_nodes(&mut curr_stack, &mut statements.clone(), &mut phi_stack).unwrap();
+        fill_phi_nodes(&mut curr_stack, &mut statements.clone(), &phi_stack).unwrap();
 
-        extend_merge_stack(&mut sanity_stack, &mut stack, &phi_stack).unwrap();
+        extend_merge_stack(&mut sanity_stack, &stack, &phi_stack).unwrap();
 
         assert_eq!(
             sanity_stack,
@@ -1871,9 +1861,9 @@ mod test {
 
         dbg!(&stack, &curr_stack);
 
-        fill_phi_nodes(&mut curr_stack, &mut statements, &mut phi_stack).unwrap();
+        fill_phi_nodes(&mut curr_stack, &mut statements, &phi_stack).unwrap();
 
-        extend_merge_stack(&mut curr_stack, &mut stack, &phi_stack).unwrap();
+        extend_merge_stack(&mut curr_stack, &stack, &phi_stack).unwrap();
 
         dbg!(curr_stack);
         dbg!(statements);
@@ -2044,12 +2034,9 @@ mod test {
 
     #[test]
     fn test_310_with_block() {
-        use crate::v310::ext_instructions::ExtInstruction;
+        
         use crate::v310::instructions::{Instruction, Instructions};
-        use crate::v310::opcodes::{
-            Opcode,
-            sir::{SIRException, SIRNode},
-        };
+        use crate::v310::opcodes::sir::SIRNode;
 
         let ext_instructions = Instructions::new(vec![
             Instruction::LoadConst(0),
@@ -2075,12 +2062,9 @@ mod test {
 
     #[test]
     fn test_310_nested_try() {
-        use crate::v310::ext_instructions::ExtInstruction;
+        
         use crate::v310::instructions::{Instruction, Instructions};
-        use crate::v310::opcodes::{
-            Opcode,
-            sir::{SIRException, SIRNode},
-        };
+        use crate::v310::opcodes::sir::SIRNode;
 
         let ext_instructions = Instructions::new(vec![
             Instruction::SetupFinally(2),

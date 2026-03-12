@@ -915,12 +915,8 @@ where
 mod test {
     use crate::{
         CodeObject,
-        cfg::{ControlFlowGraph, create_cfg, simple_cfg_to_ext_cfg},
-        v311::{
-            ext_instructions::{ExtInstruction, ExtInstructions},
-            instructions::{Instruction, Instructions},
-            opcodes::BranchReason,
-        },
+        cfg::{create_cfg, simple_cfg_to_ext_cfg},
+        v311::instructions::{Instruction, Instructions},
     };
 
     #[test]

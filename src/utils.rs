@@ -443,7 +443,7 @@ mod test {
 
         assert_eq!(
             infinite_vec.iter().collect::<Vec<_>>(),
-            vec![Some(5), None, None, None, None, Some(1)]
+            [Some(5), None, None, None, None, Some(1)]
                 .iter()
                 .collect::<Vec<_>>()
         );

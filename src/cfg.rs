@@ -8,9 +8,8 @@ use crate::{
     error::Error,
     sir::SIRBranchEdge,
     traits::{
-        BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode,
-        GenericSIRException, GenericSIRNode, InstructionAccess, SIROwned,
-        SimpleInstructionAccess,
+        BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode, GenericSIRNode,
+        InstructionAccess, SIROwned, SimpleInstructionAccess,
     },
     utils::ExceptionTableEntry,
 };
@@ -188,14 +187,15 @@ where
 
         let text = lines.join("\n");
 
-        let index = if let std::collections::hash_map::Entry::Vacant(e) = block_map.entry(block_index) {
-            let index = graph.add_node(text);
-            e.insert(index);
+        let index =
+            if let std::collections::hash_map::Entry::Vacant(e) = block_map.entry(block_index) {
+                let index = graph.add_node(text);
+                e.insert(index);
 
-            index
-        } else {
-            block_map[&block_index]
-        };
+                index
+            } else {
+                block_map[&block_index]
+            };
 
         let (branch_index, reason) = match &block.branch_block {
             BlockIndexInfo::Edge(BranchEdge {

@@ -241,7 +241,7 @@ where
 impl<T> Default for InfiniteVec<T>
 where
     T: Clone + std::fmt::Debug,
- {
+{
     fn default() -> Self {
         Self::new()
     }

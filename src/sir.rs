@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    ops::Index,
-};
+use std::{collections::HashMap, ops::Index};
 
 use crate::{
     cfg::{BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph},
@@ -485,14 +482,15 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
 
         let text = format!("{}", block.nodes);
 
-        let index = if let std::collections::hash_map::Entry::Vacant(e) = block_map.entry(block_index) {
-            let index = graph.add_node(text);
-            e.insert(index);
+        let index =
+            if let std::collections::hash_map::Entry::Vacant(e) = block_map.entry(block_index) {
+                let index = graph.add_node(text);
+                e.insert(index);
 
-            index
-        } else {
-            block_map[&block_index]
-        };
+                index
+            } else {
+                block_map[&block_index]
+            };
 
         let (branch_index, branch_statements) = match &block.branch_block {
             SIRBlockIndexInfo::Edge(SIRBranchEdge {
@@ -998,14 +996,12 @@ where
 mod test {
     use std::collections::HashMap;
 
-    
-
     use crate::cfg::{create_cfg, simple_cfg_to_ext_cfg};
     use crate::sir::{
         AuxVar, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
         instruction_to_ir, process_stack_effects,
     };
-    use crate::traits::{GenericInstruction, GenericSIRException};
+    use crate::traits::GenericInstruction;
     use crate::utils::{ExceptionTableEntry, InfiniteStack};
     use crate::v311::ext_instructions::ExtInstruction;
     use crate::v311::instructions::Instruction;
@@ -1461,11 +1457,9 @@ mod test {
             crate::v311::instructions::Instruction::StoreName(0),
         ];
 
-        let mut curr_stack = vec![
-            crate::sir::SIRExpression::AuxVar(AuxVar {
-                name: "og_iter".into(),
-            }),
-        ];
+        let mut curr_stack = vec![crate::sir::SIRExpression::AuxVar(AuxVar {
+            name: "og_iter".into(),
+        })];
 
         let mut statements = vec![];
 
@@ -2034,7 +2028,6 @@ mod test {
 
     #[test]
     fn test_310_with_block() {
-        
         use crate::v310::instructions::{Instruction, Instructions};
         use crate::v310::opcodes::sir::SIRNode;
 
@@ -2062,7 +2055,6 @@ mod test {
 
     #[test]
     fn test_310_nested_try() {
-        
         use crate::v310::instructions::{Instruction, Instructions};
         use crate::v310::opcodes::sir::SIRNode;
 

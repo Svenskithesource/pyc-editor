@@ -22,8 +22,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         if index <= u8::MAX.into() {
             instructions.append_instruction(Instruction::JumpAbsolute(index as u8));
         } else {
+            let new_index = instructions.len();
+
             let mut ext_args = Vec::new();
-            let mut remaining = index >> 8;
+            let mut remaining = new_index >> 8;
             while remaining > 0 {
                 ext_args.push((remaining & 0xff) as u8);
                 remaining >>= 8;
@@ -34,7 +36,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 instructions.append_instruction((Opcode::EXTENDED_ARG, ext).into());
             }
 
-            instructions.append_instruction(Instruction::JumpAbsolute((index & 0xff) as u8));
+            instructions.append_instruction(Instruction::JumpAbsolute((new_index & 0xff) as u8));
         }
     }
 

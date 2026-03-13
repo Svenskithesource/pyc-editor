@@ -34,7 +34,11 @@ pub const PYTHON_VERSIONS: &[PyVersion] = &[
 
 fn init_repo(version: &PyVersion) {
     // Download the standard library for the specified Python version if it doesn't exist
-    if std::fs::metadata(Path::new(DATA_PATH).join(format!("cpython-{}", version))).is_err() {
+    if std::fs::metadata(
+        Path::new(DATA_PATH).join(format!("cpython-{}.{}", version.major, version.minor)),
+    )
+    .is_err()
+    {
         let resp = reqwest::blocking::get(format!(
             "https://github.com/python/cpython/archive/refs/tags/v{}.zip",
             version
@@ -53,15 +57,21 @@ fn init_repo(version: &PyVersion) {
 
             // Only extract files from the `Lib` directory
             if outpath.starts_with(format!("cpython-{}/Lib/", version)) {
-                let outpath = Path::new(DATA_PATH).join(outpath);
+                let outpath = Path::new(DATA_PATH).join(
+                    Path::new(&format!("cpython-{}.{}", version.major, version.minor)).join(
+                        outpath
+                            .strip_prefix(format!("cpython-{}/", version))
+                            .unwrap(),
+                    ),
+                );
 
                 if file.is_dir() {
                     fs::create_dir_all(&outpath).unwrap();
                 } else {
-                    if let Some(parent) = outpath.parent() {
-                        if !parent.exists() {
-                            fs::create_dir_all(parent).unwrap();
-                        }
+                    if let Some(parent) = outpath.parent()
+                        && !parent.exists()
+                    {
+                        fs::create_dir_all(parent).unwrap();
                     }
 
                     let mut outfile = fs::File::create(&outpath).unwrap();
@@ -75,7 +85,8 @@ fn init_repo(version: &PyVersion) {
 }
 
 fn compile_repo(version: &PyVersion) {
-    let lib_dir = Path::new(DATA_PATH).join(format!("cpython-{}/Lib", version));
+    let lib_dir =
+        Path::new(DATA_PATH).join(format!("cpython-{}.{}/Lib", version.major, version.minor));
 
     let path_str = lib_dir.canonicalize().unwrap();
 
@@ -172,7 +183,8 @@ fn find_pyc_files_in_dir(dir: &Path) -> Vec<PathBuf> {
 pub fn find_pyc_files(version: &PyVersion) -> Vec<PathBuf> {
     let mut pyc_files = Vec::new();
 
-    let lib_dir = Path::new(DATA_PATH).join(format!("cpython-{}/Lib", version));
+    let lib_dir =
+        Path::new(DATA_PATH).join(format!("cpython-{}.{}/Lib", version.major, version.minor));
     pyc_files.extend(find_pyc_files_in_dir(&lib_dir));
 
     pyc_files

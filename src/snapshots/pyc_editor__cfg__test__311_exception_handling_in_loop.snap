@@ -1,0 +1,601 @@
+---
+source: src/cfg.rs
+expression: cfg
+---
+ControlFlowGraph {
+    blocks: [
+        Block {
+            instructions: [
+                Resume(
+                    StartFunction,
+                ),
+                LoadConst(
+                    ConstIndex {
+                        index: 1,
+                    },
+                ),
+                StoreFast(
+                    VarNameIndex {
+                        index: 1,
+                    },
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: Fallthrough(
+                Index(
+                    1,
+                ),
+            ),
+        },
+        Block {
+            instructions: [
+                LoadFast(
+                    VarNameIndex {
+                        index: 1,
+                    },
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
+                    block_index: Index(
+                        2,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
+                    block_index: Index(
+                        3,
+                    ),
+                },
+            ),
+        },
+        Block {
+            instructions: [
+                LoadConst(
+                    ConstIndex {
+                        index: 3,
+                    },
+                ),
+                StoreFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: Fallthrough(
+                Index(
+                    4,
+                ),
+            ),
+        },
+        Block {
+            instructions: [
+                LoadConst(
+                    ConstIndex {
+                        index: 2,
+                    },
+                ),
+                StoreFast(
+                    VarNameIndex {
+                        index: 1,
+                    },
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        JUMP_BACKWARD,
+                    ),
+                    block_index: Index(
+                        1,
+                    ),
+                },
+            ),
+            default_block: NoIndex,
+        },
+        Block {
+            instructions: [
+                LoadFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
+                    block_index: Index(
+                        5,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
+                    block_index: Index(
+                        6,
+                    ),
+                },
+            ),
+        },
+        Block {
+            instructions: [
+                LoadFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+                LoadConst(
+                    ConstIndex {
+                        index: 4,
+                    },
+                ),
+                CompareOp(
+                    NotEqual,
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
+                    block_index: Index(
+                        7,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
+                    block_index: Index(
+                        8,
+                    ),
+                },
+            ),
+        },
+        Block {
+            instructions: [
+                LoadConst(
+                    ConstIndex {
+                        index: 4,
+                    },
+                ),
+                StoreFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+                Nop(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        JUMP_BACKWARD,
+                    ),
+                    block_index: Index(
+                        4,
+                    ),
+                },
+            ),
+            default_block: NoIndex,
+        },
+        Block {
+            instructions: [
+                LoadConst(
+                    ConstIndex {
+                        index: 3,
+                    },
+                ),
+                StoreFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: Fallthrough(
+                Index(
+                    9,
+                ),
+            ),
+        },
+        Block {
+            instructions: [
+                LoadFast(
+                    VarNameIndex {
+                        index: 0,
+                    },
+                ),
+                LoadMethod(
+                    NameIndex {
+                        index: 0,
+                    },
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                LoadFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+                Precall(
+                    1,
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Call(
+                    1,
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                PopTop(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: Fallthrough(
+                Index(
+                    7,
+                ),
+            ),
+        },
+        Block {
+            instructions: [
+                LoadFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
+                    block_index: Index(
+                        10,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_TRUE,
+                    ),
+                    block_index: Index(
+                        11,
+                    ),
+                },
+            ),
+        },
+        Block {
+            instructions: [
+                LoadFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+                LoadConst(
+                    ConstIndex {
+                        index: 4,
+                    },
+                ),
+                CompareOp(
+                    NotEqual,
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
+                    block_index: Index(
+                        12,
+                    ),
+                },
+            ),
+            default_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        POP_JUMP_FORWARD_IF_FALSE,
+                    ),
+                    block_index: Index(
+                        13,
+                    ),
+                },
+            ),
+        },
+        Block {
+            instructions: [
+                LoadConst(
+                    ConstIndex {
+                        index: 7,
+                    },
+                ),
+                StoreFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+                Nop(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Nop(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                LoadConst(
+                    ConstIndex {
+                        index: 4,
+                    },
+                ),
+                StoreFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+            ],
+            branch_block: Edge(
+                BranchEdge {
+                    reason: Opcode(
+                        JUMP_BACKWARD,
+                    ),
+                    block_index: Index(
+                        9,
+                    ),
+                },
+            ),
+            default_block: NoIndex,
+        },
+        Block {
+            instructions: [
+                LoadConst(
+                    ConstIndex {
+                        index: 0,
+                    },
+                ),
+                ReturnValue(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: NoIndex,
+        },
+        Block {
+            instructions: [
+                LoadFast(
+                    VarNameIndex {
+                        index: 0,
+                    },
+                ),
+                LoadMethod(
+                    NameIndex {
+                        index: 0,
+                    },
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                LoadFast(
+                    VarNameIndex {
+                        index: 2,
+                    },
+                ),
+                Precall(
+                    1,
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Call(
+                    1,
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                Cache(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                PopTop(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+                LoadConst(
+                    ConstIndex {
+                        index: 0,
+                    },
+                ),
+                ReturnValue(
+                    UnusedArgument(
+                        0,
+                    ),
+                ),
+            ],
+            branch_block: NoIndex,
+            default_block: NoIndex,
+        },
+    ],
+    start_index: Fallthrough(
+        Index(
+            0,
+        ),
+    ),
+}

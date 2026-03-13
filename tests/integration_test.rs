@@ -1,11 +1,15 @@
 use core::panic;
 use pyc_editor::{
-    dump_pyc, load_pyc, prelude::*, traits::GenericInstruction, utils::ExceptionTableEntry, v310,
-    v311, v312, v313,
+    cfg::{BlockIndexInfo, BranchEdge, ControlFlowGraph},
+    dump_pyc, load_pyc,
+    prelude::*,
+    traits::GenericInstruction,
+    utils::ExceptionTableEntry,
+    v310, v311, v312, v313,
 };
 
-use python_marshal::magic::PyVersion;
 use python_marshal::CodeFlags;
+use python_marshal::magic::PyVersion;
 use rayon::prelude::*;
 use std::{
     io::{BufReader, Write},
@@ -70,6 +74,16 @@ macro_rules! handle_pyc_versions {
                 $handler!(V313, v313, pyc)
             }
         }
+    };
+}
+
+macro_rules! get_generator_stacksize {
+    (V313) => {
+        0
+    };
+
+    ($variant:ident) => {
+        1
     };
 }
 
@@ -155,14 +169,15 @@ fn compare_instructions<T: SimpleInstructionAccess<I>, I>(original_list: T, new_
                     };
 
                     if curr_instruction.is_extended_arg()
-                        && prev_instruction.get_raw_value() != u8::MAX
+                        && prev_instruction.get_raw_value().to_u8() != u8::MAX
                     {
                         // Has to be max value for the bug to happen
                         return false;
                     }
                 }
 
-                if !(curr_instruction.is_jump_backwards() && curr_instruction.get_raw_value() == 0)
+                if !(curr_instruction.is_jump_backwards()
+                    && curr_instruction.get_raw_value().to_u8() == 0)
                 {
                     // Bug did not occur so there could be an actual mismatch or a difference in indexes due to previous bugs
                     possible_mismatches.push((og_index, new_index));
@@ -263,14 +278,15 @@ fn test_recompile_resolved_standard_lib() {
                                 return Err((
                                     pyc_editor::CodeObject::$variant(code),
                                     pyc_editor::CodeObject::$variant(new_code),
-                                ))
+                                ));
                             }
                             true => {}
                         }
 
                         for constant in &mut code.consts {
-                            if let $module::code_objects::Constant::CodeObject(ref mut const_code) =
-                                constant
+                            if let &mut $module::code_objects::Constant::CodeObject(
+                                ref mut const_code,
+                            ) = constant
                             {
                                 rewrite_code_object(pyc_editor::CodeObject::$variant(
                                     const_code.clone(),
@@ -337,7 +353,7 @@ fn test_line_number_standard_lib() {
                         }
 
                         for constant in &$code.consts {
-                            if let $module::code_objects::Constant::CodeObject(ref const_code) =
+                            if let &$module::code_objects::Constant::CodeObject(ref const_code) =
                                 constant
                             {
                                 recursive_code_object(&pyc_editor::CodeObject::$variant(
@@ -373,13 +389,14 @@ fn test_stacksize_standard_lib() {
 
     // Cpython has a bug where it overcalculates the stacksize of these files, so we skip it.
     static EXCEPTIONS: &[&str] = &[
-        "tests/data/cpython-3.11.1/Lib/test/__pycache__/test_except_star.cpython-311.pyc",
-        "tests/data/cpython-3.11.1/Lib/test/__pycache__/test_sys_settrace.cpython-311.pyc",
-        "tests/data/cpython-3.11.1/Lib/__pycache__/opcode.cpython-311.pyc", // Only fails on github actions for some reason
-        "tests/data/cpython-3.12.1/Lib/test/__pycache__/test_except_star.cpython-312.pyc",
-        "tests/data/cpython-3.12.1/Lib/test/__pycache__/test_sys_settrace.cpython-312.pyc",
-        "tests/data/cpython-3.13.1/Lib/test/__pycache__/test_except_star.cpython-313.pyc",
-        "tests/data/cpython-3.13.1/Lib/test/__pycache__/test_sys_settrace.cpython-313.pyc",
+        "tests/data/cpython-3.11/Lib/test/__pycache__/test_except_star.cpython-311.pyc",
+        "tests/data/cpython-3.11/Lib/test/__pycache__/test_sys_settrace.cpython-311.pyc",
+        "tests/data/cpython-3.11/Lib/__pycache__/opcode.cpython-311.pyc", // Only fails on github actions for some reason
+        "tests/data/cpython-3.12/Lib/test/__pycache__/test_except_star.cpython-312.pyc",
+        "tests/data/cpython-3.12/Lib/test/__pycache__/test_sys_settrace.cpython-312.pyc",
+        "tests/data/cpython-3.13/Lib/test/__pycache__/test_except_star.cpython-313.pyc",
+        "tests/data/cpython-3.13/Lib/test/__pycache__/test_sys_settrace.cpython-313.pyc",
+        "tests/data/cpython-3.13/Lib/test/test_ctypes/__pycache__/test_bytes.cpython-313.pyc", // Only fails on github actions
     ];
 
     common::PYTHON_VERSIONS.par_iter().for_each(|version| {
@@ -402,16 +419,6 @@ fn test_stacksize_standard_lib() {
 
                         ($variant:ident, $code:expr) => {
                             Some($code.exception_table().expect("Exception table is valid"))
-                        };
-                    }
-
-                    macro_rules! get_generator_stacksize {
-                        (V313, $code:expr) => {
-                            0
-                        };
-
-                        ($variant:ident, $code:expr) => {
-                            1
                         };
                     }
 
@@ -442,7 +449,7 @@ fn test_stacksize_standard_lib() {
                                     .code
                                     .max_stack_size(
                                         if is_generator {
-                                            get_generator_stacksize!($variant, $code)
+                                            get_generator_stacksize!($variant)
                                         } else {
                                             0
                                         },
@@ -454,8 +461,9 @@ fn test_stacksize_standard_lib() {
                             );
 
                             for constant in &$code.consts {
-                                if let $module::code_objects::Constant::CodeObject(ref const_code) =
-                                    constant
+                                if let &$module::code_objects::Constant::CodeObject(
+                                    ref const_code,
+                                ) = constant
                                 {
                                     recursive_code_object(&pyc_editor::CodeObject::$variant(
                                         const_code.clone(),
@@ -478,6 +486,202 @@ fn test_stacksize_standard_lib() {
 
                 handle_pyc_versions!(parsed_pyc, call_recursive, immutable);
             }
+        });
+    });
+}
+
+#[test]
+fn test_create_cfg_standard_lib() {
+    use pyc_editor::cfg::create_cfg;
+
+    fn get_len_without_cache<I: GenericInstruction>(instructions: &[I]) -> usize {
+        instructions
+            .iter()
+            .filter(|i| !i.is_cache() && !i.is_extended_arg())
+            .count()
+    }
+
+    fn count_cfg_instructions<I: GenericInstruction>(cfg: &ControlFlowGraph<I>) -> usize {
+        let mut instruction_count = 0;
+
+        for block in &cfg.blocks {
+            instruction_count += get_len_without_cache(&block.instructions);
+
+            if let BlockIndexInfo::Edge(BranchEdge { reason, .. }) = &block.branch_block
+                && reason.is_opcode()
+            {
+                instruction_count += 1;
+            }
+        }
+
+        instruction_count
+    }
+
+    LOGGER_INIT.call_once(|| {
+        common::setup();
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let parsed_pyc = load_pyc(reader).unwrap();
+
+            fn create_cfg_from_code(code: pyc_editor::CodeObject) {
+                macro_rules! create_cfg {
+                    (V310, $code_clone:ident) => {
+                        create_cfg(
+                            $code_clone.code.to_vec(),
+                            None,
+                        )
+                    };
+                    ($variant:ident, $code_clone:ident) => {
+                        create_cfg(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                }
+
+                macro_rules! cfg_from_instructions {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        let code_clone = $code.clone();
+
+                        let cfg = create_cfg!($variant, code_clone).unwrap();
+
+                        // I thought this would be a good way to find bugs but it turns out that Python
+                        // generates bytecode that can't be reached and will be automatically removed by the cfg construction.
+
+                        // assert_eq!(
+                        //     count_cfg_instructions(&cfg),
+                        //     get_len_without_cache(&code_clone.code)
+                        // );
+
+                        assert!(count_cfg_instructions(&cfg) <= get_len_without_cache(&code_clone.code));
+
+                        for constant in code_clone.consts {
+                            if let $module::code_objects::Constant::CodeObject(const_code) =
+                                constant
+                            {
+                                create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ));
+                            }
+                        }
+                    }};
+                }
+
+                handle_code_object_versions!(code, cfg_from_instructions)
+            }
+
+            macro_rules! create_cfgs {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    ));
+                }};
+            }
+
+            handle_pyc_versions!(parsed_pyc, create_cfgs, immutable);
+        });
+    });
+}
+
+#[test]
+fn test_create_sir_standard_lib() {
+    use pyc_editor::cfg::{create_cfg, simple_cfg_to_ext_cfg};
+    use pyc_editor::sir::cfg_to_ir;
+
+    LOGGER_INIT.call_once(|| {
+        common::setup();
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let parsed_pyc = load_pyc(reader).unwrap();
+
+            fn create_cfg_from_code(code: pyc_editor::CodeObject) {
+                macro_rules! create_cfg {
+                    (V310, $code_clone:ident) => {
+                        create_cfg($code_clone.code.to_vec(), None)
+                    };
+                    ($variant:ident, $code_clone:ident) => {
+                        create_cfg(
+                            $code_clone.code.to_vec(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                }
+
+                macro_rules! cfg_from_instructions {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        let code_clone = $code.clone();
+
+                        // dbg!(&code_clone.name);
+
+                        let cfg = create_cfg!($variant, code_clone).unwrap();
+
+                        let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
+
+                        // println!("{}", cfg.make_dot_graph());
+
+                        let is_generator = $code.flags.intersects(
+                            CodeFlags::GENERATOR
+                                | CodeFlags::COROUTINE
+                                | CodeFlags::ASYNC_GENERATOR
+                                | CodeFlags::ITERABLE_COROUTINE,
+                        );
+
+                        cfg_to_ir::<_, pyc_editor::$module::opcodes::sir::SIRNode>(
+                            &cfg,
+                            if is_generator {
+                                get_generator_stacksize!($variant) == 1
+                            } else {
+                                false
+                            },
+                        )
+                        .unwrap();
+
+                        for constant in code_clone.consts {
+                            if let $module::code_objects::Constant::CodeObject(const_code) =
+                                constant
+                            {
+                                create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ));
+                            }
+                        }
+                    }};
+                }
+
+                handle_code_object_versions!(code, cfg_from_instructions)
+            }
+
+            macro_rules! create_cfgs {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    create_cfg_from_code(pyc_editor::CodeObject::$variant(
+                        $pyc.code_object.clone(),
+                    ));
+                }};
+            }
+
+            handle_pyc_versions!(parsed_pyc, create_cfgs, immutable);
         });
     });
 }
@@ -522,7 +726,9 @@ fn test_write_standard_lib() {
 
 fn get_custom_path(original_path: &Path, version: &PyVersion, prefix: &'static str) -> PathBuf {
     let relative_path = original_path
-        .strip_prefix(Path::new(DATA_PATH).join(format!("cpython-{}/Lib", version)))
+        .strip_prefix(
+            Path::new(DATA_PATH).join(format!("cpython-{}.{}/Lib", version.major, version.minor)),
+        )
         .unwrap();
     Path::new(DATA_PATH)
         .join(format!("{prefix}-{version}/Lib"))

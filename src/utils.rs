@@ -1,3 +1,5 @@
+use std::collections::{HashMap, VecDeque};
+
 /// The amount of extended_args necessary to represent the arg.
 /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.
 pub fn get_extended_args_count(arg: u32) -> u8 {
@@ -32,10 +34,14 @@ pub struct StackEffect {
 /// Offsets are for instructions (not bytes)
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExceptionTableEntry {
+    /// Inclusive offset
     pub start: u32,
+    /// Exclusive offset
     pub end: u32,
     pub target: u32,
+    /// Stack depth at the start of the try block
     pub depth: u32,
+    /// Whether to push the index of the last executed instruction
     pub lasti: bool,
 }
 
@@ -73,87 +79,6 @@ impl StackEffect {
     pub fn net_total(&self) -> i32 {
         self.pushes as i32 - self.pops as i32
     }
-}
-
-#[macro_export]
-macro_rules! define_opcodes {
-    (
-        $(
-            $name:ident = $value:expr
-        ),* $(,)?
-    ) => {
-        #[allow(non_camel_case_types)]
-        #[allow(clippy::upper_case_acronyms)]
-        #[derive(Debug, Clone, PartialEq, Eq)]
-        pub enum Opcode {
-            $( $name ),*,
-            INVALID_OPCODE(u8),
-        }
-
-        impl From<u8> for Opcode {
-            fn from(value: u8) -> Self {
-                match value {
-                    $( $value => Opcode::$name, )*
-                    _ => Opcode::INVALID_OPCODE(value),
-                }
-            }
-        }
-
-        impl From<Opcode> for u8 {
-            fn from(value: Opcode) -> Self {
-                match value {
-                    $( Opcode::$name => $value , )*
-                    Opcode::INVALID_OPCODE(value) => value,
-                }
-            }
-        }
-
-        impl From<(Opcode, u8)> for Instruction {
-            fn from(value: (Opcode, u8)) -> Self {
-                match value.0 {
-                    $(
-                        Opcode::$name => define_opcodes!(@instruction $name, value.1),
-                    )*
-                    Opcode::INVALID_OPCODE(opcode) => {
-                        if !cfg!(test) {
-                            Instruction::InvalidOpcode((opcode, value.1))
-                        } else {
-                            panic!("Testing environment should not come across invalid opcodes")
-                        }
-                    },
-                }
-            }
-        }
-
-        impl Opcode {
-            pub fn from_instruction(instruction: &Instruction) -> Self {
-                match instruction {
-                    $(
-                        define_opcodes!(@instruction $name) => Opcode::$name ,
-                    )*
-                    Instruction::InvalidOpcode((opcode, _)) => Opcode::INVALID_OPCODE(*opcode),
-                }
-            }
-        }
-    };
-
-    (@instruction $variant:ident, $val:expr) => {
-        paste! { Instruction::[<$variant:camel>]($val) }
-    };
-
-    (@instruction $variant:ident) => {
-        paste! { Instruction::[<$variant:camel>](_) }
-    };
-}
-
-#[macro_export]
-macro_rules! get_names {
-    (@instruction $variant:ident, $val:expr) => {
-        paste::paste! { Instruction::[<$variant:camel>]($val) }
-    };
-    (@instruction $variant:ident) => {
-        paste::paste! { Instruction::[<$variant:camel>](_) }
-    };
 }
 
 #[macro_export]
@@ -196,8 +121,9 @@ macro_rules! define_default_traits {
                     return Err(Error::InvalidBytecodeLength);
                 }
 
-                let mut instructions =
-                    $crate::$variant::instructions::Instructions(Vec::with_capacity(code.len() / 2));
+                let mut instructions = $crate::$variant::instructions::Instructions(
+                    Vec::with_capacity(code.len() / 2),
+                );
 
                 for chunk in code.chunks(2) {
                     if chunk.len() != 2 {
@@ -229,10 +155,10 @@ macro_rules! define_default_traits {
             }
         }
 
-        impl<T> SimpleInstructionAccess<$crate::$variant::instructions::Instruction> for T where
-            T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
-        {
-        }
+        // impl<T> SimpleInstructionAccess<$crate::$variant::instructions::Instruction> for T where
+        //     T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
+        // {
+        // }
     };
 
     ($variant:ident, ExtInstruction) => {
@@ -286,4 +212,242 @@ macro_rules! define_default_traits {
             }
         }
     };
+}
+
+pub fn generate_var_name(
+    stack_name: &'static str,
+    names: &mut HashMap<&'static str, u32>,
+) -> String {
+    if names.contains_key(stack_name) {
+        *names.get_mut(stack_name).unwrap() += 1;
+    } else {
+        names.insert(stack_name, 0);
+    }
+
+    format!("{}_{}", stack_name, names[stack_name])
+}
+
+/// A vector that allows for negative indexes and automatically fills elements with an "empty" value when inserting at an arbitrary index below 0.
+#[derive(Debug, Clone)]
+pub struct InfiniteVec<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    data: VecDeque<Option<T>>,
+    /// This is the offset that indicates where index "0" is really at
+    negative_offset: usize,
+}
+
+impl<T> Default for InfiniteVec<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> InfiniteVec<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    pub fn new() -> Self {
+        InfiniteVec {
+            data: vec![].into(),
+            negative_offset: 0,
+        }
+    }
+
+    pub fn from_vec(vec: Vec<T>) -> Self {
+        InfiniteVec {
+            data: VecDeque::from(vec.into_iter().map(|v| Some(v)).collect::<Vec<_>>()),
+            negative_offset: 0,
+        }
+    }
+
+    pub fn insert(&mut self, index: isize, value: T) {
+        let real_index = index + self.negative_offset as isize;
+
+        if real_index < 0 {
+            for _ in 0..(real_index.abs() - 1) {
+                self.data.push_front(None)
+            }
+
+            self.data.push_front(Some(value));
+
+            self.negative_offset += real_index.unsigned_abs();
+        } else {
+            self.data.insert(real_index as usize, Some(value));
+        }
+    }
+
+    pub fn push(&mut self, value: T) {
+        self.data.push_back(Some(value));
+    }
+
+    pub fn get(&self, index: isize) -> Option<&Option<T>> {
+        let real_index = index + self.negative_offset as isize;
+
+        if real_index < 0 {
+            None
+        } else {
+            self.data.get(real_index as usize)
+        }
+    }
+
+    pub fn get_mut(&mut self, index: isize) -> Option<&mut Option<T>> {
+        let real_index = index + self.negative_offset as isize;
+
+        if real_index < 0 {
+            None
+        } else {
+            self.data.get_mut(real_index as usize)
+        }
+    }
+
+    pub fn remove(&mut self, index: isize) -> Option<Option<T>> {
+        let real_index = index + self.negative_offset as isize;
+
+        if index < 0 {
+            self.negative_offset -= 1;
+        }
+
+        self.data.remove(real_index.try_into().unwrap())
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    pub fn positive_len(&self) -> usize {
+        self.data.len() - self.negative_offset
+    }
+
+    pub fn negative_len(&self) -> usize {
+        debug_assert!(self.data.len() >= self.negative_offset);
+
+        self.negative_offset
+    }
+
+    pub fn collect_negative_indexes(&self) -> Vec<usize> {
+        self.data
+            .iter()
+            .enumerate()
+            .take(self.negative_offset)
+            .filter_map(|(i, e)| e.as_ref().map(|_| i))
+            .collect()
+    }
+
+    /// Collects the values with Some() value and their index
+    pub fn iter_pairs(&self) -> impl DoubleEndedIterator<Item = (isize, &T)> {
+        self.data
+            .iter()
+            .enumerate()
+            .filter(|(_, value)| value.is_some())
+            .map(|(i, value)| {
+                (
+                    i as isize - self.negative_offset as isize,
+                    value.as_ref().unwrap(),
+                )
+            })
+    }
+
+    /// Tells us whether negative items were used
+    pub fn no_negative_items(&self) -> bool {
+        self.negative_offset == 0
+    }
+
+    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, Option<T>> {
+        self.data.iter()
+    }
+
+    /// Only iter over negative indexed values
+    pub fn iter_negative(
+        &self,
+    ) -> std::iter::Take<std::collections::vec_deque::Iter<'_, Option<T>>> {
+        self.data.iter().take(self.negative_offset)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    pub data: InfiniteVec<T>,
+    /// This points to where we currently are in the stack
+    pub carrot: isize,
+}
+
+impl<T> InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    pub fn new(stack: InfiniteVec<T>) -> Self {
+        InfiniteStack {
+            data: stack,
+            carrot: 0,
+        }
+    }
+
+    /// Returns the index of the top of the stack (if there is one)
+    pub fn get_tos_index(&self) -> Option<isize> {
+        self.data.iter_pairs().last().map(|(i, _)| i)
+    }
+}
+
+impl<T> From<InfiniteVec<T>> for InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    fn from(value: InfiniteVec<T>) -> Self {
+        InfiniteStack::new(value)
+    }
+}
+
+impl<T> From<Vec<T>> for InfiniteStack<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    fn from(value: Vec<T>) -> Self {
+        InfiniteStack::new(value.into())
+    }
+}
+
+impl<T> From<Vec<T>> for InfiniteVec<T>
+where
+    T: Clone + std::fmt::Debug,
+{
+    fn from(value: Vec<T>) -> Self {
+        InfiniteVec {
+            data: value.into_iter().map(|e| Some(e)).collect(),
+            negative_offset: 0,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::utils::InfiniteVec;
+
+    #[test]
+    fn test_infinite_vec() {
+        let mut infinite_vec = InfiniteVec::new();
+
+        infinite_vec.push(1);
+        infinite_vec.insert(-5, 5);
+
+        assert_eq!(
+            infinite_vec.iter().collect::<Vec<_>>(),
+            [Some(5), None, None, None, None, Some(1)]
+                .iter()
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(infinite_vec.get(0).unwrap(), &Some(1));
+    }
 }

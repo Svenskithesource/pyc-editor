@@ -1,16 +1,70 @@
-use std::{collections::HashMap, ops::DerefMut};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{
     error::Error,
+    sir::{SIRStatement, StackItem},
     utils::{ExceptionTableEntry, StackEffect},
 };
 
+pub trait Oparg: Copy + PartialEq + 'static + Debug {
+    fn is_u32() -> bool;
+
+    fn to_u32(self) -> u32;
+
+    fn is_u8() -> bool;
+
+    fn to_u8(self) -> u8;
+}
+
+impl Oparg for u8 {
+    fn is_u32() -> bool {
+        false
+    }
+
+    #[inline]
+    fn to_u32(self) -> u32 {
+        self as u32
+    }
+
+    fn is_u8() -> bool {
+        true
+    }
+
+    #[inline]
+    fn to_u8(self) -> u8 {
+        self
+    }
+}
+impl Oparg for u32 {
+    fn is_u32() -> bool {
+        true
+    }
+
+    #[inline]
+    fn to_u32(self) -> u32 {
+        self
+    }
+
+    fn is_u8() -> bool {
+        false
+    }
+
+    #[inline]
+    fn to_u8(self) -> u8 {
+        self as u8
+    }
+}
+
 pub trait InstructionAccess<OpargType, I>
 where
-    Self: AsRef<[Self::Instruction]>,
-    OpargType: PartialEq,
+    Self: AsRef<[Self::Instruction]> + Deref<Target = [I]>,
+    OpargType: Oparg,
 {
-    type Instruction: GenericInstruction<OpargType> + std::fmt::Debug;
+    type Instruction: GenericInstruction + std::fmt::Debug;
     type Jump;
 
     fn get_instructions(&self) -> &[Self::Instruction] {
@@ -48,6 +102,76 @@ where
     }
 
     fn get_jump_value(&self, index: u32) -> Option<Self::Jump>;
+
+    /// Calculates the full argument for an index (keeping in mind extended args). None if the index is not within bounds.
+    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
+    fn get_full_arg(&self, index: usize) -> Option<u32> {
+        if self.as_ref().len() > index {
+            if OpargType::is_u32() {
+                self.as_ref().get(index).map(|i| i.get_raw_value().to_u32())
+            } else {
+                let mut curr_index = index;
+                let mut extended_args = vec![];
+
+                while curr_index > 0 {
+                    curr_index -= 1;
+
+                    if self.as_ref()[curr_index].is_extended_arg() {
+                        extended_args.push(self.as_ref()[curr_index].get_raw_value());
+                    } else {
+                        break;
+                    }
+                }
+
+                let mut extended_arg = 0;
+
+                for arg in extended_args.iter().rev() {
+                    // We collected them in the reverse order
+                    let arg = (*arg).to_u32() | extended_arg;
+                    extended_arg = arg << 8;
+                }
+
+                Some(self.as_ref()[index].get_raw_value().to_u32() | extended_arg)
+            }
+        } else {
+            None
+        }
+    }
+
+    /// The same as `get_full_arg` but you can specify a lower limit while searching for extended args.
+    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
+    fn get_full_arg_bounded(&self, index: usize, lower_bound: usize) -> Option<u32> {
+        if self.as_ref().len() > index {
+            if OpargType::is_u32() {
+                self.as_ref().get(index).map(|i| i.get_raw_value().to_u32())
+            } else {
+                let mut curr_index = index;
+                let mut extended_args = vec![];
+
+                while curr_index > lower_bound {
+                    curr_index -= 1;
+
+                    if self.as_ref()[curr_index].is_extended_arg() {
+                        extended_args.push(self.as_ref()[curr_index].get_raw_value());
+                    } else {
+                        break;
+                    }
+                }
+
+                let mut extended_arg = 0;
+
+                for arg in extended_args.iter().rev() {
+                    // We collected them in the reverse order
+                    let arg = (*arg).to_u32() | extended_arg;
+                    extended_arg = arg << 8;
+                }
+
+                Some(self.as_ref()[index].get_raw_value().to_u32() | extended_arg)
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub trait SimpleInstructionAccess<I>
@@ -81,74 +205,12 @@ where
         jumps
     }
 
-    /// Calculates the full argument for an index (keeping in mind extended args). None if the index is not within bounds.
-    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
-    fn get_full_arg(&self, index: usize) -> Option<u32> {
-        if self.as_ref().len() > index {
-            let mut curr_index = index;
-            let mut extended_args = vec![];
-
-            while curr_index > 0 {
-                curr_index -= 1;
-
-                if self.as_ref()[curr_index].is_extended_arg() {
-                    extended_args.push(self.as_ref()[curr_index].get_raw_value());
-                } else {
-                    break;
-                }
-            }
-
-            let mut extended_arg = 0;
-
-            for arg in extended_args.iter().rev() {
-                // We collected them in the reverse order
-                let arg = *arg as u32 | extended_arg;
-                extended_arg = arg << 8;
-            }
-
-            Some(self.as_ref()[index].get_raw_value() as u32 | extended_arg)
-        } else {
-            None
-        }
-    }
-
-    /// The same as `get_full_arg` but you can specify a lower limit while searching for extended args.
-    /// NOTE: If there is a jump skipping the extended arg(s) before this instruction, this will return an incorrect value.
-    fn get_full_arg_bounded(&self, index: usize, lower_bound: usize) -> Option<u32> {
-        if self.as_ref().len() > index {
-            let mut curr_index = index;
-            let mut extended_args = vec![];
-
-            while curr_index > lower_bound {
-                curr_index -= 1;
-
-                if self.as_ref()[curr_index].is_extended_arg() {
-                    extended_args.push(self.as_ref()[curr_index].get_raw_value());
-                } else {
-                    break;
-                }
-            }
-
-            let mut extended_arg = 0;
-
-            for arg in extended_args.iter().rev() {
-                // We collected them in the reverse order
-                let arg = *arg as u32 | extended_arg;
-                extended_arg = arg << 8;
-            }
-
-            Some(self.as_ref()[index].get_raw_value() as u32 | extended_arg)
-        } else {
-            None
-        }
-    }
-
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytearray = Vec::with_capacity(self.as_ref().len() * 2);
 
         for instruction in self.as_ref().iter() {
             bytearray.push(instruction.get_opcode().into());
-            bytearray.push(instruction.get_raw_value())
+            bytearray.push(instruction.get_raw_value().to_u8())
         }
 
         bytearray
@@ -254,11 +316,15 @@ where
     }
 }
 
-pub trait ExtInstructionAccess<I> {
+pub trait ExtInstructionAccess<I, ExtI> {
+    type ExtInstructions: InstructionAccess<u32, ExtI>;
     type Instructions: SimpleInstructionAccess<I>;
 
     /// Convert the resolved instructions back into instructions with extended args.
     fn to_instructions(&self) -> Self::Instructions;
+
+    /// Resolve instructions into extended instructions.
+    fn from_instructions(instructions: &[I]) -> Result<Self::ExtInstructions, Error>;
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_instructions().to_bytes()
@@ -319,7 +385,9 @@ where
 }
 
 /// Generic opcode functions each version has to implement
-pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> {
+pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> + Debug + Clone {
+    type BranchReason: BranchReasonTrait;
+
     fn is_jump(&self) -> bool;
     fn is_absolute_jump(&self) -> bool;
     fn is_relative_jump(&self) -> bool;
@@ -328,40 +396,24 @@ pub trait GenericOpcode: StackEffectTrait + PartialEq + Into<u8> {
     fn is_conditional_jump(&self) -> bool;
     fn stops_execution(&self) -> bool;
     fn is_extended_arg(&self) -> bool;
-}
-
-pub trait Oparg<T> {
-    const MAX: Self;
-
-    fn new(value: T) -> Self;
-}
-
-impl Oparg<u8> for u8 {
-    const MAX: Self = u8::MAX;
-
-    fn new(value: u8) -> Self {
-        value
-    }
-}
-
-impl Oparg<u32> for u32 {
-    const MAX: Self = u32::MAX;
-
-    fn new(value: u32) -> Self {
-        value
-    }
+    fn is_cache(&self) -> bool;
+    fn get_nop() -> Self;
 }
 
 /// Generic instruction functions used by all versions
-pub trait GenericInstruction<OpargType>: PartialEq
-where
-    OpargType: PartialEq,
-{
+pub trait GenericInstruction: PartialEq + Debug + Clone {
+    type OpargType: Oparg;
     type Opcode: GenericOpcode;
+
+    /// This is the "list" version of the actual instruction (e.g. ExtInstructions)
+    type Instructions: InstructionAccess<Self::OpargType, Self>;
+
+    /// This is the related type. For example for Instruction this would be ExtInstruction and visa versa.
+    type OtherType: GenericInstruction;
 
     fn get_opcode(&self) -> Self::Opcode;
 
-    fn get_raw_value(&self) -> OpargType;
+    fn get_raw_value(&self) -> Self::OpargType;
 
     /// Relative or absolute jump
     fn is_jump(&self) -> bool {
@@ -396,6 +448,12 @@ where
         self.get_opcode().is_extended_arg()
     }
 
+    fn is_cache(&self) -> bool {
+        self.get_opcode().is_cache()
+    }
+
+    fn get_nop() -> Self;
+
     /// If the code has a jump target and `jump` is true, `stack_effect()` will return the stack effect of jumping.
     /// If jump is false, it will return the stack effect of not jumping.
     /// And if calculate_max is true, it will return the maximal stack effect of both cases.
@@ -412,6 +470,57 @@ pub trait StackEffectTrait {
     fn stack_effect(&self, oparg: u32, jump: bool, calculate_max: bool) -> StackEffect;
 }
 
+pub trait GenericSIRNode: Clone + Debug + PartialEq {
+    type Opcode: GenericOpcode;
+    type SIRException: GenericSIRException;
+
+    fn new(opcode: Self::Opcode, oparg: u32, jump: bool) -> Self;
+
+    fn get_outputs(&self) -> &[StackItem];
+
+    fn get_inputs(&self) -> &[StackItem];
+
+    fn get_net_stack_delta(&self) -> isize;
+}
+
+pub trait GenericSIRException: Clone + Debug + PartialEq {
+    type Opcode: GenericOpcode;
+
+    fn new(lasti: bool, stack_depth: usize, jump: bool) -> Self;
+
+    fn get_outputs(&self) -> &[StackItem];
+
+    fn get_inputs(&self) -> &[StackItem];
+
+    fn get_net_stack_delta(&self) -> isize;
+
+    fn get_stack_depth(&self) -> usize;
+}
+
+/// A trait to indicate that the SIR statements are owned.
+pub trait SIROwned<SIRNode: GenericSIRNode>: std::fmt::Display {
+    fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;
+}
+
+/// Trait to show what the branch reason is (opcode or exception)
+pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display + PartialEq {
+    type Opcode: GenericOpcode;
+
+    fn from_opcode(opcode: Self::Opcode) -> Result<Self, Error>;
+
+    fn from_exception(lasti: bool, stack_depth: usize) -> Result<Self, Error>;
+
+    fn is_opcode(&self) -> bool;
+
+    fn is_exception(&self) -> bool;
+
+    fn get_opcode(&self) -> Option<&Self::Opcode>;
+
+    fn get_lasti(&self) -> Option<bool>;
+
+    fn get_stack_depth(&self) -> Option<usize>;
+}
+
 #[cfg(all(test, feature = "v311"))]
 mod test {
     use crate::traits::SimpleInstructionAccess;
@@ -424,7 +533,7 @@ mod test {
             crate::v311::instructions::Instruction::Nop(1),
         ]);
 
-        assert_eq!(instructions.find_ext_arg_jumps().iter().count(), 1)
+        assert_eq!(instructions.find_ext_arg_jumps().len(), 1)
     }
 
     #[test]

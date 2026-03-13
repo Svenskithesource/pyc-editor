@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
-use crate::get_names;
-use crate::traits::{GenericOpcode, StackEffectTrait};
+use crate::error::Error;
+use crate::traits::{BranchReasonTrait, GenericOpcode, StackEffectTrait};
 use crate::utils::StackEffect;
 use crate::v313::instructions::Instruction;
 
@@ -9,6 +9,8 @@ use python_instruction_dsl_proc::define_opcodes;
 
 // From https://github.com/python/cpython/blob/3.12/Include/opcode.h
 define_opcodes!(
+    // Custom syntax to specify what values get pushed when an exception is raised
+    *EXCEPTION ( -- lasti[if lasti && jump {1} else {0}], exc[if jump {1} else {0}]),
     CACHE = 0 ( -- ),
     BEFORE_ASYNC_WITH = 1 (mgr -- exit, res),
     BEFORE_WITH = 2 (mgr -- exit, res),
@@ -65,7 +67,7 @@ define_opcodes!(
     BUILD_TUPLE = 52 (values[oparg] -- tuple),
     CALL = 53 (callable, self_or_null, args[oparg] -- res),
     // See https://github.com/python/cpython/pull/107788
-    CALL_FUNCTION_EX = 54 (callable, unused, callargs, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- result),
+    CALL_FUNCTION_EX = 54 (callable, null, callargs, kwargs[if oparg & 0x01 != 0 {1} else {0}] -- result),
     CALL_INTRINSIC_1 = 55 (value -- res),
     CALL_INTRINSIC_2 = 56 (value2, value1 -- res),
     CALL_KW = 57 (callable, self_or_null, args[oparg], kwnames -- res),
@@ -240,6 +242,8 @@ define_opcodes!(
 );
 
 impl GenericOpcode for Opcode {
+    type BranchReason = BranchReason;
+
     /// There are no absolute jumps in 3.12. Only an exception unwind can trigger an absolute jump.
     fn is_absolute_jump(&self) -> bool {
         false
@@ -341,352 +345,76 @@ impl GenericOpcode for Opcode {
         matches!(self, Opcode::EXTENDED_ARG)
     }
 
-    // fn stack_effect(&self, oparg: u32, jump: Option<bool>) -> StackEffect {
-    //     match self {
-    //         // BEFORE/AFTER / with
-    //         Opcode::BEFORE_ASYNC_WITH => StackEffect { pops: 1, pushes: 2 },
-    //         Opcode::BEFORE_WITH => StackEffect { pops: 1, pushes: 2 },
+    fn is_cache(&self) -> bool {
+        matches!(self, Opcode::CACHE)
+    }
 
-    //         // Binary ops
-    //         Opcode::BINARY_OP
-    //         | Opcode::BINARY_OP_ADD_FLOAT
-    //         | Opcode::BINARY_OP_ADD_INT
-    //         | Opcode::BINARY_OP_ADD_UNICODE
-    //         | Opcode::BINARY_OP_MULTIPLY_FLOAT
-    //         | Opcode::BINARY_OP_MULTIPLY_INT
-    //         | Opcode::BINARY_OP_SUBTRACT_FLOAT
-    //         | Opcode::BINARY_OP_SUBTRACT_INT
-    //         | Opcode::BINARY_SUBSCR
-    //         | Opcode::BINARY_SUBSCR_DICT
-    //         | Opcode::BINARY_SUBSCR_GETITEM
-    //         | Opcode::BINARY_SUBSCR_LIST_INT
-    //         | Opcode::BINARY_SUBSCR_STR_INT
-    //         | Opcode::BINARY_SUBSCR_TUPLE_INT => StackEffect { pops: 2, pushes: 1 },
+    fn get_nop() -> Self {
+        Opcode::NOP
+    }
+}
 
-    //         Opcode::BINARY_OP_INPLACE_ADD_UNICODE => StackEffect::pop(2),
+#[derive(Clone, Debug, PartialEq)]
+pub enum BranchReason {
+    Opcode(Opcode),
+    /// Bool is the `lasti` field of the `ExceptionTableEntry`
+    /// usize is the `depth` field of the `ExceptionTableEntry`
+    Exception((bool, usize)),
+}
 
-    //         Opcode::BINARY_SLICE => StackEffect { pops: 3, pushes: 1 },
+impl std::fmt::Display for BranchReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BranchReason::Opcode(opcode) => write!(f, "{:#?}", opcode),
+            BranchReason::Exception((lasti, stack_depth)) => {
+                write!(
+                    f,
+                    "EXCEPTION(stack depth {}, with {})",
+                    stack_depth,
+                    if *lasti { "lasti" } else { "no lasti" }
+                )
+            }
+        }
+    }
+}
 
-    //         // Builds
-    //         Opcode::BUILD_CONST_KEY_MAP => StackEffect {
-    //             pops: 1 + oparg,
-    //             pushes: 1,
-    //         },
-    //         Opcode::BUILD_LIST | Opcode::BUILD_SET | Opcode::BUILD_STRING | Opcode::BUILD_TUPLE => {
-    //             StackEffect {
-    //                 pops: oparg,
-    //                 pushes: 1,
-    //             }
-    //         }
-    //         Opcode::BUILD_MAP => StackEffect {
-    //             pops: oparg * 2,
-    //             pushes: 1,
-    //         },
-    //         Opcode::BUILD_SLICE => StackEffect {
-    //             pops: if oparg == 3 { 3 } else { 2 },
-    //             pushes: 1,
-    //         },
+impl BranchReasonTrait for BranchReason {
+    type Opcode = Opcode;
 
-    //         // Cache/metadata/no-op
-    //         Opcode::CACHE
-    //         | Opcode::EXTENDED_ARG
-    //         | Opcode::NOP
-    //         | Opcode::RESUME
-    //         | Opcode::RESUME_CHECK
-    //         | Opcode::RESERVED => StackEffect::zero(),
+    fn from_exception(lasti: bool, stack_depth: usize) -> Result<Self, Error> {
+        Ok(BranchReason::Exception((lasti, stack_depth)))
+    }
 
-    //         // Calls (many variants)
-    //         Opcode::CALL
-    //         | Opcode::CALL_ALLOC_AND_ENTER_INIT
-    //         | Opcode::CALL_BUILTIN_CLASS
-    //         | Opcode::CALL_BUILTIN_FAST
-    //         | Opcode::CALL_BUILTIN_FAST_WITH_KEYWORDS
-    //         | Opcode::CALL_BUILTIN_O
-    //         | Opcode::CALL_ISINSTANCE
-    //         | Opcode::CALL_LEN
-    //         | Opcode::CALL_METHOD_DESCRIPTOR_FAST
-    //         | Opcode::CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS
-    //         | Opcode::CALL_METHOD_DESCRIPTOR_NOARGS
-    //         | Opcode::CALL_METHOD_DESCRIPTOR_O
-    //         | Opcode::CALL_NON_PY_GENERAL
-    //         | Opcode::CALL_PY_EXACT_ARGS
-    //         | Opcode::CALL_PY_GENERAL => {
-    //             // C: return 2 + oparg;
-    //             StackEffect {
-    //                 pops: 2 + oparg,
-    //                 pushes: 1,
-    //             }
-    //         }
+    fn from_opcode(opcode: Opcode) -> Result<Self, Error> {
+        Ok(BranchReason::Opcode(opcode))
+    }
 
-    //         Opcode::CALL_BOUND_METHOD_EXACT_ARGS | Opcode::CALL_BOUND_METHOD_GENERAL => {
-    //             StackEffect::pop(2 + oparg)
-    //         }
+    fn is_opcode(&self) -> bool {
+        matches!(self, BranchReason::Opcode(_))
+    }
 
-    //         Opcode::CALL_KW => StackEffect {
-    //             pops: 3 + oparg,
-    //             pushes: 1,
-    //         },
+    fn is_exception(&self) -> bool {
+        matches!(self, BranchReason::Exception(_))
+    }
 
-    //         Opcode::CALL_FUNCTION_EX => {
-    //             // C: return 3 + (oparg & 1);
-    //             StackEffect {
-    //                 pops: if (oparg & 1) != 0 { 4 } else { 3 },
-    //                 pushes: 1,
-    //             }
-    //         }
+    fn get_opcode(&self) -> Option<&Opcode> {
+        match self {
+            BranchReason::Opcode(opcode) => Some(opcode),
+            BranchReason::Exception(_) => None,
+        }
+    }
 
-    //         Opcode::CALL_INTRINSIC_1 => StackEffect::balanced(1),
-    //         Opcode::CALL_INTRINSIC_2 => StackEffect { pops: 2, pushes: 1 },
+    fn get_lasti(&self) -> Option<bool> {
+        match self {
+            BranchReason::Opcode(_) => None,
+            BranchReason::Exception((lasti, _)) => Some(*lasti),
+        }
+    }
 
-    //         Opcode::CALL_LIST_APPEND
-    //         | Opcode::CALL_STR_1
-    //         | Opcode::CALL_TUPLE_1
-    //         | Opcode::CALL_TYPE_1 => StackEffect { pops: 3, pushes: 1 },
-
-    //         // Compare / contains / matches
-    //         Opcode::CHECK_EG_MATCH | Opcode::CHECK_EXC_MATCH => StackEffect::balanced(2),
-
-    //         Opcode::CLEANUP_THROW => StackEffect { pushes: 2, pops: 3 },
-
-    //         Opcode::COMPARE_OP
-    //         | Opcode::COMPARE_OP_FLOAT
-    //         | Opcode::COMPARE_OP_INT
-    //         | Opcode::COMPARE_OP_STR
-    //         | Opcode::CONTAINS_OP
-    //         | Opcode::CONTAINS_OP_DICT
-    //         | Opcode::CONTAINS_OP_SET => StackEffect { pops: 2, pushes: 1 },
-
-    //         Opcode::CONVERT_VALUE => StackEffect::balanced(1),
-
-    //         Opcode::COPY => StackEffect {
-    //             pops: 1 + (oparg - 1),
-    //             pushes: 2 + (oparg - 1),
-    //         },
-
-    //         Opcode::COPY_FREE_VARS => StackEffect::zero(),
-
-    //         // Deletes
-    //         Opcode::DELETE_ATTR => StackEffect::pop(1),
-    //         Opcode::DELETE_DEREF
-    //         | Opcode::DELETE_FAST
-    //         | Opcode::DELETE_GLOBAL
-    //         | Opcode::DELETE_NAME => StackEffect::zero(),
-    //         Opcode::DELETE_SUBSCR => StackEffect::pop(2),
-
-    //         // Dict ops
-    //         Opcode::DICT_MERGE => StackEffect {
-    //             pops: 5 + (oparg - 1),
-    //             pushes: 4 + (oparg - 1),
-    //         },
-    //         Opcode::DICT_UPDATE => StackEffect {
-    //             pops: 2 + (oparg - 1),
-    //             pushes: 1 + (oparg - 1),
-    //         },
-
-    //         Opcode::END_ASYNC_FOR => StackEffect::pop(2),
-    //         Opcode::END_FOR => StackEffect::pop(1),
-    //         Opcode::END_SEND => StackEffect { pops: 2, pushes: 1 },
-
-    //         Opcode::ENTER_EXECUTOR => StackEffect::zero(),
-    //         Opcode::EXIT_INIT_CHECK => StackEffect::pop(1),
-
-    //         Opcode::FORMAT_SIMPLE => StackEffect::balanced(1),
-    //         Opcode::FORMAT_WITH_SPEC => StackEffect { pops: 2, pushes: 1 },
-
-    //         Opcode::FOR_ITER
-    //         | Opcode::FOR_ITER_LIST
-    //         | Opcode::FOR_ITER_RANGE
-    //         | Opcode::FOR_ITER_TUPLE => StackEffect { pops: 1, pushes: 2 },
-
-    //         Opcode::FOR_ITER_GEN => StackEffect::balanced(1),
-
-    //         Opcode::GET_AITER
-    //         | Opcode::GET_AWAITABLE
-    //         | Opcode::GET_ITER
-    //         | Opcode::GET_YIELD_FROM_ITER => StackEffect::balanced(1),
-    //         Opcode::GET_ANEXT => StackEffect { pops: 1, pushes: 2 },
-    //         Opcode::GET_LEN => StackEffect { pops: 1, pushes: 2 },
-
-    //         Opcode::IMPORT_FROM => StackEffect { pops: 1, pushes: 2 },
-    //         Opcode::IMPORT_NAME => StackEffect { pops: 2, pushes: 1 },
-
-    //         Opcode::INSTRUMENTED_CALL
-    //         | Opcode::INSTRUMENTED_CALL_FUNCTION_EX
-    //         | Opcode::INSTRUMENTED_CALL_KW => StackEffect::zero(),
-    //         Opcode::INSTRUMENTED_END_FOR | Opcode::INSTRUMENTED_END_SEND => {
-    //             StackEffect { pops: 2, pushes: 1 }
-    //         }
-    //         Opcode::INSTRUMENTED_FOR_ITER
-    //         | Opcode::INSTRUMENTED_INSTRUCTION
-    //         | Opcode::INSTRUMENTED_JUMP_BACKWARD
-    //         | Opcode::INSTRUMENTED_JUMP_FORWARD => StackEffect::zero(),
-    //         Opcode::INSTRUMENTED_LOAD_SUPER_ATTR => StackEffect {
-    //             pops: 3,
-    //             pushes: if (oparg & 1) != 0 { 2 } else { 1 },
-    //         },
-
-    //         Opcode::INSTRUMENTED_POP_JUMP_IF_FALSE
-    //         | Opcode::INSTRUMENTED_POP_JUMP_IF_NONE
-    //         | Opcode::INSTRUMENTED_POP_JUMP_IF_NOT_NONE
-    //         | Opcode::INSTRUMENTED_POP_JUMP_IF_TRUE
-    //         | Opcode::INSTRUMENTED_RESUME
-    //         | Opcode::INSTRUMENTED_RETURN_CONST => StackEffect::zero(),
-    //         Opcode::INSTRUMENTED_RETURN_VALUE => StackEffect::pop(1),
-    //         Opcode::INSTRUMENTED_YIELD_VALUE => StackEffect::balanced(1),
-
-    //         Opcode::INTERPRETER_EXIT => StackEffect::pop(1),
-
-    //         Opcode::IS_OP => StackEffect { pops: 2, pushes: 1 },
-
-    //         Opcode::JUMP_BACKWARD | Opcode::JUMP_BACKWARD_NO_INTERRUPT | Opcode::JUMP_FORWARD => {
-    //             StackEffect::zero()
-    //         }
-
-    //         Opcode::LIST_APPEND | Opcode::LIST_EXTEND => StackEffect {
-    //             pops: 2 + (oparg - 1),
-    //             pushes: 1 + (oparg - 1),
-    //         },
-
-    //         Opcode::LOAD_ASSERTION_ERROR => StackEffect::push(1),
-    //         Opcode::LOAD_ATTR
-    //         | Opcode::LOAD_ATTR_CLASS
-    //         | Opcode::LOAD_ATTR_INSTANCE_VALUE
-    //         | Opcode::LOAD_ATTR_MODULE
-    //         | Opcode::LOAD_ATTR_SLOT
-    //         | Opcode::LOAD_ATTR_WITH_HINT => StackEffect {
-    //             pops: 1,
-    //             pushes: if (oparg & 1) != 0 { 2 } else { 1 },
-    //         },
-    //         Opcode::LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN => StackEffect::balanced(1),
-    //         Opcode::LOAD_ATTR_METHOD_LAZY_DICT
-    //         | Opcode::LOAD_ATTR_METHOD_NO_DICT
-    //         | Opcode::LOAD_ATTR_METHOD_WITH_VALUES => StackEffect { pops: 1, pushes: 2 },
-
-    //         Opcode::LOAD_ATTR_NONDESCRIPTOR_NO_DICT
-    //         | Opcode::LOAD_ATTR_NONDESCRIPTOR_WITH_VALUES
-    //         | Opcode::LOAD_ATTR_PROPERTY => StackEffect::balanced(1),
-
-    //         Opcode::LOAD_BUILD_CLASS
-    //         | Opcode::LOAD_CONST
-    //         | Opcode::LOAD_DEREF
-    //         | Opcode::LOAD_FAST
-    //         | Opcode::LOAD_FAST_AND_CLEAR
-    //         | Opcode::LOAD_FAST_CHECK => StackEffect::push(1),
-    //         Opcode::LOAD_FAST_LOAD_FAST => StackEffect::push(2),
-    //         Opcode::LOAD_FROM_DICT_OR_DEREF | Opcode::LOAD_FROM_DICT_OR_GLOBALS => {
-    //             StackEffect::balanced(1)
-    //         }
-    //         Opcode::LOAD_GLOBAL | Opcode::LOAD_GLOBAL_BUILTIN | Opcode::LOAD_GLOBAL_MODULE => {
-    //             StackEffect {
-    //                 pops: 0,
-    //                 pushes: if (oparg & 1) != 0 { 2 } else { 1 },
-    //             }
-    //         }
-    //         Opcode::LOAD_LOCALS | Opcode::LOAD_NAME => StackEffect::push(1),
-
-    //         Opcode::LOAD_SUPER_ATTR => StackEffect {
-    //             pops: 3,
-    //             pushes: if (oparg & 1) != 0 { 2 } else { 1 },
-    //         },
-
-    //         Opcode::LOAD_SUPER_ATTR_ATTR => StackEffect { pushes: 3, pops: 1 },
-
-    //         Opcode::LOAD_SUPER_ATTR_METHOD => StackEffect { pops: 3, pushes: 2 },
-
-    //         Opcode::MAKE_CELL => StackEffect::zero(),
-    //         Opcode::MAKE_FUNCTION => StackEffect::balanced(1),
-    //         Opcode::MAP_ADD => StackEffect {
-    //             pops: 3 + (oparg - 1),
-    //             pushes: 1 + (oparg - 1),
-    //         },
-
-    //         Opcode::MATCH_CLASS => StackEffect { pops: 3, pushes: 1 },
-    //         Opcode::MATCH_KEYS => StackEffect { pops: 2, pushes: 3 },
-    //         Opcode::MATCH_MAPPING => StackEffect { pops: 1, pushes: 2 },
-    //         Opcode::MATCH_SEQUENCE => StackEffect { pops: 1, pushes: 2 },
-
-    //         Opcode::POP_EXCEPT => StackEffect::pop(1),
-    //         Opcode::POP_JUMP_IF_FALSE
-    //         | Opcode::POP_JUMP_IF_NONE
-    //         | Opcode::POP_JUMP_IF_NOT_NONE
-    //         | Opcode::POP_JUMP_IF_TRUE => StackEffect::pop(1),
-    //         Opcode::POP_TOP => StackEffect::pop(1),
-    //         Opcode::PUSH_EXC_INFO => StackEffect { pops: 1, pushes: 2 },
-    //         Opcode::PUSH_NULL => StackEffect::push(1),
-
-    //         Opcode::RAISE_VARARGS => StackEffect::pop(oparg),
-    //         Opcode::RERAISE => StackEffect {
-    //             pops: 1 + oparg,
-    //             pushes: oparg,
-    //         },
-
-    //         Opcode::RETURN_CONST => StackEffect::zero(),
-    //         Opcode::RETURN_GENERATOR => StackEffect::push(1),
-    //         Opcode::RETURN_VALUE => StackEffect::pop(1),
-
-    //         Opcode::SEND | Opcode::SEND_GEN => StackEffect::balanced(2),
-
-    //         Opcode::SETUP_ANNOTATIONS => StackEffect::zero(),
-
-    //         Opcode::SET_ADD => StackEffect {
-    //             pops: 2 + (oparg - 1),
-    //             pushes: 1 + (oparg - 1),
-    //         },
-    //         Opcode::SET_FUNCTION_ATTRIBUTE => StackEffect { pops: 2, pushes: 1 },
-    //         Opcode::SET_UPDATE => StackEffect {
-    //             pops: 2 + (oparg - 1),
-    //             pushes: 1 + (oparg - 1),
-    //         },
-
-    //         Opcode::STORE_ATTR
-    //         | Opcode::STORE_ATTR_INSTANCE_VALUE
-    //         | Opcode::STORE_ATTR_SLOT
-    //         | Opcode::STORE_ATTR_WITH_HINT => StackEffect::pop(2),
-
-    //         Opcode::STORE_DEREF => StackEffect::pop(1),
-    //         Opcode::STORE_FAST => StackEffect::pop(1),
-    //         Opcode::STORE_FAST_LOAD_FAST => StackEffect::balanced(1),
-    //         Opcode::STORE_FAST_STORE_FAST => StackEffect::pop(2),
-    //         Opcode::STORE_GLOBAL | Opcode::STORE_NAME => StackEffect::pop(1),
-
-    //         Opcode::STORE_SLICE => StackEffect::pop(4),
-    //         Opcode::STORE_SUBSCR | Opcode::STORE_SUBSCR_DICT | Opcode::STORE_SUBSCR_LIST_INT => {
-    //             StackEffect::pop(3)
-    //         }
-
-    //         Opcode::SWAP => StackEffect::balanced(2 + (oparg - 2)),
-
-    //         Opcode::TO_BOOL
-    //         | Opcode::TO_BOOL_ALWAYS_TRUE
-    //         | Opcode::TO_BOOL_BOOL
-    //         | Opcode::TO_BOOL_INT
-    //         | Opcode::TO_BOOL_LIST
-    //         | Opcode::TO_BOOL_NONE
-    //         | Opcode::TO_BOOL_STR
-    //         | Opcode::UNARY_INVERT
-    //         | Opcode::UNARY_NEGATIVE
-    //         | Opcode::UNARY_NOT => StackEffect::balanced(1),
-
-    //         Opcode::UNPACK_EX => StackEffect {
-    //             pops: 1,
-    //             pushes: 1 + (oparg >> 8) + (oparg & 0xFF),
-    //         },
-    //         Opcode::UNPACK_SEQUENCE
-    //         | Opcode::UNPACK_SEQUENCE_LIST
-    //         | Opcode::UNPACK_SEQUENCE_TUPLE => StackEffect {
-    //             pops: 1,
-    //             pushes: oparg,
-    //         },
-    //         Opcode::UNPACK_SEQUENCE_TWO_TUPLE => StackEffect { pops: 1, pushes: 2 },
-
-    //         Opcode::WITH_EXCEPT_START => StackEffect { pops: 4, pushes: 5 },
-
-    //         Opcode::YIELD_VALUE => StackEffect::balanced(1),
-
-    //         Opcode::INVALID_OPCODE(_) => StackEffect::zero(),
-
-    //         // Fallback
-    //         _ => unimplemented!("stack_effect not implemented for {:?}", self),
-    //     }
-    // }
+    fn get_stack_depth(&self) -> Option<usize> {
+        match self {
+            BranchReason::Opcode(_) => None,
+            BranchReason::Exception((_, stack_depth)) => Some(*stack_depth),
+        }
+    }
 }

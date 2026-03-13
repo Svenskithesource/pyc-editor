@@ -13,7 +13,7 @@ mod tests {
     use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, LinetableEntry};
     use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v310::instructions::{
-        get_line_number, starts_line_number, Instruction, Instructions,
+        Instruction, Instructions, get_line_number, starts_line_number,
     };
     use crate::v310::opcodes::Opcode;
     use crate::{load_pyc, prelude::*};

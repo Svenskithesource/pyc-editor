@@ -15,7 +15,7 @@ mod tests {
     use crate::v312::code_objects::{Constant, FrozenConstant, LinetableEntry, NameIndex};
     use crate::v312::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v312::instructions::{
-        get_line_number, starts_line_number, Instruction, Instructions,
+        Instruction, Instructions, get_line_number, starts_line_number,
     };
     use crate::v312::opcodes::Opcode;
     use crate::{load_pyc, prelude::*};

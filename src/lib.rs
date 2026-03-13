@@ -1,6 +1,7 @@
 pub mod cfg;
 pub mod error;
 pub mod prelude;
+#[cfg(feature = "sir")]
 pub mod sir;
 pub mod traits;
 pub mod utils;

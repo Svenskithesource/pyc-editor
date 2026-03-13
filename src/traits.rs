@@ -6,9 +6,11 @@ use std::{
 
 use crate::{
     error::Error,
-    sir::{SIRStatement, StackItem},
     utils::{ExceptionTableEntry, StackEffect},
 };
+
+#[cfg(feature = "sir")]
+use crate::sir::{SIRStatement, StackItem};
 
 pub trait Oparg: Copy + PartialEq + 'static + Debug {
     fn is_u32() -> bool;
@@ -470,6 +472,7 @@ pub trait StackEffectTrait {
     fn stack_effect(&self, oparg: u32, jump: bool, calculate_max: bool) -> StackEffect;
 }
 
+#[cfg(feature = "sir")]
 pub trait GenericSIRNode: Clone + Debug + PartialEq {
     type Opcode: GenericOpcode;
     type SIRException: GenericSIRException;
@@ -483,6 +486,7 @@ pub trait GenericSIRNode: Clone + Debug + PartialEq {
     fn get_net_stack_delta(&self) -> isize;
 }
 
+#[cfg(feature = "sir")]
 pub trait GenericSIRException: Clone + Debug + PartialEq {
     type Opcode: GenericOpcode;
 
@@ -497,6 +501,7 @@ pub trait GenericSIRException: Clone + Debug + PartialEq {
     fn get_stack_depth(&self) -> usize;
 }
 
+#[cfg(feature = "sir")]
 /// A trait to indicate that the SIR statements are owned.
 pub trait SIROwned<SIRNode: GenericSIRNode>: std::fmt::Display {
     fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;

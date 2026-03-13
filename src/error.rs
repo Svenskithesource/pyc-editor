@@ -14,6 +14,7 @@ pub enum Error {
     PythonMarshalError(python_marshal::error::Error),
     ExtendedArgJump,
     RecursiveReference(&'static str),
+    #[cfg(feature = "sir")]
     SIRError(crate::sir::Error),
 }
 
@@ -45,6 +46,7 @@ impl fmt::Display for Error {
                 "There is a jump skipping over an extended arg. We cannot convert to resolved instructions because of this."
             ),
             Error::RecursiveReference(s) => write!(f, "Recursive reference: {}", s),
+            #[cfg(feature = "sir")]
             Error::SIRError(error) => write!(f, "{}", error),
         }
     }
@@ -52,6 +54,7 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+#[cfg(feature = "sir")]
 impl From<crate::sir::Error> for Error {
     fn from(err: crate::sir::Error) -> Self {
         Error::SIRError(err)

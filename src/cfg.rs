@@ -6,12 +6,17 @@ use std::{
 
 use crate::{
     error::Error,
-    sir::SIRBranchEdge,
     traits::{
-        BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode, GenericSIRNode,
-        InstructionAccess, SIROwned, SimpleInstructionAccess,
+        BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode,
+        InstructionAccess, SimpleInstructionAccess,
     },
     utils::ExceptionTableEntry,
+};
+
+#[cfg(feature = "sir")]
+use crate::{
+    sir::SIRBranchEdge,
+    traits::{GenericSIRNode, SIROwned},
 };
 
 #[cfg(feature = "dot")]
@@ -40,6 +45,7 @@ where
     NoIndex,
 }
 
+#[cfg(feature = "sir")]
 impl<BranchReason: BranchReasonTrait> BlockIndexInfo<BranchReason> {
     pub fn into_sir<SIRNode>(
         &self,

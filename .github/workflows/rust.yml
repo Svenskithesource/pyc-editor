@@ -60,14 +60,15 @@ jobs:
         echo "PYTHON_3_12=$HOME/.pyenv/versions/3.12.2/bin/python3.12" >> $GITHUB_ENV
         echo "PYTHON_3_13=$HOME/.pyenv/versions/3.13.1/bin/python3.13" >> $GITHUB_ENV
 
-    - name: Build
-      run: cargo build --verbose
-
-    - name: Run tests
-      run: cargo test --verbose -- --nocapture
-
     - name: Cache Python standard libraries
       uses: actions/cache/save@v4
       with:
         path: tests/data
         key: python-stdlib-${{ runner.os }}
+
+    - name: Build
+      run: cargo build --verbose
+
+    - name: Run tests
+      run: cargo test --verbose -- --show-output
+

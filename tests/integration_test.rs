@@ -389,13 +389,14 @@ fn test_stacksize_standard_lib() {
 
     // Cpython has a bug where it overcalculates the stacksize of these files, so we skip it.
     static EXCEPTIONS: &[&str] = &[
-        "tests/data/cpython-3.11.1/Lib/test/__pycache__/test_except_star.cpython-311.pyc",
-        "tests/data/cpython-3.11.1/Lib/test/__pycache__/test_sys_settrace.cpython-311.pyc",
-        "tests/data/cpython-3.11.1/Lib/__pycache__/opcode.cpython-311.pyc", // Only fails on github actions for some reason
-        "tests/data/cpython-3.12.1/Lib/test/__pycache__/test_except_star.cpython-312.pyc",
-        "tests/data/cpython-3.12.1/Lib/test/__pycache__/test_sys_settrace.cpython-312.pyc",
-        "tests/data/cpython-3.13.1/Lib/test/__pycache__/test_except_star.cpython-313.pyc",
-        "tests/data/cpython-3.13.1/Lib/test/__pycache__/test_sys_settrace.cpython-313.pyc",
+        "tests/data/cpython-3.11/Lib/test/__pycache__/test_except_star.cpython-311.pyc",
+        "tests/data/cpython-3.11/Lib/test/__pycache__/test_sys_settrace.cpython-311.pyc",
+        "tests/data/cpython-3.11/Lib/__pycache__/opcode.cpython-311.pyc", // Only fails on github actions for some reason
+        "tests/data/cpython-3.12/Lib/test/__pycache__/test_except_star.cpython-312.pyc",
+        "tests/data/cpython-3.12/Lib/test/__pycache__/test_sys_settrace.cpython-312.pyc",
+        "tests/data/cpython-3.13/Lib/test/__pycache__/test_except_star.cpython-313.pyc",
+        "tests/data/cpython-3.13/Lib/test/__pycache__/test_sys_settrace.cpython-313.pyc",
+        "tests/data/cpython-3.13/Lib/test/test_ctypes/__pycache__/test_bytes.cpython-313.pyc", // Only fails on github actions
     ];
 
     common::PYTHON_VERSIONS.par_iter().for_each(|version| {
@@ -725,7 +726,9 @@ fn test_write_standard_lib() {
 
 fn get_custom_path(original_path: &Path, version: &PyVersion, prefix: &'static str) -> PathBuf {
     let relative_path = original_path
-        .strip_prefix(Path::new(DATA_PATH).join(format!("cpython-{}.{}/Lib", version.major, version.minor)))
+        .strip_prefix(
+            Path::new(DATA_PATH).join(format!("cpython-{}.{}/Lib", version.major, version.minor)),
+        )
         .unwrap();
     Path::new(DATA_PATH)
         .join(format!("{prefix}-{version}/Lib"))

@@ -594,6 +594,7 @@ fn test_create_cfg_standard_lib() {
     });
 }
 
+#[cfg(feature = "sir")]
 #[test]
 fn test_create_sir_standard_lib() {
     use pyc_editor::cfg::{create_cfg, simple_cfg_to_ext_cfg};

@@ -56,8 +56,14 @@ fn init_repo(version: &PyVersion) {
             };
 
             // Only extract files from the `Lib` directory
-            if outpath.starts_with(format!("cpython-{}.{}/Lib/", version.major, version.minor)) {
-                let outpath = Path::new(DATA_PATH).join(outpath);
+            if outpath.starts_with(format!("cpython-{}/Lib/", version)) {
+                let outpath = Path::new(DATA_PATH).join(
+                    Path::new(&format!("cpython-{}.{}", version.major, version.minor)).join(
+                        outpath
+                            .strip_prefix(format!("cpython-{}/", version))
+                            .unwrap(),
+                    ),
+                );
 
                 if file.is_dir() {
                     fs::create_dir_all(&outpath).unwrap();

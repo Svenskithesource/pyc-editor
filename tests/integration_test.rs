@@ -725,7 +725,7 @@ fn test_write_standard_lib() {
 
 fn get_custom_path(original_path: &Path, version: &PyVersion, prefix: &'static str) -> PathBuf {
     let relative_path = original_path
-        .strip_prefix(Path::new(DATA_PATH).join(format!("cpython-{}/Lib", version)))
+        .strip_prefix(Path::new(DATA_PATH).join(format!("cpython-{}.{}/Lib", version.major, version.minor)))
         .unwrap();
     Path::new(DATA_PATH)
         .join(format!("{prefix}-{version}/Lib"))

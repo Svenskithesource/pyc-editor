@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{HashMap, VecDeque},
     fmt::Debug,
     ops::Deref,
 };
@@ -408,7 +408,7 @@ where
     <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
 {
     // Used for keeping track of finished blocks
-    let mut temp_blocks: BTreeMap<usize, Block<I>> = BTreeMap::new();
+    let mut temp_blocks: HashMap<usize, Block<I>> = HashMap::new();
 
     enum BlockState {
         BlockIndexAssigned(BlockIndex),
@@ -838,10 +838,14 @@ where
         }
     }
 
+    let mut temp_blocks = temp_blocks.into_iter().collect::<Vec<_>>();
+
+    temp_blocks.sort_by_key(|(i, _)| *i);
+
     let order_map: HashMap<usize, usize> = temp_blocks
-        .keys()
+        .iter()
         .enumerate()
-        .map(|(i, index)| (*index, i))
+        .map(|(i, (index, _))| (*index, i))
         .collect();
 
     fn replace_block_index<BranchReason>(
@@ -864,12 +868,12 @@ where
         };
     }
 
-    for block in temp_blocks.values_mut() {
+    for (_, block) in temp_blocks.iter_mut() {
         replace_block_index(&mut block.branch_block, &order_map);
         replace_block_index(&mut block.default_block, &order_map);
     }
 
-    let blocks: Vec<Block<I>> = temp_blocks.values().cloned().collect();
+    let blocks: Vec<Block<I>> = temp_blocks.into_iter().map(|(_, b)| b).collect();
 
     let mut cfg = ControlFlowGraph::<I> {
         start_index: if !blocks.is_empty() {

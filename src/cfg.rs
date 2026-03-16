@@ -1364,7 +1364,7 @@ mod test {
 
         println!("{}", cfg.make_dot_graph());
 
-        // insta::assert_debug_snapshot!(cfg);
+        insta::assert_debug_snapshot!(cfg);
     }
 
     #[test]

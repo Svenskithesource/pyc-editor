@@ -1358,7 +1358,11 @@ mod test {
 
         println!("{}", cfg.make_dot_graph());
 
-        insta::assert_debug_snapshot!(cfg);
+        insta::with_settings!({
+            filters => vec![(r"block_indexes: \[[\d\s,]*\]", "[block_indexes filtered because non-deterministic order]")]
+        }, {
+            insta::assert_debug_snapshot!(cfg);
+        });
     }
 
     #[test]
@@ -1378,7 +1382,11 @@ mod test {
 
         println!("{}", cfg.make_dot_graph());
 
-        insta::assert_debug_snapshot!(cfg);
+        insta::with_settings!({
+            filters => vec![(r"block_indexes: \[[\d\s,]*\]", "[block_indexes filtered because non-deterministic order]")]
+        }, {
+            insta::assert_debug_snapshot!(cfg);
+        });
     }
 
     #[test]

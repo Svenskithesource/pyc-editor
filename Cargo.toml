@@ -33,7 +33,7 @@ reqwest = { version = "0.12.23", features = ["blocking"] }
 zip = "4.3.0"
 criterion = { version = "0.7.0", features = ["html_reports"] }
 
-insta = "1.46.3"
+insta = { version = "1.46.3", features = ["filters"]}
 
 [profile.dev.package]
 insta.opt-level = 3

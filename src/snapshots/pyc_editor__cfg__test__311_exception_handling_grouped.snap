@@ -346,14 +346,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    12,
-                    10,
-                    11,
-                    6,
-                    7,
-                    5,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -382,14 +375,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    17,
-                    9,
-                    16,
-                    22,
-                    14,
-                    21,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -1189,13 +1175,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    20,
-                    24,
-                    25,
-                    31,
-                    32,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -1310,9 +1290,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    19,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -1569,9 +1547,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    28,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -2303,9 +2279,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    37,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -2767,10 +2741,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    8,
-                    41,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -2827,9 +2798,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    40,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -2880,9 +2849,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    43,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -2911,10 +2878,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    47,
-                    52,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -3098,10 +3062,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    54,
-                    49,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -3281,9 +3242,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    50,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -3399,10 +3358,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    34,
-                    56,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -3508,9 +3464,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    58,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -3556,9 +3510,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    59,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (
@@ -3648,9 +3600,7 @@ ControlFlowGraph {
         ),
         ExceptionBlock(
             ExceptionBlock {
-                block_indexes: [
-                    60,
-                ],
+                [block_indexes filtered because non-deterministic order],
                 exception_handler: BranchEdge {
                     reason: Exception(
                         (

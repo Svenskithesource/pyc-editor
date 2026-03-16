@@ -1030,9 +1030,12 @@ where
             let mut possible_exceptions = vec![];
             for entry in exception_map.values() {
                 if entry.start as usize <= *i && entry.end as usize > *i {
-                    let exception_block_index = match block_map[&(entry.start as usize)].get_index()
-                    {
-                        BlockIndex::Index(index) => index,
+                    let exception_block_index = match block_map.get(&(entry.start as usize)) {
+                        Some(state) => match state.get_index() {
+                            BlockIndex::Index(index) => index,
+                            _ => continue,
+                        },
+                        // It can happen that the exception entry doesn't have a block if it's in deadcode and can't be reached. See `test_311_exception_handling_in_loop`.
                         _ => continue,
                     };
 

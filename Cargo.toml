@@ -23,7 +23,7 @@ petgraph = { version = "0.8.3", optional = true }
 
 [dev-dependencies]
 # Enable all features for testing purposes
-pyc_editor = { path = ".", features = ["v310", "v311", "v312", "v313", "dot"] }
+pyc_editor = { path = ".", features = ["v310", "v311", "v312", "v313", "dot", "sir"] }
 cmd_lib = "1.9.6"
 env_logger = "0.11.8"
 num-traits = "0.2.19"

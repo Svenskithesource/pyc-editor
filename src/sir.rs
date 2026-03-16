@@ -447,7 +447,7 @@ impl<SIRNode: GenericSIRNode> SIRBlockIndexInfo<SIRNode> {
 
 #[derive(Clone, Debug, PartialEq)]
 /// Represents a block in the control flow graph
-pub struct SIRBlock<SIRNode>
+pub struct SIRNormalBlock<SIRNode>
 where
     SIRNode: GenericSIRNode,
 {
@@ -459,6 +459,55 @@ where
 }
 
 #[derive(Clone, Debug, PartialEq)]
+/// Represents an exception block in the control flow graph
+/// This includes a list of block indexes that belong to this exception block
+pub struct SIRExceptionBlock<SIRNode: GenericSIRNode> {
+    pub block_indexes: Vec<usize>,
+    /// Index to the exception handler block
+    pub exception_handler: SIRBranchEdge<SIRNode>,
+    /// Index to default block
+    pub default_block: SIRBlockIndexInfo<SIRNode>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum SIRBlock<SIRNode: GenericSIRNode> {
+    NormalBlock(SIRNormalBlock<SIRNode>),
+    ExceptionBlock(SIRExceptionBlock<SIRNode>),
+}
+
+impl<SIRNode: GenericSIRNode> SIRBlock<SIRNode> {
+    pub fn get_branch_block(&self) -> SIRBlockIndexInfo<SIRNode> {
+        match self {
+            SIRBlock::NormalBlock(block) => block.branch_block.clone(),
+            SIRBlock::ExceptionBlock(block) => {
+                SIRBlockIndexInfo::Edge(block.exception_handler.clone())
+            }
+        }
+    }
+
+    pub fn get_default_block(&self) -> SIRBlockIndexInfo<SIRNode> {
+        match self {
+            SIRBlock::NormalBlock(block) => block.default_block.clone(),
+            SIRBlock::ExceptionBlock(block) => block.default_block.clone(),
+        }
+    }
+
+    pub fn get_nodes_mut(&mut self) -> Option<&mut SIR<SIRNode>> {
+        match self {
+            SIRBlock::NormalBlock(block) => Some(&mut block.nodes),
+            SIRBlock::ExceptionBlock(_) => None,
+        }
+    }
+
+    pub fn get_nodes(self) -> Option<SIR<SIRNode>> {
+        match self {
+            SIRBlock::NormalBlock(block) => Some(block.nodes),
+            SIRBlock::ExceptionBlock(_) => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct SIRControlFlowGraph<SIRNode: GenericSIRNode> {
     pub blocks: Vec<SIRBlock<SIRNode>>,
     pub start_index: SIRBlockIndexInfo<SIRNode>,
@@ -466,33 +515,39 @@ pub struct SIRControlFlowGraph<SIRNode: GenericSIRNode> {
 
 #[cfg(feature = "dot")]
 impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
-    fn add_block<'a>(
+    fn add_block(
         graph: &mut petgraph::Graph<String, String>,
-        blocks: &'a [SIRBlock<SIRNode>],
-        block_index: Option<&'a BlockIndex>,
-        block_map: &mut HashMap<Option<&'a BlockIndex>, NodeIndex>,
+        blocks: &[SIRBlock<SIRNode>],
+        block_index: Option<BlockIndex>,
+        block_map: &mut HashMap<Option<BlockIndex>, NodeIndex>,
     ) -> Option<NodeIndex>
     where
         SIR<SIRNode>: SIROwned<SIRNode>,
     {
         let block = match block_index {
-            Some(BlockIndex::Index(index)) => blocks.get(*index).unwrap(),
+            Some(BlockIndex::Index(index)) => blocks.get(index).unwrap(),
             _ => return None,
         };
 
-        let text = format!("{}", block.nodes);
+        let text = match block {
+            SIRBlock::NormalBlock(block) => {
+                format!("{}", block.nodes)
+            }
+            SIRBlock::ExceptionBlock(_) => "EXCEPTION".to_string(),
+        };
 
-        let index =
-            if let std::collections::hash_map::Entry::Vacant(e) = block_map.entry(block_index) {
-                let index = graph.add_node(text);
-                e.insert(index);
+        let index = if let std::collections::hash_map::Entry::Vacant(e) =
+            block_map.entry(block_index.clone())
+        {
+            let index = graph.add_node(text);
+            e.insert(index);
 
-                index
-            } else {
-                block_map[&block_index]
-            };
+            index
+        } else {
+            block_map[&block_index]
+        };
 
-        let (branch_index, branch_statements) = match &block.branch_block {
+        let (branch_index, branch_statements) = match block.get_branch_block() {
             SIRBlockIndexInfo::Edge(SIRBranchEdge {
                 block_index: branch_index,
                 statements,
@@ -505,7 +560,7 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
         let branch_index = if block_map.contains_key(&branch_index) {
             Some(block_map[&branch_index])
         } else {
-            let index = Self::add_block(graph, blocks, branch_index, block_map);
+            let index = Self::add_block(graph, blocks, branch_index.clone(), block_map);
 
             if let Some(index) = index {
                 block_map.insert(branch_index, index);
@@ -521,7 +576,7 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
             }
         };
 
-        let (default_index, default_statements) = match &block.default_block {
+        let (default_index, default_statements) = match block.get_default_block() {
             SIRBlockIndexInfo::Edge(SIRBranchEdge {
                 block_index: default_index,
                 statements,
@@ -534,7 +589,7 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
         let default_index = if block_map.contains_key(&default_index) {
             Some(block_map[&default_index])
         } else {
-            let index = Self::add_block(graph, blocks, default_index, block_map);
+            let index = Self::add_block(graph, blocks, default_index.clone(), block_map);
 
             if let Some(index) = index {
                 block_map.insert(default_index, index);
@@ -582,7 +637,7 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
         Self::add_block(
             &mut graph,
             &self.blocks,
-            self.start_index.get_block_index(),
+            self.start_index.get_block_index().cloned(),
             &mut HashMap::new(),
         );
 
@@ -682,13 +737,18 @@ where
     SIR<SIRNode>: SIROwned<SIRNode>,
 {
     #[derive(Debug, Clone)]
-    struct TempBlockInfo<SIRNode: GenericSIRNode>
+    struct NormalTempBlockInfo<SIRNode: GenericSIRNode>
     where
         SIRNode: Clone + std::fmt::Debug,
     {
         stack: InfiniteStack<SIRExpression<SIRNode>>,
         statements: SIR<SIRNode>,
         phi_stack: InfiniteStack<AuxVar>,
+    }
+
+    enum TempBlockInfo<SIRNode: GenericSIRNode> {
+        NormalBlock(NormalTempBlockInfo<SIRNode>),
+        ExceptionBlock,
     }
 
     let mut temp_blocks: Vec<TempBlockInfo<SIRNode>> = vec![];
@@ -714,19 +774,24 @@ where
 
     // Create isolated IR blocks
     for block in &cfg.blocks {
-        let (statements, stack, phi_stack) =
-            bb_to_ir::<ExtInstruction, SIRNode>(&block.instructions, &mut names)?;
+        match block {
+            crate::cfg::Block::NormalBlock(block) => {
+                let (statements, stack, phi_stack) =
+                    bb_to_ir::<ExtInstruction, SIRNode>(&block.instructions, &mut names)?;
 
-        temp_blocks.push(TempBlockInfo {
-            stack,
-            statements,
-            phi_stack,
-        });
+                temp_blocks.push(TempBlockInfo::NormalBlock(NormalTempBlockInfo {
+                    stack,
+                    statements,
+                    phi_stack,
+                }));
+            }
+            crate::cfg::Block::ExceptionBlock(_) => temp_blocks.push(TempBlockInfo::ExceptionBlock),
+        }
 
         let mut default_stack = vec![].into();
         let mut default_phi_stack = vec![].into();
 
-        let default_statements = match &block.default_block {
+        let default_statements = match &block.get_default_block() {
             BlockIndexInfo::Edge(BranchEdge {
                 reason: branch_reason,
                 ..
@@ -762,7 +827,7 @@ where
         let mut branch_stack = vec![].into();
         let mut branch_phi_stack = vec![].into();
 
-        let branch_statements = match &block.branch_block {
+        let branch_statements = match &block.get_branch_block() {
             BlockIndexInfo::Edge(BranchEdge {
                 reason: branch_reason,
                 ..
@@ -929,26 +994,28 @@ where
             has_changed.insert(index, vec![block_element.curr_stack.clone()]);
         }
 
-        fill_phi_nodes(
-            &mut block_element.curr_stack,
-            &mut block_info.statements.0,
-            &block_info.phi_stack,
-        )?;
+        if let TempBlockInfo::NormalBlock(block_info) = block_info {
+            fill_phi_nodes(
+                &mut block_element.curr_stack,
+                &mut block_info.statements.0,
+                &block_info.phi_stack,
+            )?;
 
-        extend_merge_stack(
-            &mut block_element.curr_stack,
-            &block_info.stack,
-            &block_info.phi_stack,
-        )?;
+            extend_merge_stack(
+                &mut block_element.curr_stack,
+                &block_info.stack,
+                &block_info.phi_stack,
+            )?;
+        }
 
         queue.push(BlockQueue {
-            block_index: cfg.blocks.index(index).default_block.clone(),
+            block_index: cfg.blocks.index(index).get_default_block().clone(),
             curr_stack: block_element.curr_stack.to_vec(),
             from_block_index: Some((index, false)),
         });
 
         queue.push(BlockQueue {
-            block_index: cfg.blocks.index(index).branch_block.clone(),
+            block_index: cfg.blocks.index(index).get_branch_block().clone(),
             curr_stack: block_element.curr_stack.to_vec(),
             from_block_index: Some((index, true)),
         });
@@ -965,22 +1032,54 @@ where
     let blocks: Vec<_> = temp_blocks
         .into_iter()
         .enumerate()
-        .map(|(index, v)| SIRBlock {
-            nodes: v.statements,
-            branch_block: cfg.blocks[index].branch_block.into_sir(
-                if temp_edges.get(index).unwrap().1.statements.is_empty() {
-                    None
-                } else {
-                    Some(temp_edges.get(index).unwrap().1.statements.clone())
-                },
-            ),
-            default_block: cfg.blocks[index].default_block.into_sir(
-                if temp_edges.get(index).unwrap().0.statements.is_empty() {
-                    None
-                } else {
-                    Some(temp_edges.get(index).unwrap().0.statements.clone())
-                },
-            ),
+        .map(|(index, v)| match v {
+            TempBlockInfo::NormalBlock(v) => SIRBlock::NormalBlock(SIRNormalBlock {
+                nodes: v.statements,
+                branch_block: cfg.blocks[index].get_branch_block().into_sir(
+                    if temp_edges.get(index).unwrap().1.statements.is_empty() {
+                        None
+                    } else {
+                        Some(temp_edges.get(index).unwrap().1.statements.clone())
+                    },
+                ),
+                default_block: cfg.blocks[index].get_default_block().into_sir(
+                    if temp_edges.get(index).unwrap().0.statements.is_empty() {
+                        None
+                    } else {
+                        Some(temp_edges.get(index).unwrap().0.statements.clone())
+                    },
+                ),
+            }),
+            TempBlockInfo::ExceptionBlock => {
+                let block = match &cfg.blocks[index] {
+                    crate::cfg::Block::ExceptionBlock(block) => block,
+                    _ => unreachable!(),
+                };
+
+                let exception_handler = BlockIndexInfo::Edge(block.exception_handler.clone())
+                    .into_sir(if temp_edges.get(index).unwrap().1.statements.is_empty() {
+                        None
+                    } else {
+                        Some(temp_edges.get(index).unwrap().1.statements.clone())
+                    });
+
+                let exception_handler = match exception_handler {
+                    SIRBlockIndexInfo::Edge(edge) => edge,
+                    _ => unreachable!(),
+                };
+
+                SIRBlock::ExceptionBlock(SIRExceptionBlock {
+                    block_indexes: block.block_indexes.clone(),
+                    exception_handler: exception_handler,
+                    default_block: block.default_block.clone().into_sir(
+                        if temp_edges.get(index).unwrap().0.statements.is_empty() {
+                            None
+                        } else {
+                            Some(temp_edges.get(index).unwrap().0.statements.clone())
+                        },
+                    ),
+                })
+            }
         })
         .collect::<Vec<_>>();
 

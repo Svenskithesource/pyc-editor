@@ -1,0 +1,6192 @@
+---
+source: src/cfg.rs
+assertion_line: 1355
+expression: cfg
+---
+ControlFlowGraph {
+    blocks: [
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    MakeCell(
+                        ClosureRefIndex {
+                            index: 0,
+                        },
+                    ),
+                    MakeCell(
+                        ClosureRefIndex {
+                            index: 3,
+                        },
+                    ),
+                    MakeCell(
+                        ClosureRefIndex {
+                            index: 4,
+                        },
+                    ),
+                    MakeCell(
+                        ClosureRefIndex {
+                            index: 5,
+                        },
+                    ),
+                    ReturnGenerator(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Resume(
+                        StartFunction,
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 1,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 8,
+                        },
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 2,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            1,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            2,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 11,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            3,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            4,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 5,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 1,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    RaiseVarargs(
+                        RaiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 12,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            5,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            6,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 8,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            3,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            7,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            8,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            9,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 8,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            5,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            10,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 7,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 3,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    RaiseVarargs(
+                        RaiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 2,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            11,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            12,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 9,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        8,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 7,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 4,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    RaiseVarargs(
+                        RaiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            13,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            14,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadDeref(
+                        ClosureRefIndex {
+                            index: 3,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            15,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NONE,
+                        ),
+                        block_index: Index(
+                            11,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 9,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            16,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            17,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 7,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 5,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    RaiseVarargs(
+                        RaiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            18,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_NOT_NONE,
+                        ),
+                        block_index: Index(
+                            19,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    BuildList(
+                        0,
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 14,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 2,
+                        },
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 8,
+                        },
+                    ),
+                    CompareOp(
+                        Equal,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            20,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            21,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 10,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 6,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 6,
+                        },
+                    ),
+                    CompareOp(
+                        Equal,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_IF_FALSE_OR_POP,
+                        ),
+                        block_index: Index(
+                            22,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_IF_FALSE_OR_POP,
+                        ),
+                        block_index: Index(
+                            23,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 40,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 41,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    CompareOp(
+                        NotEqual,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            24,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            25,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 7,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 17,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    RaiseVarargs(
+                        RaiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 1,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 2,
+                        },
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 18,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            26,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            27,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        ConstIndex {
+                            index: 2,
+                        },
+                    ),
+                    BuildList(
+                        1,
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 15,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_FORWARD,
+                        ),
+                        block_index: Index(
+                            28,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    StoreFast(
+                        VarNameIndex {
+                            index: 9,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        16,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 14,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 8,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 7,
+                        },
+                    ),
+                    CompareOp(
+                        NotEqual,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        22,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    BuildList(
+                        1,
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 14,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        29,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 7,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 18,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    FormatValue(
+                        FormatFlag(
+                            FVC_REPR,
+                        ),
+                    ),
+                    BuildString(
+                        2,
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    RaiseVarargs(
+                        RaiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 2,
+                        },
+                    ),
+                    BuildList(
+                        1,
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 15,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_FORWARD,
+                        ),
+                        block_index: Index(
+                            28,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 1,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 2,
+                        },
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 20,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 11,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 12,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            30,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            26,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadClosure(
+                        ClosureRefIndex {
+                            index: 4,
+                        },
+                    ),
+                    LoadClosure(
+                        ClosureRefIndex {
+                            index: 5,
+                        },
+                    ),
+                    LoadClosure(
+                        ClosureRefIndex {
+                            index: 3,
+                        },
+                    ),
+                    LoadClosure(
+                        ClosureRefIndex {
+                            index: 0,
+                        },
+                    ),
+                    BuildTuple(
+                        4,
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 9,
+                        },
+                    ),
+                    MakeFunction(
+                        MakeFunctionFlags(
+                            CLOSURE,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 15,
+                        },
+                    ),
+                    GetIter(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 16,
+                        },
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 27,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 14,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 16,
+                        },
+                    ),
+                    CallFunctionEx(
+                        PositionalOnly,
+                    ),
+                    GetAwaitable(
+                        NoLocation,
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 2,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        31,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 14,
+                        },
+                    ),
+                    GetIter(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        32,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 2,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 15,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        28,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            SEND,
+                        ),
+                        block_index: Index(
+                            33,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            SEND,
+                        ),
+                        block_index: Index(
+                            34,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            35,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            36,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    StoreFast(
+                        VarNameIndex {
+                            index: 17,
+                        },
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 31,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 32,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 17,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 18,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 17,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 17,
+                        },
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 10,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 18,
+                        },
+                    ),
+                    Nop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        37,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    YieldValue(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Resume(
+                        AfterAwait,
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_BACKWARD_NO_INTERRUPT,
+                        ),
+                        block_index: Index(
+                            31,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 87,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadDeref(
+                        ClosureRefIndex {
+                            index: 0,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 14,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 1,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 8,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 7,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 11,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 12,
+                        },
+                    ),
+                    Precall(
+                        7,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        7,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 26,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 13,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            38,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            39,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    StoreFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 42,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 10,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_BACKWARD,
+                        ),
+                        block_index: Index(
+                            32,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    51,
+                    41,
+                    45,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        40,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                0,
+                            ),
+                        ),
+                        block_index: Index(
+                            41,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadDeref(
+                        ClosureRefIndex {
+                            index: 0,
+                        },
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 21,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            42,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            43,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 26,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 44,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 26,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 45,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 19,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    GetAwaitable(
+                        NoLocation,
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 2,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        44,
+                    ),
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    60,
+                    56,
+                    49,
+                    61,
+                    52,
+                    53,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            1,
+                        ),
+                    ),
+                    block_index: Index(
+                        48,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                true,
+                                1,
+                            ),
+                        ),
+                        block_index: Index(
+                            49,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 17,
+                        },
+                    ),
+                    GetIter(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        45,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 26,
+                        },
+                    ),
+                    ReturnValue(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 44,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 46,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 20,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 26,
+                        },
+                    ),
+                    Precall(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        42,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            SEND,
+                        ),
+                        block_index: Index(
+                            46,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            SEND,
+                        ),
+                        block_index: Index(
+                            47,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            50,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            51,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        38,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    YieldValue(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Resume(
+                        AfterAwait,
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_BACKWARD_NO_INTERRUPT,
+                        ),
+                        block_index: Index(
+                            44,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Copy(
+                        3,
+                    ),
+                    PopExcept(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Reraise(
+                        ReraiseTOSAndSetLasti(
+                            1,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PushExcInfo(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 18,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            52,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            53,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        ConstIndex {
+                            index: 12,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 18,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        54,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    StoreFast(
+                        VarNameIndex {
+                            index: 19,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 19,
+                        },
+                    ),
+                    UnpackSequence(
+                        5,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 20,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 21,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 22,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 23,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 24,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        55,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Reraise(
+                        ReraiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 14,
+                        },
+                    ),
+                    GetIter(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        56,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 18,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            57,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            58,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Nop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        59,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            60,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            61,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_FORWARD,
+                        ),
+                        block_index: Index(
+                            29,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 14,
+                        },
+                    ),
+                    GetIter(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        62,
+                    ),
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    64,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            1,
+                        ),
+                    ),
+                    block_index: Index(
+                        63,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                1,
+                            ),
+                        ),
+                        block_index: Index(
+                            64,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Reraise(
+                        ReraiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    StoreFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 39,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_BACKWARD,
+                        ),
+                        block_index: Index(
+                            56,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            57,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            FOR_ITER,
+                        ),
+                        block_index: Index(
+                            65,
+                        ),
+                    },
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    68,
+                    71,
+                    75,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        67,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                true,
+                                2,
+                            ),
+                        ),
+                        block_index: Index(
+                            68,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 19,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 20,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 21,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 22,
+                        },
+                    ),
+                    Precall(
+                        3,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        3,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        66,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    StoreFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 39,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_BACKWARD,
+                        ),
+                        block_index: Index(
+                            62,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    69,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        40,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                0,
+                            ),
+                        ),
+                        block_index: Index(
+                            69,
+                        ),
+                    },
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    72,
+                    85,
+                    79,
+                    76,
+                    88,
+                    83,
+                    80,
+                    73,
+                    77,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        40,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                0,
+                            ),
+                        ),
+                        block_index: Index(
+                            73,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PushExcInfo(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 20,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    CheckExcMatch(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            70,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            71,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_FORWARD,
+                        ),
+                        block_index: Index(
+                            72,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    78,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        67,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                true,
+                                2,
+                            ),
+                        ),
+                        block_index: Index(
+                            78,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadDeref(
+                        ClosureRefIndex {
+                            index: 0,
+                        },
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 21,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            74,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            75,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 14,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 24,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 9,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            76,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            77,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Copy(
+                        3,
+                    ),
+                    PopExcept(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Reraise(
+                        ReraiseTOSAndSetLasti(
+                            1,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    81,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        40,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                0,
+                            ),
+                        ),
+                        block_index: Index(
+                            81,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 44,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 23,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 11,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 20,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 21,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 22,
+                        },
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 12,
+                        },
+                    ),
+                    KwNames(
+                        ConstIndex {
+                            index: 13,
+                        },
+                    ),
+                    Precall(
+                        5,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        5,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        74,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 10,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            79,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            80,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 25,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 26,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 27,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 12,
+                        },
+                    ),
+                    Precall(
+                        3,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        3,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        76,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Reraise(
+                        ReraiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 58,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            82,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            83,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 57,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        79,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PopExcept(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_BACKWARD,
+                        ),
+                        block_index: Index(
+                            45,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Nop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        84,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 20,
+                        },
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 30,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    CompareOp(
+                        Equal,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            82,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            85,
+                        ),
+                    },
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    87,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            1,
+                        ),
+                    ),
+                    block_index: Index(
+                        86,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                1,
+                            ),
+                        ),
+                        block_index: Index(
+                            87,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 63,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 14,
+                        },
+                    ),
+                    Precall(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            82,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            88,
+                        ),
+                    },
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    91,
+                    94,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        90,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                true,
+                                2,
+                            ),
+                        ),
+                        block_index: Index(
+                            91,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 34,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 24,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        89,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 6,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 25,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 32,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 33,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 12,
+                        },
+                    ),
+                    Precall(
+                        3,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        3,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        82,
+                    ),
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    92,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        40,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                0,
+                            ),
+                        ),
+                        block_index: Index(
+                            92,
+                        ),
+                    },
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    95,
+                    50,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            false,
+                            0,
+                        ),
+                    ),
+                    block_index: Index(
+                        40,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                0,
+                            ),
+                        ),
+                        block_index: Index(
+                            95,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PushExcInfo(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 70,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    CheckExcMatch(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            93,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_FALSE,
+                        ),
+                        block_index: Index(
+                            94,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_BACKWARD,
+                        ),
+                        block_index: Index(
+                            45,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Reraise(
+                        ReraiseTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    StoreFast(
+                        VarNameIndex {
+                            index: 25,
+                        },
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        96,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Copy(
+                        3,
+                    ),
+                    PopExcept(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Reraise(
+                        ReraiseTOSAndSetLasti(
+                            1,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    98,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        97,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                true,
+                                2,
+                            ),
+                        ),
+                        block_index: Index(
+                            98,
+                        ),
+                    },
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    99,
+                    93,
+                ],
+                exception_handler: BranchEdge {
+                    reason: Exception(
+                        (
+                            true,
+                            2,
+                        ),
+                    ),
+                    block_index: Index(
+                        90,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                true,
+                                2,
+                            ),
+                        ),
+                        block_index: Index(
+                            99,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        GlobalNameIndex {
+                            index: 71,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 25,
+                        },
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 36,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 15,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 24,
+                        },
+                    ),
+                    FormatValue(
+                        FormatFlag(
+                            FVC_REPR,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 16,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 25,
+                        },
+                    ),
+                    LoadAttr(
+                        NameIndex {
+                            index: 37,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 38,
+                        },
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Precall(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        0,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    FormatValue(
+                        FormatFlag(
+                            FVC_STR,
+                        ),
+                    ),
+                    BuildString(
+                        4,
+                    ),
+                    Precall(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        2,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 2,
+                        },
+                    ),
+                    RaiseVarargs(
+                        RaiseTOS1FromTOS,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        ConstIndex {
+                            index: 2,
+                        },
+                    ),
+                    StoreFast(
+                        VarNameIndex {
+                            index: 25,
+                        },
+                    ),
+                    DeleteFast(
+                        VarNameIndex {
+                            index: 25,
+                        },
+                    ),
+                    Reraise(
+                        ReraiseTOSAndSetLasti(
+                            1,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+    ],
+    start_index: Fallthrough(
+        Index(
+            0,
+        ),
+    ),
+}

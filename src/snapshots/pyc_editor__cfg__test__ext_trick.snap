@@ -4,77 +4,85 @@ expression: cfg
 ---
 ControlFlowGraph {
     blocks: [
-        Block {
-            instructions: [
-                LoadConst(
-                    0,
-                ),
-            ],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        POP_JUMP_FORWARD_IF_TRUE,
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        0,
                     ),
-                    block_index: Index(
-                        1,
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            1,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            2,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    ExtendedArg(
+                        0,
                     ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        POP_JUMP_FORWARD_IF_TRUE,
+                    StoreName(
+                        0,
                     ),
-                    block_index: Index(
-                        2,
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        3,
                     ),
-                },
-            ),
-        },
-        Block {
-            instructions: [
-                ExtendedArg(
-                    0,
                 ),
-                StoreName(
-                    0,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    ExtendedArg(
+                        0,
+                    ),
+                    ExtendedArg(
+                        0,
+                    ),
+                    StoreName(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        3,
+                    ),
                 ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    3,
-                ),
-            ),
-        },
-        Block {
-            instructions: [
-                ExtendedArg(
-                    0,
-                ),
-                ExtendedArg(
-                    0,
-                ),
-                StoreName(
-                    0,
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    3,
-                ),
-            ),
-        },
-        Block {
-            instructions: [
-                Nop(
-                    0,
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Nop(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
     ],
     start_index: Fallthrough(
         Index(

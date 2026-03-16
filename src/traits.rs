@@ -526,6 +526,10 @@ pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display + PartialEq {
     fn get_stack_depth(&self) -> Option<usize>;
 }
 
+pub trait BlockSliceExt<I: GenericInstruction> {
+    fn find_exception_block(&self, index_to_search: usize) -> Option<usize>;
+}
+
 #[cfg(all(test, feature = "v311"))]
 mod test {
     use crate::traits::SimpleInstructionAccess;

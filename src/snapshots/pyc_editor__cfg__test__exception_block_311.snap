@@ -4,79 +4,83 @@ expression: cfg
 ---
 ControlFlowGraph {
     blocks: [
-        Block {
-            instructions: [
-                Resume(
-                    StartFunction,
-                ),
-                PushNull(
-                    UnusedArgument(
-                        0,
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Resume(
+                        StartFunction,
+                    ),
+                    PushNull(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadName(
+                        NameIndex {
+                            index: 0,
+                        },
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 0,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Nop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        1,
                     ),
                 ),
-                LoadName(
-                    NameIndex {
-                        index: 0,
-                    },
-                ),
-                LoadConst(
-                    ConstIndex {
-                        index: 0,
-                    },
-                ),
-                Precall(
-                    1,
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Call(
-                    1,
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                PopTop(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Nop(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    1,
-                ),
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    3,
+                ],
+                exception_handler: BranchEdge {
                     reason: Exception(
                         (
                             false,
@@ -87,25 +91,27 @@ ControlFlowGraph {
                         2,
                     ),
                 },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        (
-                            false,
-                            0,
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                0,
+                            ),
                         ),
-                    ),
-                    block_index: Index(
-                        3,
-                    ),
-                },
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: Edge(
-                BranchEdge {
+                        block_index: Index(
+                            3,
+                        ),
+                    },
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    6,
+                ],
+                exception_handler: BranchEdge {
                     reason: Exception(
                         (
                             true,
@@ -116,209 +122,219 @@ ControlFlowGraph {
                         5,
                     ),
                 },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Exception(
-                        (
-                            true,
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Exception(
+                            (
+                                true,
+                                1,
+                            ),
+                        ),
+                        block_index: Index(
+                            6,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PushNull(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadName(
+                        NameIndex {
+                            index: 0,
+                        },
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 1,
+                        },
+                    ),
+                    Precall(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        4,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        ConstIndex {
+                            index: 3,
+                        },
+                    ),
+                    ReturnValue(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Copy(
+                        3,
+                    ),
+                    PopExcept(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Reraise(
+                        ReraiseTOSAndSetLasti(
                             1,
                         ),
                     ),
-                    block_index: Index(
-                        6,
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PushExcInfo(
+                        UnusedArgument(
+                            0,
+                        ),
                     ),
-                },
-            ),
-        },
-        Block {
-            instructions: [
-                PushNull(
-                    UnusedArgument(
-                        0,
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
                     ),
-                ),
-                LoadName(
-                    NameIndex {
-                        index: 0,
-                    },
-                ),
-                LoadConst(
-                    ConstIndex {
-                        index: 1,
-                    },
-                ),
-                Precall(
-                    1,
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
+                    PushNull(
+                        UnusedArgument(
+                            0,
+                        ),
                     ),
-                ),
-                Call(
-                    1,
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
+                    LoadName(
+                        NameIndex {
+                            index: 0,
+                        },
                     ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
+                    LoadConst(
+                        ConstIndex {
+                            index: 2,
+                        },
                     ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    4,
-                ),
-            ),
-        },
-        Block {
-            instructions: [
-                PopTop(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                LoadConst(
-                    ConstIndex {
-                        index: 3,
-                    },
-                ),
-                ReturnValue(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
-        Block {
-            instructions: [
-                Copy(
-                    3,
-                ),
-                PopExcept(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Reraise(
-                    ReraiseTOSAndSetLasti(
+                    Precall(
                         1,
                     ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
-        Block {
-            instructions: [
-                PushExcInfo(
-                    UnusedArgument(
-                        0,
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Call(
+                        1,
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    Cache(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        7,
                     ),
                 ),
-                PopTop(
-                    UnusedArgument(
-                        0,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PopExcept(
+                        UnusedArgument(
+                            0,
+                        ),
                     ),
-                ),
-                PushNull(
-                    UnusedArgument(
-                        0,
+                    LoadConst(
+                        ConstIndex {
+                            index: 3,
+                        },
                     ),
-                ),
-                LoadName(
-                    NameIndex {
-                        index: 0,
-                    },
-                ),
-                LoadConst(
-                    ConstIndex {
-                        index: 2,
-                    },
-                ),
-                Precall(
-                    1,
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
+                    ReturnValue(
+                        UnusedArgument(
+                            0,
+                        ),
                     ),
-                ),
-                Call(
-                    1,
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                Cache(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    7,
-                ),
-            ),
-        },
-        Block {
-            instructions: [
-                PopTop(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                PopExcept(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-                LoadConst(
-                    ConstIndex {
-                        index: 3,
-                    },
-                ),
-                ReturnValue(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
     ],
     start_index: Fallthrough(
         Index(

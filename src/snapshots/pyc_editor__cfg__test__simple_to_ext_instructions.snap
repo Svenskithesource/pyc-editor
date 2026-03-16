@@ -4,75 +4,81 @@ expression: cfg
 ---
 ControlFlowGraph {
     blocks: [
-        Block {
-            instructions: [
-                LoadConst(
-                    ConstIndex {
-                        index: 256,
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        ConstIndex {
+                            index: 256,
+                        },
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 1,
+                        },
+                    ),
+                    CompareOp(
+                        Smaller,
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            1,
+                        ),
                     },
                 ),
-                LoadConst(
-                    ConstIndex {
-                        index: 1,
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            2,
+                        ),
                     },
                 ),
-                CompareOp(
-                    Smaller,
-                ),
-            ],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        POP_JUMP_FORWARD_IF_TRUE,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        ConstIndex {
+                            index: 3,
+                        },
                     ),
-                    block_index: Index(
-                        1,
+                    ReturnValue(
+                        UnusedArgument(
+                            0,
+                        ),
                     ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        POP_JUMP_FORWARD_IF_TRUE,
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        ConstIndex {
+                            index: 2,
+                        },
                     ),
-                    block_index: Index(
-                        2,
+                    ReturnValue(
+                        UnusedArgument(
+                            0,
+                        ),
                     ),
-                },
-            ),
-        },
-        Block {
-            instructions: [
-                LoadConst(
-                    ConstIndex {
-                        index: 3,
-                    },
-                ),
-                ReturnValue(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
-        Block {
-            instructions: [
-                LoadConst(
-                    ConstIndex {
-                        index: 2,
-                    },
-                ),
-                ReturnValue(
-                    UnusedArgument(
-                        0,
-                    ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
     ],
     start_index: Fallthrough(
         Index(

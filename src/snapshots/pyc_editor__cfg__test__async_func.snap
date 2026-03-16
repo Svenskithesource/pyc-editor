@@ -4,134 +4,140 @@ expression: cfg
 ---
 ControlFlowGraph {
     blocks: [
-        Block {
-            instructions: [
-                GenStart(
-                    Coroutine,
-                ),
-                LoadGlobal(
-                    NameIndex {
-                        index: 0,
-                    },
-                ),
-                CallFunction(
-                    0,
-                ),
-                StoreFast(
-                    VarNameIndex {
-                        index: 0,
-                    },
-                ),
-                LoadFast(
-                    VarNameIndex {
-                        index: 0,
-                    },
-                ),
-            ],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: POP_JUMP_IF_TRUE,
-                    block_index: Index(
-                        1,
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    GenStart(
+                        Coroutine,
                     ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: POP_JUMP_IF_TRUE,
-                    block_index: Index(
-                        2,
+                    LoadGlobal(
+                        NameIndex {
+                            index: 0,
+                        },
                     ),
-                },
-            ),
-        },
-        Block {
-            instructions: [
-                LoadFast(
-                    VarNameIndex {
-                        index: 0,
-                    },
-                ),
-                ReturnValue(
-                    UnusedArgument(
+                    CallFunction(
                         0,
                     ),
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
-        Block {
-            instructions: [
-                LoadGlobal(
-                    NameIndex {
-                        index: 1,
+                    StoreFast(
+                        VarNameIndex {
+                            index: 0,
+                        },
+                    ),
+                    LoadFast(
+                        VarNameIndex {
+                            index: 0,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: POP_JUMP_IF_TRUE,
+                        block_index: Index(
+                            1,
+                        ),
                     },
                 ),
-                LoadMethod(
-                    NameIndex {
-                        index: 2,
+                default_block: Edge(
+                    BranchEdge {
+                        reason: POP_JUMP_IF_TRUE,
+                        block_index: Index(
+                            2,
+                        ),
                     },
                 ),
-                CallMethod(
-                    0,
-                ),
-                GetAwaitable(
-                    UnusedArgument(
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadFast(
+                        VarNameIndex {
+                            index: 0,
+                        },
+                    ),
+                    ReturnValue(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadGlobal(
+                        NameIndex {
+                            index: 1,
+                        },
+                    ),
+                    LoadMethod(
+                        NameIndex {
+                            index: 2,
+                        },
+                    ),
+                    CallMethod(
                         0,
                     ),
-                ),
-                LoadConst(
-                    ConstIndex {
-                        index: 0,
-                    },
-                ),
-                YieldFrom(
-                    UnusedArgument(
+                    GetAwaitable(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadConst(
+                        ConstIndex {
+                            index: 0,
+                        },
+                    ),
+                    YieldFrom(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    PopTop(
+                        UnusedArgument(
+                            0,
+                        ),
+                    ),
+                    LoadGlobal(
+                        NameIndex {
+                            index: 0,
+                        },
+                    ),
+                    CallFunction(
                         0,
                     ),
-                ),
-                PopTop(
-                    UnusedArgument(
-                        0,
+                    StoreFast(
+                        VarNameIndex {
+                            index: 0,
+                        },
                     ),
-                ),
-                LoadGlobal(
-                    NameIndex {
-                        index: 0,
+                    LoadFast(
+                        VarNameIndex {
+                            index: 0,
+                        },
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: POP_JUMP_IF_FALSE,
+                        block_index: Index(
+                            2,
+                        ),
                     },
                 ),
-                CallFunction(
-                    0,
-                ),
-                StoreFast(
-                    VarNameIndex {
-                        index: 0,
+                default_block: Edge(
+                    BranchEdge {
+                        reason: POP_JUMP_IF_FALSE,
+                        block_index: Index(
+                            1,
+                        ),
                     },
                 ),
-                LoadFast(
-                    VarNameIndex {
-                        index: 0,
-                    },
-                ),
-            ],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: POP_JUMP_IF_FALSE,
-                    block_index: Index(
-                        2,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: POP_JUMP_IF_FALSE,
-                    block_index: Index(
-                        1,
-                    ),
-                },
-            ),
-        },
+            },
+        ),
     ],
     start_index: Fallthrough(
         Index(

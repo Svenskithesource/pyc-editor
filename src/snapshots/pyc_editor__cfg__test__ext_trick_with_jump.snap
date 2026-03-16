@@ -4,73 +4,81 @@ expression: cfg
 ---
 ControlFlowGraph {
     blocks: [
-        Block {
-            instructions: [
-                LoadConst(
-                    0,
-                ),
-            ],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        POP_JUMP_FORWARD_IF_TRUE,
-                    ),
-                    block_index: Index(
-                        1,
-                    ),
-                },
-            ),
-            default_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        POP_JUMP_FORWARD_IF_TRUE,
-                    ),
-                    block_index: Index(
-                        2,
-                    ),
-                },
-            ),
-        },
-        Block {
-            instructions: [],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    3,
-                ),
-            ),
-        },
-        Block {
-            instructions: [
-                ExtendedArg(
-                    0,
-                ),
-            ],
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    3,
-                ),
-            ),
-        },
-        Block {
-            instructions: [
-                Nop(
-                    0,
-                ),
-            ],
-            branch_block: Edge(
-                BranchEdge {
-                    reason: Opcode(
-                        JUMP_FORWARD,
-                    ),
-                    block_index: InvalidIndex(
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
                         0,
                     ),
-                },
-            ),
-            default_block: NoIndex,
-        },
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            1,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            POP_JUMP_FORWARD_IF_TRUE,
+                        ),
+                        block_index: Index(
+                            2,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        3,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    ExtendedArg(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        3,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    Nop(
+                        0,
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: Opcode(
+                            JUMP_FORWARD,
+                        ),
+                        block_index: InvalidIndex(
+                            0,
+                        ),
+                    },
+                ),
+                default_block: NoIndex,
+            },
+        ),
     ],
     start_index: Fallthrough(
         Index(

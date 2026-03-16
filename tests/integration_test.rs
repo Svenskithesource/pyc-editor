@@ -505,9 +505,10 @@ fn test_create_cfg_standard_lib() {
         let mut instruction_count = 0;
 
         for block in &cfg.blocks {
-            instruction_count += get_len_without_cache(&block.instructions);
+            instruction_count +=
+                get_len_without_cache(&block.get_instructions_slice().unwrap_or_default());
 
-            if let BlockIndexInfo::Edge(BranchEdge { reason, .. }) = &block.branch_block
+            if let BlockIndexInfo::Edge(BranchEdge { reason, .. }) = &block.get_branch_block()
                 && reason.is_opcode()
             {
                 instruction_count += 1;

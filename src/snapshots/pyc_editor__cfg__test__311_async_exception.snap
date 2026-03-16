@@ -2571,9 +2571,9 @@ ControlFlowGraph {
         ExceptionBlock(
             ExceptionBlock {
                 block_indexes: [
+                    51,
                     45,
                     41,
-                    51,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(
@@ -2898,11 +2898,11 @@ ControlFlowGraph {
             ExceptionBlock {
                 block_indexes: [
                     61,
-                    56,
-                    52,
                     53,
-                    60,
+                    52,
                     49,
+                    56,
+                    60,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(
@@ -4002,13 +4002,13 @@ ControlFlowGraph {
             ExceptionBlock {
                 block_indexes: [
                     73,
-                    83,
                     85,
-                    80,
-                    72,
-                    77,
-                    88,
                     76,
+                    83,
+                    72,
+                    88,
+                    80,
+                    77,
                     79,
                 ],
                 exception_handler: BranchEdge {
@@ -5680,8 +5680,8 @@ ControlFlowGraph {
         ExceptionBlock(
             ExceptionBlock {
                 block_indexes: [
-                    50,
                     95,
+                    50,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(

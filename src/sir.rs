@@ -1,10 +1,12 @@
 use std::{collections::HashMap, ops::Index};
 
+#[cfg(feature = "dot")]
+use crate::utils::BlockKind;
 use crate::{
     cfg::{BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph},
     traits::{
-        BranchReasonTrait, GenericInstruction, GenericOpcode, GenericSIRException, GenericSIRNode,
-        SIROwned,
+        BlockSliceExt, BranchReasonTrait, GenericInstruction, GenericOpcode, GenericSIRException,
+        GenericSIRNode, SIROwned,
     },
     utils::{InfiniteStack, InfiniteVec, generate_var_name},
 };
@@ -513,10 +515,33 @@ pub struct SIRControlFlowGraph<SIRNode: GenericSIRNode> {
     pub start_index: SIRBlockIndexInfo<SIRNode>,
 }
 
+impl<SIRNode: GenericSIRNode> BlockSliceExt<SIRNode> for [SIRBlock<SIRNode>] {
+    fn find_exception_block(&self, index_to_search: usize) -> Option<usize> {
+        for (i, block) in self.iter().enumerate() {
+            match block {
+                SIRBlock::ExceptionBlock(block) => {
+                    if block.block_indexes.contains(&index_to_search) {
+                        return Some(i);
+                    }
+                }
+                _ => continue,
+            }
+        }
+
+        None
+    }
+}
+
+impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
+    pub fn find_exception_block(&self, index_to_search: usize) -> Option<usize> {
+        self.blocks.find_exception_block(index_to_search)
+    }
+}
+
 #[cfg(feature = "dot")]
 impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
     fn add_block(
-        graph: &mut petgraph::Graph<String, String>,
+        graph: &mut petgraph::Graph<(BlockKind, String), String>,
         blocks: &[SIRBlock<SIRNode>],
         block_index: Option<BlockIndex>,
         block_map: &mut HashMap<Option<BlockIndex>, NodeIndex>,
@@ -524,8 +549,8 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
     where
         SIR<SIRNode>: SIROwned<SIRNode>,
     {
-        let block = match block_index {
-            Some(BlockIndex::Index(index)) => blocks.get(index).unwrap(),
+        let (block, index) = match &block_index {
+            Some(BlockIndex::Index(index)) => (blocks.get(*index).unwrap(), index),
             _ => return None,
         };
 
@@ -536,10 +561,21 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
             SIRBlock::ExceptionBlock(_) => "EXCEPTION".to_string(),
         };
 
+        let kind = match block {
+            SIRBlock::NormalBlock(_) => {
+                if blocks.find_exception_block(*index).is_some() {
+                    BlockKind::InExceptionRange
+                } else {
+                    BlockKind::NormalBlock
+                }
+            }
+            SIRBlock::ExceptionBlock(_) => BlockKind::ExceptionBlock,
+        };
+
         let index = if let std::collections::hash_map::Entry::Vacant(e) =
             block_map.entry(block_index.clone())
         {
-            let index = graph.add_node(text);
+            let index = graph.add_node((kind.clone(), text));
             e.insert(index);
 
             index
@@ -567,9 +603,10 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
                 Some(index)
             } else {
                 match branch_index {
-                    Some(BlockIndex::InvalidIndex(invalid_index)) => {
-                        Some(graph.add_node(format!("invalid jump to index {}", invalid_index)))
-                    }
+                    Some(BlockIndex::InvalidIndex(invalid_index)) => Some(graph.add_node((
+                        kind.clone(),
+                        format!("invalid jump to index {}", invalid_index),
+                    ))),
                     Some(BlockIndex::Index(_)) => unreachable!(),
                     None => None,
                 }
@@ -596,9 +633,9 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
                 Some(index)
             } else {
                 match default_index {
-                    Some(BlockIndex::InvalidIndex(invalid_index)) => {
-                        Some(graph.add_node(format!("invalid jump to index {}", invalid_index)))
-                    }
+                    Some(BlockIndex::InvalidIndex(invalid_index)) => Some(
+                        graph.add_node((kind, format!("invalid jump to index {}", invalid_index))),
+                    ),
                     Some(BlockIndex::Index(_)) => unreachable!(),
                     None => None,
                 }
@@ -632,7 +669,7 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
         SIRNode: GenericSIRNode,
         SIR<SIRNode>: SIROwned<SIRNode>,
     {
-        let mut graph = petgraph::Graph::<String, String>::new();
+        let mut graph = petgraph::Graph::<(BlockKind, String), String>::new();
 
         Self::add_block(
             &mut graph,
@@ -659,7 +696,24 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
                         color
                     )
                 },
-                &|_, (_, s)| format!(r#"shape=rect, label = "{}""#, s.replace("\n", r"\l")),
+                &|_, (_, (kind, s))| {
+                    let label = s.replace("\n", r"\l");
+
+                    match kind {
+                        BlockKind::NormalBlock => {
+                            format!(r#"shape=rect, label="{}""#, label)
+                        }
+                        BlockKind::ExceptionBlock => {
+                            format!(
+                                r#"shape=rect, style=filled, fillcolor=orange, label="{}""#,
+                                label
+                            )
+                        }
+                        BlockKind::InExceptionRange => {
+                            format!(r#"shape=rect, color=orange, label="{}""#, label)
+                        }
+                    }
+                },
             )
         )
     }

@@ -526,7 +526,7 @@ pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display + PartialEq {
     fn get_stack_depth(&self) -> Option<usize>;
 }
 
-pub trait BlockSliceExt<I: GenericInstruction> {
+pub trait BlockSliceExt<I> {
     fn find_exception_block(&self, index_to_search: usize) -> Option<usize>;
 }
 

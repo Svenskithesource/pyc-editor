@@ -4,6 +4,8 @@ use std::{
     ops::{Deref, RangeBounds},
 };
 
+#[cfg(feature = "dot")]
+use crate::utils::BlockKind;
 use crate::{
     error::Error,
     traits::{
@@ -205,14 +207,6 @@ impl<I: GenericInstruction> ControlFlowGraph<I> {
     pub fn find_exception_block(&self, index_to_search: usize) -> Option<usize> {
         self.blocks.find_exception_block(index_to_search)
     }
-}
-
-#[cfg(feature = "dot")]
-#[derive(Debug, Clone)]
-enum BlockKind {
-    ExceptionBlock,
-    InExceptionRange,
-    NormalBlock,
 }
 
 #[cfg(feature = "dot")]

@@ -347,11 +347,11 @@ ControlFlowGraph {
         ExceptionBlock(
             ExceptionBlock {
                 block_indexes: [
-                    11,
-                    7,
-                    10,
                     12,
+                    10,
+                    11,
                     6,
+                    7,
                     5,
                 ],
                 exception_handler: BranchEdge {
@@ -384,11 +384,11 @@ ControlFlowGraph {
             ExceptionBlock {
                 block_indexes: [
                     17,
-                    21,
-                    22,
                     9,
-                    14,
                     16,
+                    22,
+                    14,
+                    21,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(
@@ -1190,11 +1190,11 @@ ControlFlowGraph {
         ExceptionBlock(
             ExceptionBlock {
                 block_indexes: [
-                    32,
-                    24,
-                    31,
                     20,
+                    24,
                     25,
+                    31,
+                    32,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(
@@ -2768,8 +2768,8 @@ ControlFlowGraph {
         ExceptionBlock(
             ExceptionBlock {
                 block_indexes: [
-                    41,
                     8,
+                    41,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(
@@ -3099,8 +3099,8 @@ ControlFlowGraph {
         ExceptionBlock(
             ExceptionBlock {
                 block_indexes: [
-                    49,
                     54,
+                    49,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(
@@ -3400,8 +3400,8 @@ ControlFlowGraph {
         ExceptionBlock(
             ExceptionBlock {
                 block_indexes: [
-                    56,
                     34,
+                    56,
                 ],
                 exception_handler: BranchEdge {
                     reason: Exception(

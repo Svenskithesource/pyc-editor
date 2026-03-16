@@ -4,70 +4,72 @@ expression: ir_cfg
 ---
 SIRControlFlowGraph {
     blocks: [
-        SIRBlock {
-            nodes: SIR(
-                [
-                    Assignment(
-                        AuxVar {
-                            name: "value_0",
-                        },
-                        Call(
-                            Call {
-                                node: SIRNode {
-                                    opcode: LOAD_CONST,
-                                    oparg: 0,
-                                    input: [],
-                                    output: [
-                                        StackItem {
-                                            name: "value",
-                                            count: 1,
-                                            index: 0,
-                                        },
-                                    ],
-                                    net_stack_delta: 1,
-                                },
-                                stack_inputs: [],
+        NormalBlock(
+            SIRNormalBlock {
+                nodes: SIR(
+                    [
+                        Assignment(
+                            AuxVar {
+                                name: "value_0",
                             },
-                        ),
-                    ),
-                    Assignment(
-                        AuxVar {
-                            name: "value_1",
-                        },
-                        Call(
-                            Call {
-                                node: SIRNode {
-                                    opcode: LOAD_CONST,
-                                    oparg: 0,
-                                    input: [],
-                                    output: [
-                                        StackItem {
-                                            name: "value",
-                                            count: 1,
-                                            index: 0,
-                                        },
-                                    ],
-                                    net_stack_delta: 1,
+                            Call(
+                                Call {
+                                    node: SIRNode {
+                                        opcode: LOAD_CONST,
+                                        oparg: 0,
+                                        input: [],
+                                        output: [
+                                            StackItem {
+                                                name: "value",
+                                                count: 1,
+                                                index: 0,
+                                            },
+                                        ],
+                                        net_stack_delta: 1,
+                                    },
+                                    stack_inputs: [],
                                 },
-                                stack_inputs: [],
-                            },
+                            ),
                         ),
-                    ),
-                ],
-            ),
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    1,
+                        Assignment(
+                            AuxVar {
+                                name: "value_1",
+                            },
+                            Call(
+                                Call {
+                                    node: SIRNode {
+                                        opcode: LOAD_CONST,
+                                        oparg: 0,
+                                        input: [],
+                                        output: [
+                                            StackItem {
+                                                name: "value",
+                                                count: 1,
+                                                index: 0,
+                                            },
+                                        ],
+                                        net_stack_delta: 1,
+                                    },
+                                    stack_inputs: [],
+                                },
+                            ),
+                        ),
+                    ],
                 ),
-            ),
-        },
-        SIRBlock {
-            nodes: SIR(
-                [],
-            ),
-            branch_block: Edge(
-                SIRBranchEdge {
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        1,
+                    ),
+                ),
+            },
+        ),
+        ExceptionBlock(
+            SIRExceptionBlock {
+                block_indexes: [
+                    3,
+                ],
+                exception_handler: SIRBranchEdge {
                     reason: Exception(
                         (
                             false,
@@ -79,7 +81,7 @@ SIRControlFlowGraph {
                             [
                                 Assignment(
                                     AuxVar {
-                                        name: "phi_5",
+                                        name: "phi_4",
                                     },
                                     PhiNode(
                                         [
@@ -124,300 +126,280 @@ SIRControlFlowGraph {
                         2,
                     ),
                 },
-            ),
-            default_block: Edge(
-                SIRBranchEdge {
-                    reason: Exception(
-                        (
-                            false,
-                            1,
+                default_block: Edge(
+                    SIRBranchEdge {
+                        reason: Exception(
+                            (
+                                false,
+                                1,
+                            ),
                         ),
-                    ),
-                    statements: None,
-                    block_index: Index(
-                        3,
-                    ),
-                },
-            ),
-        },
-        SIRBlock {
-            nodes: SIR(
-                [
-                    Assignment(
-                        AuxVar {
-                            name: "phi_0",
-                        },
-                        PhiNode(
-                            [
-                                AuxVar {
-                                    name: "exc_0",
-                                },
-                            ],
+                        statements: None,
+                        block_index: Index(
+                            3,
                         ),
-                    ),
-                    DisregardCall(
-                        Call {
-                            node: SIRNode {
-                                opcode: POP_TOP,
-                                oparg: 0,
-                                input: [
-                                    StackItem {
-                                        name: "top",
-                                        count: 1,
-                                        index: -1,
-                                    },
-                                ],
-                                output: [],
-                                net_stack_delta: -1,
-                            },
-                            stack_inputs: [
-                                AuxVar(
-                                    AuxVar {
-                                        name: "phi_0",
-                                    },
-                                ),
-                            ],
-                        },
-                    ),
-                    Assignment(
-                        AuxVar {
-                            name: "phi_1",
-                        },
-                        PhiNode(
-                            [
-                                AuxVar {
-                                    name: "value_0",
-                                },
-                            ],
-                        ),
-                    ),
-                    DisregardCall(
-                        Call {
-                            node: SIRNode {
-                                opcode: POP_TOP,
-                                oparg: 0,
-                                input: [
-                                    StackItem {
-                                        name: "top",
-                                        count: 1,
-                                        index: -1,
-                                    },
-                                ],
-                                output: [],
-                                net_stack_delta: -1,
-                            },
-                            stack_inputs: [
-                                AuxVar(
-                                    AuxVar {
-                                        name: "phi_1",
-                                    },
-                                ),
-                            ],
-                        },
-                    ),
-                    Assignment(
-                        AuxVar {
-                            name: "value_2",
-                        },
-                        Call(
-                            Call {
-                                node: SIRNode {
-                                    opcode: LOAD_CONST,
-                                    oparg: 0,
-                                    input: [],
-                                    output: [
-                                        StackItem {
-                                            name: "value",
-                                            count: 1,
-                                            index: 0,
-                                        },
-                                    ],
-                                    net_stack_delta: 1,
-                                },
-                                stack_inputs: [],
-                            },
-                        ),
-                    ),
-                    DisregardCall(
-                        Call {
-                            node: SIRNode {
-                                opcode: RETURN_VALUE,
-                                oparg: 0,
-                                input: [
-                                    StackItem {
-                                        name: "return_value",
-                                        count: 1,
-                                        index: -1,
-                                    },
-                                ],
-                                output: [],
-                                net_stack_delta: -1,
-                            },
-                            stack_inputs: [
-                                AuxVar(
-                                    AuxVar {
-                                        name: "value_2",
-                                    },
-                                ),
-                            ],
-                        },
-                    ),
-                ],
-            ),
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
-        SIRBlock {
-            nodes: SIR(
-                [
-                    Assignment(
-                        AuxVar {
-                            name: "phi_2",
-                        },
-                        PhiNode(
-                            [
-                                AuxVar {
-                                    name: "value_1",
-                                },
-                            ],
-                        ),
-                    ),
-                    DisregardCall(
-                        Call {
-                            node: SIRNode {
-                                opcode: POP_TOP,
-                                oparg: 0,
-                                input: [
-                                    StackItem {
-                                        name: "top",
-                                        count: 1,
-                                        index: -1,
-                                    },
-                                ],
-                                output: [],
-                                net_stack_delta: -1,
-                            },
-                            stack_inputs: [
-                                AuxVar(
-                                    AuxVar {
-                                        name: "phi_2",
-                                    },
-                                ),
-                            ],
-                        },
-                    ),
-                    Assignment(
-                        AuxVar {
-                            name: "phi_3",
-                        },
-                        PhiNode(
-                            [
-                                AuxVar {
-                                    name: "value_0",
-                                },
-                            ],
-                        ),
-                    ),
-                    DisregardCall(
-                        Call {
-                            node: SIRNode {
-                                opcode: POP_TOP,
-                                oparg: 0,
-                                input: [
-                                    StackItem {
-                                        name: "top",
-                                        count: 1,
-                                        index: -1,
-                                    },
-                                ],
-                                output: [],
-                                net_stack_delta: -1,
-                            },
-                            stack_inputs: [
-                                AuxVar(
-                                    AuxVar {
-                                        name: "phi_3",
-                                    },
-                                ),
-                            ],
-                        },
-                    ),
-                    Assignment(
-                        AuxVar {
-                            name: "value_3",
-                        },
-                        Call(
-                            Call {
-                                node: SIRNode {
-                                    opcode: LOAD_CONST,
-                                    oparg: 0,
-                                    input: [],
-                                    output: [
-                                        StackItem {
-                                            name: "value",
-                                            count: 1,
-                                            index: 0,
-                                        },
-                                    ],
-                                    net_stack_delta: 1,
-                                },
-                                stack_inputs: [],
-                            },
-                        ),
-                    ),
-                ],
-            ),
-            branch_block: NoIndex,
-            default_block: Fallthrough(
-                Index(
-                    4,
+                    },
                 ),
-            ),
-        },
-        SIRBlock {
-            nodes: SIR(
-                [
-                    Assignment(
-                        AuxVar {
-                            name: "phi_4",
-                        },
-                        PhiNode(
-                            [
-                                AuxVar {
-                                    name: "value_3",
-                                },
-                            ],
-                        ),
-                    ),
-                    DisregardCall(
-                        Call {
-                            node: SIRNode {
-                                opcode: RETURN_VALUE,
-                                oparg: 0,
-                                input: [
-                                    StackItem {
-                                        name: "return_value",
-                                        count: 1,
-                                        index: -1,
+            },
+        ),
+        NormalBlock(
+            SIRNormalBlock {
+                nodes: SIR(
+                    [
+                        Assignment(
+                            AuxVar {
+                                name: "phi_0",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "exc_0",
                                     },
                                 ],
-                                output: [],
-                                net_stack_delta: -1,
+                            ),
+                        ),
+                        DisregardCall(
+                            Call {
+                                node: SIRNode {
+                                    opcode: POP_TOP,
+                                    oparg: 0,
+                                    input: [
+                                        StackItem {
+                                            name: "top",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
+                                    output: [],
+                                    net_stack_delta: -1,
+                                },
+                                stack_inputs: [
+                                    AuxVar(
+                                        AuxVar {
+                                            name: "phi_0",
+                                        },
+                                    ),
+                                ],
                             },
-                            stack_inputs: [
-                                AuxVar(
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_1",
+                            },
+                            PhiNode(
+                                [
                                     AuxVar {
-                                        name: "phi_4",
+                                        name: "value_0",
                                     },
-                                ),
-                            ],
-                        },
-                    ),
-                ],
-            ),
-            branch_block: NoIndex,
-            default_block: NoIndex,
-        },
+                                ],
+                            ),
+                        ),
+                        DisregardCall(
+                            Call {
+                                node: SIRNode {
+                                    opcode: POP_TOP,
+                                    oparg: 0,
+                                    input: [
+                                        StackItem {
+                                            name: "top",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
+                                    output: [],
+                                    net_stack_delta: -1,
+                                },
+                                stack_inputs: [
+                                    AuxVar(
+                                        AuxVar {
+                                            name: "phi_1",
+                                        },
+                                    ),
+                                ],
+                            },
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "value_2",
+                            },
+                            Call(
+                                Call {
+                                    node: SIRNode {
+                                        opcode: LOAD_CONST,
+                                        oparg: 0,
+                                        input: [],
+                                        output: [
+                                            StackItem {
+                                                name: "value",
+                                                count: 1,
+                                                index: 0,
+                                            },
+                                        ],
+                                        net_stack_delta: 1,
+                                    },
+                                    stack_inputs: [],
+                                },
+                            ),
+                        ),
+                        DisregardCall(
+                            Call {
+                                node: SIRNode {
+                                    opcode: RETURN_VALUE,
+                                    oparg: 0,
+                                    input: [
+                                        StackItem {
+                                            name: "return_value",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
+                                    output: [],
+                                    net_stack_delta: -1,
+                                },
+                                stack_inputs: [
+                                    AuxVar(
+                                        AuxVar {
+                                            name: "value_2",
+                                        },
+                                    ),
+                                ],
+                            },
+                        ),
+                    ],
+                ),
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            SIRNormalBlock {
+                nodes: SIR(
+                    [
+                        Assignment(
+                            AuxVar {
+                                name: "phi_2",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "value_1",
+                                    },
+                                ],
+                            ),
+                        ),
+                        DisregardCall(
+                            Call {
+                                node: SIRNode {
+                                    opcode: POP_TOP,
+                                    oparg: 0,
+                                    input: [
+                                        StackItem {
+                                            name: "top",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
+                                    output: [],
+                                    net_stack_delta: -1,
+                                },
+                                stack_inputs: [
+                                    AuxVar(
+                                        AuxVar {
+                                            name: "phi_2",
+                                        },
+                                    ),
+                                ],
+                            },
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_3",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "value_0",
+                                    },
+                                ],
+                            ),
+                        ),
+                        DisregardCall(
+                            Call {
+                                node: SIRNode {
+                                    opcode: POP_TOP,
+                                    oparg: 0,
+                                    input: [
+                                        StackItem {
+                                            name: "top",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
+                                    output: [],
+                                    net_stack_delta: -1,
+                                },
+                                stack_inputs: [
+                                    AuxVar(
+                                        AuxVar {
+                                            name: "phi_3",
+                                        },
+                                    ),
+                                ],
+                            },
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "value_3",
+                            },
+                            Call(
+                                Call {
+                                    node: SIRNode {
+                                        opcode: LOAD_CONST,
+                                        oparg: 0,
+                                        input: [],
+                                        output: [
+                                            StackItem {
+                                                name: "value",
+                                                count: 1,
+                                                index: 0,
+                                            },
+                                        ],
+                                        net_stack_delta: 1,
+                                    },
+                                    stack_inputs: [],
+                                },
+                            ),
+                        ),
+                        DisregardCall(
+                            Call {
+                                node: SIRNode {
+                                    opcode: RETURN_VALUE,
+                                    oparg: 0,
+                                    input: [
+                                        StackItem {
+                                            name: "return_value",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
+                                    output: [],
+                                    net_stack_delta: -1,
+                                },
+                                stack_inputs: [
+                                    AuxVar(
+                                        AuxVar {
+                                            name: "value_3",
+                                        },
+                                    ),
+                                ],
+                            },
+                        ),
+                    ],
+                ),
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
     ],
     start_index: Fallthrough(
         Index(

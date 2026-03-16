@@ -430,6 +430,14 @@ where
     }
 }
 
+#[cfg(feature = "dot")]
+#[derive(Debug, Clone)]
+pub enum BlockKind {
+    ExceptionBlock,
+    InExceptionRange,
+    NormalBlock,
+}
+
 #[cfg(test)]
 mod test {
     use crate::utils::InfiniteVec;

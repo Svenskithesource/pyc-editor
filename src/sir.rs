@@ -8,7 +8,7 @@ use crate::{
         BlockSliceExt, BranchReasonTrait, GenericInstruction, GenericOpcode, GenericSIRException,
         GenericSIRNode, SIROwned,
     },
-    utils::{InfiniteStack, InfiniteVec, generate_var_name},
+    utils::{InfiniteStack, generate_var_name},
 };
 
 #[cfg(feature = "dot")]
@@ -59,6 +59,8 @@ pub enum SIRStatement<SIRNode: GenericSIRNode> {
     TupleAssignment(Vec<AuxVar>, SIRExpression<SIRNode>),
     /// For when there is no output value (or it is not used)
     DisregardCall(Call<SIRNode>),
+    /// This is used to "pop" variables when a stack depth was forced by an exception.
+    UseVar(AuxVar),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -155,7 +157,6 @@ fn process_stack_effects<SIRNode>(
     inputs: &[StackItem],
     outputs: &[StackItem],
     net_stack_delta: isize,
-    force_stack_depth: Option<usize>,
     stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
@@ -222,28 +223,6 @@ where
         }
     }
 
-    if let Some(stack_depth) = force_stack_depth {
-        // Exceptions can force a stack depth, so we need to pop all items until we reach this stack height
-
-        assert!(stack.data.positive_len() >= stack_depth);
-
-        // We start counting from the TOS (on the negative side)
-        let mut index = 0;
-
-        while stack.data.positive_len() - (-index) as usize > stack_depth {
-            index -= 1;
-            let phi = SIRExpression::PhiNode(vec![]);
-
-            let var = AuxVar {
-                name: generate_var_name("phi", names),
-            };
-
-            statements.push(SIRStatement::Assignment(var.clone(), phi));
-
-            insert_replace_stack(phi_stack, index, var, false)?;
-        }
-    }
-
     let mut stack_outputs = vec![];
 
     for output in outputs {
@@ -290,7 +269,6 @@ where
         node.get_inputs(),
         node.get_outputs(),
         node.get_net_stack_delta(),
-        None,
         stack,
         phi_stack,
         names,
@@ -332,7 +310,6 @@ where
         exception.get_inputs(),
         exception.get_outputs(),
         exception.get_net_stack_delta(),
-        None,
         stack,
         phi_stack,
         names,
@@ -366,10 +343,27 @@ fn force_exception_stack_depth<SIRNode: GenericSIRNode>(
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode>>, Error> {
-    let mut stack: InfiniteStack<_> = InfiniteVec::from_vec(stack.to_owned()).into();
+    let mut statements: Vec<SIRStatement<SIRNode>> = vec![];
 
-    let (_, _, statements) =
-        process_stack_effects(&[], &[], 0, Some(stack_depth), &mut stack, phi_stack, names)?;
+    // Exceptions can force a stack depth, so we need to pop all items until we reach this stack height
+    assert!(stack.len() >= stack_depth);
+
+    // We start counting from the TOS (on the negative side)
+    let mut index = 0;
+
+    while stack.len() - (-index) as usize > stack_depth {
+        index -= 1;
+        let phi = SIRExpression::PhiNode(vec![]);
+
+        let var = AuxVar {
+            name: generate_var_name("phi", names),
+        };
+
+        statements.push(SIRStatement::Assignment(var.clone(), phi));
+        statements.push(SIRStatement::UseVar(var.clone()));
+
+        insert_replace_stack(phi_stack, index, var, false)?;
+    }
 
     Ok(statements)
 }
@@ -1822,7 +1816,6 @@ mod test {
             inputs,
             outputs,
             0,
-            None,
             &mut stack,
             &mut phi_stack,
             &mut names,
@@ -1894,7 +1887,6 @@ mod test {
             inputs,
             outputs,
             1,
-            None,
             &mut stack,
             &mut phi_stack,
             &mut names,
@@ -1940,7 +1932,6 @@ mod test {
             inputs,
             &[],
             -1,
-            None,
             &mut stack,
             &mut phi_stack,
             &mut names,
@@ -1997,7 +1988,6 @@ mod test {
             inputs,
             outputs,
             -1,
-            None,
             &mut stack,
             &mut phi_stack,
             &mut names,

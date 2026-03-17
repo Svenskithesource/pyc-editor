@@ -91,6 +91,11 @@ SIRControlFlowGraph {
                                         ],
                                     ),
                                 ),
+                                UseVar(
+                                    AuxVar {
+                                        name: "phi_4",
+                                    },
+                                ),
                                 Assignment(
                                     AuxVar {
                                         name: "exc_0",

@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     fmt::Debug,
-    ops::{Deref, RangeBounds},
+    ops::Deref,
 };
 
 #[cfg(feature = "dot")]

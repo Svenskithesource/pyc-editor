@@ -16,14 +16,21 @@ num-bigint = "0.4.6"
 num-complex = "0.4.6"
 ordered-float = "5.0.0"
 paste = "1.0.15"
-python-instruction-dsl-proc = "0.2.1"
+python-instruction-dsl-proc = "0.2.2"
 python_marshal = "0.4.6"
 store-interval-tree = "0.4.0"
 petgraph = { version = "0.8.3", optional = true }
 
 [dev-dependencies]
 # Enable all features for testing purposes
-pyc_editor = { path = ".", features = ["v310", "v311", "v312", "v313", "dot", "sir"] }
+pyc_editor = { path = ".", features = [
+    "v310",
+    "v311",
+    "v312",
+    "v313",
+    "dot",
+    "sir",
+] }
 cmd_lib = "1.9.6"
 env_logger = "0.11.8"
 num-traits = "0.2.19"
@@ -33,7 +40,7 @@ reqwest = { version = "0.12.23", features = ["blocking"] }
 zip = "4.3.0"
 criterion = { version = "0.7.0", features = ["html_reports"] }
 
-insta = { version = "1.46.3", features = ["filters"]}
+insta = { version = "1.46.3", features = ["filters"] }
 
 [profile.dev.package]
 insta.opt-level = 3

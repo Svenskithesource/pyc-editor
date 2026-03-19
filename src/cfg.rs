@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     fmt::Debug,
+    hash::BuildHasherDefault,
     ops::Deref,
 };
 
@@ -545,7 +546,11 @@ where
     <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
 {
     // Used for keeping track of finished blocks
-    let mut temp_blocks: HashMap<usize, Block<I>> = HashMap::new();
+    let mut temp_blocks: nohash_hasher::IntMap<usize, Block<I>> =
+        nohash_hasher::IntMap::with_capacity_and_hasher(
+            instructions.len().div_ceil(5),
+            BuildHasherDefault::default(),
+        );
 
     enum BlockState {
         BlockIndexAssigned(BlockIndex),
@@ -561,7 +566,11 @@ where
     }
 
     // Maps instruction index to block index
-    let mut block_map: HashMap<usize, BlockState> = HashMap::new();
+    let mut block_map: nohash_hasher::IntMap<usize, BlockState> =
+        nohash_hasher::IntMap::with_capacity_and_hasher(
+            temp_blocks.capacity(),
+            BuildHasherDefault::default(),
+        );
 
     enum ExceptionState {
         PrevBlockPopped,
@@ -570,15 +579,23 @@ where
     }
 
     // Keeps track of which exception indexes we already processed
-    let mut exceptions_processed: HashMap<usize, ExceptionState> = HashMap::new();
+    let mut exceptions_processed: nohash_hasher::IntMap<usize, ExceptionState> =
+        nohash_hasher::IntMap::with_capacity_and_hasher(
+            if let Some(table) = &exception_table {
+                table.len()
+            } else {
+                0
+            },
+            BuildHasherDefault::default(),
+        );
 
     let jump_map = instructions.get_jump_map();
 
-    let exception_map: HashMap<u32, &ExceptionTableEntry> =
+    let exception_map: nohash_hasher::IntMap<u32, &ExceptionTableEntry> =
         if let Some(exception_table) = &exception_table {
             exception_table.iter().map(|e| (e.start, e)).collect()
         } else {
-            HashMap::new()
+            nohash_hasher::IntMap::default()
         };
 
     // End indexes
@@ -601,7 +618,7 @@ where
     fn add_block_to_queue(
         instruction_index: usize,
         block_index: usize,
-        block_map: &mut HashMap<usize, BlockState>,
+        block_map: &mut nohash_hasher::IntMap<usize, BlockState>,
         block_queue: &mut VecDeque<QueueEntry>,
     ) {
         match block_map.entry(instruction_index) {

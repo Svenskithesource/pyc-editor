@@ -76,9 +76,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 criterion_group! {
-    name = benches;
+    name = extended_args;
     // This can be any expression that returns a `Criterion` object.
     config = Criterion::default().significance_level(0.05).sample_size(50);
     targets = criterion_benchmark
 }
-criterion_main!(benches);
+criterion_main!(extended_args);

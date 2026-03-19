@@ -605,7 +605,7 @@ where
         vec![]
     };
 
-    let all_jump_targets: Vec<u32> = jump_map
+    let all_jump_targets: nohash_hasher::IntSet<u32> = jump_map
         .values()
         .chain(
             exception_map

@@ -55,6 +55,10 @@ harness = false
 name = "cfg_creation"
 harness = false
 
+[[bench]]
+name = "sir_creation"
+harness = false
+
 [features]
 v310 = []
 v311 = []

@@ -1,8 +1,10 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use pyc_editor::cfg::create_cfg;
 use pyc_editor::prelude::*;
+use pyc_editor::sir::cfg_to_ir;
 use pyc_editor::utils::UnusedArgument;
 use pyc_editor::v311::code_objects::RelativeJump;
+use pyc_editor::v311::opcodes::sir::SIRNode;
 use pyc_editor::v311::{
     ext_instructions::{ExtInstruction, ExtInstructions},
     instructions::{Instruction, Instructions},
@@ -32,31 +34,36 @@ fn generate_instructions(amount_of_blocks: usize) -> Vec<ExtInstruction> {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("create cfg 10K blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(10_000)), None))
+    let cfg = create_cfg(generate_instructions(10_000), None).unwrap();
+    c.bench_function("create sir 10K blocks", |b| {
+        b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    c.bench_function("create cfg 5K blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(5_000)), None))
+    let cfg = create_cfg(generate_instructions(5_000), None).unwrap();
+    c.bench_function("create sir 5K blocks", |b| {
+        b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    c.bench_function("create cfg 1K blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(1_000)), None))
+    let cfg = create_cfg(generate_instructions(1_000), None).unwrap();
+    c.bench_function("create sir 1K blocks", |b| {
+        b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    c.bench_function("create cfg 100 blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(100)), None))
+    let cfg = create_cfg(generate_instructions(100), None).unwrap();
+    c.bench_function("create sir 100 blocks", |b| {
+        b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    c.bench_function("create cfg 25 blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(25)), None))
+    let cfg = create_cfg(generate_instructions(25), None).unwrap();
+    c.bench_function("create sir 25 blocks", |b| {
+        b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 }
 
 criterion_group! {
-    name = cfg_creation;
+    name = sir_creation;
     // This can be any expression that returns a `Criterion` object.
     config = Criterion::default().significance_level(0.05).sample_size(50);
     targets = criterion_benchmark
 }
-criterion_main!(cfg_creation);
+criterion_main!(sir_creation);

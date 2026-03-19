@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Index};
+use std::{collections::HashMap, hash::BuildHasherDefault, ops::Index};
 
 #[cfg(feature = "dot")]
 use crate::utils::BlockKind;
@@ -201,7 +201,9 @@ where
                     Some(Some(value)) => {
                         stack_inputs.push(value.clone());
                     }
-                    _ => unreachable!(),
+                    _ => {
+                        unreachable!()
+                    }
                 }
 
                 if index != tos {
@@ -799,10 +801,10 @@ where
         ExceptionBlock,
     }
 
-    let mut temp_blocks: Vec<TempBlockInfo<SIRNode>> = vec![];
+    let mut temp_blocks: Vec<TempBlockInfo<SIRNode>> = Vec::with_capacity(cfg.blocks.len());
 
     // Keep track of which blocks we already processed
-    let mut visited_blocks: Vec<usize> = vec![];
+    let mut visited_blocks: Vec<usize> = Vec::with_capacity(cfg.blocks.len());
 
     #[derive(Debug, Clone)]
     struct TempEdgeInfo<SIRNode: GenericSIRNode> {
@@ -812,13 +814,18 @@ where
     }
 
     // (default, branch)
-    let mut temp_edges: Vec<(TempEdgeInfo<SIRNode>, TempEdgeInfo<SIRNode>)> = vec![];
+    let mut temp_edges: Vec<(TempEdgeInfo<SIRNode>, TempEdgeInfo<SIRNode>)> =
+        Vec::with_capacity(cfg.blocks.len());
 
     let mut names = HashMap::new();
 
     // Keeps track of the different stacks used to enter a basic block
     // TODO: We have to find a way to merge stacks
-    let mut has_changed: HashMap<usize, Vec<Vec<SIRExpression<SIRNode>>>> = HashMap::new();
+    let mut has_changed: nohash_hasher::IntMap<usize, Vec<Vec<SIRExpression<SIRNode>>>> =
+        nohash_hasher::IntMap::with_capacity_and_hasher(
+            cfg.blocks.len(),
+            BuildHasherDefault::default(),
+        );
 
     // Create isolated IR blocks
     for block in &cfg.blocks {
@@ -1028,13 +1035,6 @@ where
                     // Already processed this block with these stack elements but we still processed the statements of the edge
                     continue;
                 } else {
-                    // Entered with a different stack
-                    if stacks.len() > 200 {
-                        dbg!(&block_element.block_index);
-                        dbg!(&block_element.curr_stack);
-                        panic!()
-                    }
-
                     stacks.push(block_element.curr_stack.clone());
                 }
             }

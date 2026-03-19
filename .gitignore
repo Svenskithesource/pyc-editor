@@ -2,3 +2,4 @@
 /tests/data
 *.txt
 .cargo/config.toml
+flamegraph.svg

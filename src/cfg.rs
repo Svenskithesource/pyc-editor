@@ -605,6 +605,17 @@ where
         vec![]
     };
 
+    let all_jump_targets: Vec<u32> = jump_map
+        .values()
+        .chain(
+            exception_map
+                .values()
+                .map(|ExceptionTableEntry { target, .. }| target),
+        )
+        .chain(exception_ends.iter())
+        .cloned()
+        .collect();
+
     struct QueueEntry {
         /// This instruction index starts a new block
         instruction_index: usize,
@@ -753,15 +764,7 @@ where
                         break ExitReason::BlockExists;
                     }
                 }
-            } else if jump_map
-                .values()
-                .chain(
-                    exception_map
-                        .values()
-                        .map(|ExceptionTableEntry { target, .. }| target),
-                )
-                .chain(exception_ends.iter())
-                .any(|e| *e == (instruction_index as u32))
+            } else if all_jump_targets.contains(&(instruction_index as u32))
                 && !curr_block.is_empty()
             {
                 // If this is a jump target, place it in a new block (used to support backwards jumps)

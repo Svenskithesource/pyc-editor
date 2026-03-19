@@ -19,13 +19,48 @@ fn generate_instructions(amount_of_blocks: usize) -> Vec<ExtInstruction> {
         pyc_editor::v311::code_objects::ConstIndex { index: 0 },
     ));
 
-    for index in 0..amount_of_blocks {
+    for _ in 0..amount_of_blocks {
+        instructions.extend_from_slice(
+            Instructions::new(vec![
+                Instruction::PushNull(0),
+                Instruction::LoadName(0),
+                Instruction::LoadConst(0),
+                Instruction::Precall(1),
+                Instruction::Cache(0),
+                Instruction::Call(1),
+                Instruction::Cache(0),
+                Instruction::Cache(0),
+                Instruction::Cache(0),
+                Instruction::Cache(0),
+                Instruction::PopTop(0),
+                Instruction::LoadConst(1),
+                Instruction::StoreName(1),
+                Instruction::PushNull(0),
+                Instruction::LoadName(0),
+                Instruction::LoadConst(2),
+                Instruction::LoadName(1),
+                Instruction::FormatValue(2),
+                Instruction::BuildString(2),
+                Instruction::Precall(1),
+                Instruction::Cache(0),
+                Instruction::Call(1),
+                Instruction::Cache(0),
+                Instruction::Cache(0),
+                Instruction::Cache(0),
+                Instruction::Cache(0),
+                Instruction::PopTop(0),
+            ])
+            .to_resolved()
+            .unwrap()
+            .as_ref(),
+        );
         instructions.push(ExtInstruction::Copy(1));
         instructions.push(ExtInstruction::PopJumpForwardIfTrue(RelativeJump {
             // Jump to RETURN
-            index: ((amount_of_blocks * 2) + 2) as u32 - (index * 2 + 4) as u32,
+            index: 0,
             direction: pyc_editor::v311::code_objects::JumpDirection::Forward,
         }));
+        instructions.push(ExtInstruction::ReturnValue(UnusedArgument::default()));
     }
 
     instructions.push(ExtInstruction::ReturnValue(UnusedArgument::default()));

@@ -59,6 +59,9 @@ harness = false
 name = "sir_creation"
 harness = false
 
+[profile.bench]
+debug = true
+
 [features]
 v310 = []
 v311 = []

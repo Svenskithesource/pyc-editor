@@ -260,14 +260,14 @@ fn instruction_to_ir<ExtInstruction, SIRNode>(
     stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
-) -> Result<Vec<SIRStatement<SIRNode>>, Error>
+) -> Result<(Vec<SIRStatement<SIRNode>>, SIRStatement<SIRNode>), Error>
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
     SIRNode: GenericSIRNode<Opcode = ExtInstruction::Opcode>,
 {
     let node = SIRNode::new(opcode.clone(), oparg, jump);
 
-    let (stack_inputs, stack_outputs, mut statements) = process_stack_effects(
+    let (stack_inputs, stack_outputs, statements) = process_stack_effects(
         node.get_inputs(),
         node.get_outputs(),
         node.get_net_stack_delta(),
@@ -278,21 +278,18 @@ where
 
     let call = Call::<SIRNode> { node, stack_inputs };
 
-    if stack_outputs.len() > 1 {
-        statements.push(SIRStatement::TupleAssignment(
-            stack_outputs,
-            SIRExpression::Call(call),
-        ));
+    let instruction_statement = if stack_outputs.len() > 1 {
+        SIRStatement::TupleAssignment(stack_outputs, SIRExpression::Call(call))
     } else if !stack_outputs.is_empty() {
-        statements.push(SIRStatement::Assignment(
+        SIRStatement::Assignment(
             stack_outputs.first().unwrap().clone(),
             SIRExpression::Call(call),
-        ))
+        )
     } else {
-        statements.push(SIRStatement::DisregardCall(call))
-    }
+        SIRStatement::DisregardCall(call)
+    };
 
-    Ok(statements)
+    Ok((statements, instruction_statement))
 }
 
 fn exception_to_ir<SIRNode>(
@@ -388,7 +385,8 @@ where
     SIR<SIRNode>: SIROwned<SIRNode>,
     SIRNode: GenericSIRNode<Opcode = ExtInstruction::Opcode>,
 {
-    let mut statements: Vec<SIRStatement<SIRNode>> = vec![];
+    let mut phi_statements: Vec<SIRStatement<SIRNode>> = vec![];
+    let mut instruction_statements: Vec<SIRStatement<SIRNode>> = vec![];
 
     // Every basic block starts with an empty stack.
     // When we try to access stack items below 0, we know it's accessing items from a different basic block.
@@ -401,17 +399,23 @@ where
         // In a basic block there shouldn't be any jumps. (the last jump instruction is removed in the cfg)
         debug_assert!(!instruction.is_jump());
 
-        statements.extend_from_slice(&instruction_to_ir::<ExtInstruction, SIRNode>(
+        let (statements, instruction_statement) = instruction_to_ir::<ExtInstruction, SIRNode>(
             instruction.get_opcode(),
             instruction.get_raw_value(),
             false,
             &mut stack,
             &mut phi_stack,
             names,
-        )?);
+        )?;
+
+        phi_statements.extend(statements);
+
+        instruction_statements.push(instruction_statement);
     }
 
-    Ok((SIR::new(statements), stack, phi_stack))
+    phi_statements.extend(instruction_statements);
+
+    Ok((SIR::new(phi_statements), stack, phi_stack))
 }
 
 /// Used to represent the opcode that was used for this branch and the block index it's jumping to.
@@ -852,14 +856,19 @@ where
                 ..
             }) => {
                 if let Some(opcode) = branch_reason.get_opcode() {
-                    instruction_to_ir::<ExtInstruction, SIRNode>(
-                        opcode.clone(),
-                        0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
-                        false, // Don't take the jump for the default block
-                        &mut default_stack,
-                        &mut default_phi_stack,
-                        &mut names,
-                    )?
+                    let (mut statements, instruction_statement) =
+                        instruction_to_ir::<ExtInstruction, SIRNode>(
+                            opcode.clone(),
+                            0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
+                            false, // Don't take the jump for the default block
+                            &mut default_stack,
+                            &mut default_phi_stack,
+                            &mut names,
+                        )?;
+
+                    statements.push(instruction_statement);
+
+                    statements
                 } else if branch_reason.is_exception() {
                     let lasti = branch_reason.get_lasti().unwrap();
                     let stack_depth = branch_reason.get_stack_depth().unwrap();
@@ -888,14 +897,19 @@ where
                 ..
             }) => {
                 if let Some(opcode) = branch_reason.get_opcode() {
-                    instruction_to_ir::<ExtInstruction, SIRNode>(
-                        opcode.clone(),
-                        0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
-                        true, // Take the jump for the branch block
-                        &mut branch_stack,
-                        &mut branch_phi_stack,
-                        &mut names,
-                    )?
+                    let (mut statements, instruction_statement) =
+                        instruction_to_ir::<ExtInstruction, SIRNode>(
+                            opcode.clone(),
+                            0, // The oparg doesn't matter for the stack effect in the case of a branch opcode (oparg is the jump target)
+                            true, // Take the jump for the branch block
+                            &mut branch_stack,
+                            &mut branch_phi_stack,
+                            &mut names,
+                        )?;
+
+                    statements.push(instruction_statement);
+
+                    statements
                 } else if branch_reason.is_exception() {
                     let lasti = branch_reason.get_lasti().unwrap();
                     let stack_depth = branch_reason.get_stack_depth().unwrap();
@@ -1616,7 +1630,7 @@ mod test {
 
         for instruction in instructions {
             // Pop all 3 values
-            let stmts =
+            let (stmts, inst_stmt) =
                 instruction_to_ir::<crate::v311::ext_instructions::ExtInstruction, SIRNode>(
                     instruction.get_opcode(),
                     0,
@@ -1628,6 +1642,7 @@ mod test {
                 .unwrap();
 
             statements.extend(stmts);
+            statements.push(inst_stmt);
         }
 
         fill_phi_nodes(&mut curr_stack, &mut statements, &phi_stack).unwrap();
@@ -1734,7 +1749,7 @@ mod test {
 
         for instruction in instructions {
             // Pop all 3 values
-            let stmts =
+            let (stmts, inst_stmt) =
                 instruction_to_ir::<crate::v311::ext_instructions::ExtInstruction, SIRNode>(
                     instruction.get_opcode(),
                     0,
@@ -1746,6 +1761,7 @@ mod test {
                 .unwrap();
 
             statements.extend(stmts);
+            statements.push(inst_stmt);
         }
 
         fill_phi_nodes(&mut curr_stack, &mut statements, &phi_stack).unwrap();

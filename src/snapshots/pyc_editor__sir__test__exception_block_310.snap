@@ -229,6 +229,66 @@ SIRControlFlowGraph {
                                 ],
                             ),
                         ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_1",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "exceptions_4",
+                                    },
+                                ],
+                            ),
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_2",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "exceptions_3",
+                                    },
+                                ],
+                            ),
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_3",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "exceptions_0",
+                                    },
+                                ],
+                            ),
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_4",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "exceptions_1",
+                                    },
+                                ],
+                            ),
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_5",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "exceptions_2",
+                                    },
+                                ],
+                            ),
+                        ),
                         DisregardCall(
                             Call {
                                 node: SIRNode {
@@ -253,18 +313,6 @@ SIRControlFlowGraph {
                                 ],
                             },
                         ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_1",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "exceptions_4",
-                                    },
-                                ],
-                            ),
-                        ),
                         DisregardCall(
                             Call {
                                 node: SIRNode {
@@ -288,18 +336,6 @@ SIRControlFlowGraph {
                                     ),
                                 ],
                             },
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_2",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "exceptions_3",
-                                    },
-                                ],
-                            ),
                         ),
                         DisregardCall(
                             Call {
@@ -439,42 +475,6 @@ SIRControlFlowGraph {
                                     ),
                                 ],
                             },
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_3",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "exceptions_0",
-                                    },
-                                ],
-                            ),
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_4",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "exceptions_1",
-                                    },
-                                ],
-                            ),
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_5",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "exceptions_2",
-                                    },
-                                ],
-                            ),
                         ),
                         DisregardCall(
                             Call {

@@ -706,6 +706,30 @@ SIRControlFlowGraph {
                                 ],
                             ),
                         ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_1",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "lasti_0",
+                                    },
+                                ],
+                            ),
+                        ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_2",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "exc_1",
+                                    },
+                                ],
+                            ),
+                        ),
                         TupleAssignment(
                             [
                                 AuxVar {
@@ -774,30 +798,6 @@ SIRControlFlowGraph {
                                     ),
                                 ],
                             },
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_1",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "lasti_0",
-                                    },
-                                ],
-                            ),
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_2",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "exc_1",
-                                    },
-                                ],
-                            ),
                         ),
                         Assignment(
                             AuxVar {

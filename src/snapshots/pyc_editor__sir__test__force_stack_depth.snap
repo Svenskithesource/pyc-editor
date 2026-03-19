@@ -163,6 +163,18 @@ SIRControlFlowGraph {
                                 ],
                             ),
                         ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_1",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "value_0",
+                                    },
+                                ],
+                            ),
+                        ),
                         DisregardCall(
                             Call {
                                 node: SIRNode {
@@ -186,18 +198,6 @@ SIRControlFlowGraph {
                                     ),
                                 ],
                             },
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_1",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "value_0",
-                                    },
-                                ],
-                            ),
                         ),
                         DisregardCall(
                             Call {
@@ -292,6 +292,18 @@ SIRControlFlowGraph {
                                 ],
                             ),
                         ),
+                        Assignment(
+                            AuxVar {
+                                name: "phi_3",
+                            },
+                            PhiNode(
+                                [
+                                    AuxVar {
+                                        name: "value_0",
+                                    },
+                                ],
+                            ),
+                        ),
                         DisregardCall(
                             Call {
                                 node: SIRNode {
@@ -315,18 +327,6 @@ SIRControlFlowGraph {
                                     ),
                                 ],
                             },
-                        ),
-                        Assignment(
-                            AuxVar {
-                                name: "phi_3",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "value_0",
-                                    },
-                                ],
-                            ),
                         ),
                         DisregardCall(
                             Call {

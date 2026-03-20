@@ -471,18 +471,6 @@ SIRControlFlowGraph {
             SIRNormalBlock {
                 nodes: SIR(
                     [
-                        Assignment(
-                            AuxVar {
-                                name: "phi_2",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "next_0",
-                                    },
-                                ],
-                            ),
-                        ),
                         DisregardCall(
                             Call {
                                 node: SIRNode {
@@ -501,7 +489,7 @@ SIRControlFlowGraph {
                                 stack_inputs: [
                                     AuxVar(
                                         AuxVar {
-                                            name: "phi_2",
+                                            name: "next_0",
                                         },
                                     ),
                                 ],

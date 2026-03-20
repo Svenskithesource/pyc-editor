@@ -234,18 +234,6 @@ SIRControlFlowGraph {
             SIRNormalBlock {
                 nodes: SIR(
                     [
-                        Assignment(
-                            AuxVar {
-                                name: "phi_2",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "value_0",
-                                    },
-                                ],
-                            ),
-                        ),
                         DisregardCall(
                             Call {
                                 node: SIRNode {
@@ -264,7 +252,7 @@ SIRControlFlowGraph {
                                 stack_inputs: [
                                     AuxVar(
                                         AuxVar {
-                                            name: "phi_2",
+                                            name: "value_0",
                                         },
                                     ),
                                 ],
@@ -327,18 +315,6 @@ SIRControlFlowGraph {
             SIRNormalBlock {
                 nodes: SIR(
                     [
-                        Assignment(
-                            AuxVar {
-                                name: "phi_3",
-                            },
-                            PhiNode(
-                                [
-                                    AuxVar {
-                                        name: "value_0",
-                                    },
-                                ],
-                            ),
-                        ),
                         DisregardCall(
                             Call {
                                 node: SIRNode {
@@ -357,7 +333,7 @@ SIRControlFlowGraph {
                                 stack_inputs: [
                                     AuxVar(
                                         AuxVar {
-                                            name: "phi_3",
+                                            name: "value_0",
                                         },
                                     ),
                                 ],

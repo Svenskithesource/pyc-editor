@@ -4,9 +4,10 @@ use std::{collections::HashMap, hash::BuildHasherDefault, ops::Index};
 use crate::utils::BlockKind;
 use crate::{
     cfg::{BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph},
+    sir_passes::RemoveSinglePhiNodes,
     traits::{
         BlockSliceExt, BranchReasonTrait, GenericInstruction, GenericOpcode, GenericSIRException,
-        GenericSIRNode, SIROwned,
+        GenericSIRNode, SIRCFGPass, SIROwned,
     },
     utils::{InfiniteStack, generate_var_name},
 };
@@ -1158,10 +1159,12 @@ where
         })
         .collect::<Vec<_>>();
 
-    let sir_cfg = SIRControlFlowGraph::<SIRNode> {
+    let mut sir_cfg = SIRControlFlowGraph::<SIRNode> {
         start_index: SIRBlockIndexInfo::Fallthrough(BlockIndex::Index(0)),
         blocks,
     };
+
+    RemoveSinglePhiNodes::new().run_on(&mut sir_cfg);
 
     Ok(sir_cfg)
 }

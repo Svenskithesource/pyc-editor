@@ -3,7 +3,7 @@ use crate::{
     traits::{GenericSIRNode, SIRCFGPass},
 };
 
-struct RemoveSinglePhiNodes;
+pub struct RemoveSinglePhiNodes;
 
 impl RemoveSinglePhiNodes {
     pub fn new() -> Self {

@@ -5,6 +5,12 @@ use crate::{
 
 struct RemoveSinglePhiNodes;
 
+impl RemoveSinglePhiNodes {
+    pub fn new() -> Self {
+        RemoveSinglePhiNodes {}
+    }
+}
+
 fn replace_var_in_expression<SIRNode: GenericSIRNode>(
     node: &mut SIRExpression<SIRNode>,
     og_var: &AuxVar,
@@ -73,7 +79,7 @@ fn replace_var_in_statement<SIRNode: GenericSIRNode>(
 }
 
 impl<SIRNode: GenericSIRNode> SIRCFGPass<SIRNode> for RemoveSinglePhiNodes {
-    fn run_on(cfg: &mut SIRControlFlowGraph<SIRNode>) {
+    fn run_on(&self, cfg: &mut SIRControlFlowGraph<SIRNode>) {
         for block in cfg.blocks.iter_mut() {
             let mut phi_map: Vec<(AuxVar, AuxVar)> = vec![];
 
@@ -107,7 +113,7 @@ mod tests {
         sir::{AuxVar, SIRBlock, SIRControlFlowGraph, SIRNormalBlock, SIRStatement},
         sir_passes::RemoveSinglePhiNodes,
         traits::SIRCFGPass,
-        v311::opcodes::{Opcode, sir::SIRNode},
+        v311::opcodes::sir::SIRNode,
     };
 
     #[test]
@@ -136,7 +142,7 @@ mod tests {
             )),
         };
 
-        RemoveSinglePhiNodes::run_on(&mut cfg);
+        RemoveSinglePhiNodes::new().run_on(&mut cfg);
 
         assert_eq!(
             cfg.blocks[0].get_nodes_ref(),

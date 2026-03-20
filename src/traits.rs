@@ -526,7 +526,7 @@ impl<SIRNode: GenericSIRNode> DerefMut for SIR<SIRNode> {
 #[cfg(feature = "sir")]
 /// A trait for passes that can run on a SIRControlFlowGraph
 pub trait SIRCFGPass<SIRNode: GenericSIRNode> {
-    fn run_on(cfg: &mut SIRControlFlowGraph<SIRNode>);
+    fn run_on(&self, cfg: &mut SIRControlFlowGraph<SIRNode>);
 }
 
 /// Trait to show what the branch reason is (opcode or exception)

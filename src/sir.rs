@@ -66,6 +66,12 @@ pub enum SIRStatement<SIRNode: GenericSIRNode> {
 #[derive(PartialEq, Debug, Clone)]
 pub struct SIR<SIRNode: GenericSIRNode>(pub Vec<SIRStatement<SIRNode>>);
 
+impl<SIRNode: GenericSIRNode> From<Vec<SIRStatement<SIRNode>>> for SIR<SIRNode> {
+    fn from(value: Vec<SIRStatement<SIRNode>>) -> Self {
+        SIR(value)
+    }
+}
+
 fn process_phi_item<SIRNode>(
     phi_var: &AuxVar,
     stack_item: &SIRExpression<SIRNode>,
@@ -504,6 +510,13 @@ impl<SIRNode: GenericSIRNode> SIRBlock<SIRNode> {
     pub fn get_nodes(self) -> Option<SIR<SIRNode>> {
         match self {
             SIRBlock::NormalBlock(block) => Some(block.nodes),
+            SIRBlock::ExceptionBlock(_) => None,
+        }
+    }
+
+    pub fn get_nodes_ref(&self) -> Option<&SIR<SIRNode>> {
+        match self {
+            SIRBlock::NormalBlock(block) => Some(&block.nodes),
             SIRBlock::ExceptionBlock(_) => None,
         }
     }

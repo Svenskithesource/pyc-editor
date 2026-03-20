@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[cfg(feature = "sir")]
-use crate::sir::{SIRStatement, StackItem};
+use crate::sir::{SIR, SIRControlFlowGraph, SIRStatement, StackItem};
 
 pub trait Oparg: Copy + PartialEq + 'static + Debug {
     fn is_u32() -> bool;
@@ -505,6 +505,28 @@ pub trait GenericSIRException: Clone + Debug + PartialEq {
 /// A trait to indicate that the SIR statements are owned.
 pub trait SIROwned<SIRNode: GenericSIRNode>: std::fmt::Display {
     fn new(statements: Vec<SIRStatement<SIRNode>>) -> Self;
+}
+
+#[cfg(feature = "sir")]
+impl<SIRNode: GenericSIRNode> Deref for SIR<SIRNode> {
+    type Target = [SIRStatement<SIRNode>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(feature = "sir")]
+impl<SIRNode: GenericSIRNode> DerefMut for SIR<SIRNode> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[cfg(feature = "sir")]
+/// A trait for passes that can run on a SIRControlFlowGraph
+pub trait SIRCFGPass<SIRNode: GenericSIRNode> {
+    fn run_on(cfg: &mut SIRControlFlowGraph<SIRNode>);
 }
 
 /// Trait to show what the branch reason is (opcode or exception)

@@ -1,6 +1,6 @@
 use crate::{
     sir::{AuxVar, SIRControlFlowGraph, SIRExpression, SIRStatement},
-    traits::{GenericSIRNode, SIRCFGPass},
+    traits::{GenericSIRNode, SIRCFGPass}, utils::replace_var_in_statement,
 };
 
 pub struct RemoveSinglePhiNodes;
@@ -8,73 +8,6 @@ pub struct RemoveSinglePhiNodes;
 impl RemoveSinglePhiNodes {
     pub fn new() -> Self {
         RemoveSinglePhiNodes {}
-    }
-}
-
-fn replace_var_in_expression<SIRNode: GenericSIRNode>(
-    node: &mut SIRExpression<SIRNode>,
-    og_var: &AuxVar,
-    new_var: &AuxVar,
-) {
-    match node {
-        SIRExpression::AuxVar(var) => {
-            if var == og_var {
-                *var = new_var.clone();
-            }
-        }
-        SIRExpression::Call(call) => {
-            for stack_input in call.stack_inputs.iter_mut() {
-                replace_var_in_expression(stack_input, og_var, new_var);
-            }
-        }
-        SIRExpression::Exception(exc) => {
-            for stack_input in exc.stack_inputs.iter_mut() {
-                replace_var_in_expression(stack_input, og_var, new_var);
-            }
-        }
-        SIRExpression::PhiNode(values) => {
-            for var in values {
-                if var == og_var {
-                    *var = new_var.clone();
-                }
-            }
-        }
-        SIRExpression::GeneratorStart => {}
-    }
-}
-
-fn replace_var_in_statement<SIRNode: GenericSIRNode>(
-    node: &mut SIRStatement<SIRNode>,
-    og_var: &AuxVar,
-    new_var: &AuxVar,
-) {
-    match node {
-        SIRStatement::Assignment(var, value) => {
-            if var == og_var {
-                *var = new_var.clone();
-            }
-
-            replace_var_in_expression(value, og_var, new_var);
-        }
-        SIRStatement::DisregardCall(call) => {
-            for stack_input in call.stack_inputs.iter_mut() {
-                replace_var_in_expression(stack_input, og_var, new_var);
-            }
-        }
-        SIRStatement::TupleAssignment(vars, value) => {
-            for var in vars.iter_mut() {
-                if var == og_var {
-                    *var = new_var.clone();
-                }
-            }
-
-            replace_var_in_expression(value, og_var, new_var);
-        }
-        SIRStatement::UseVar(var) => {
-            if var == og_var {
-                *var = new_var.clone();
-            }
-        }
     }
 }
 

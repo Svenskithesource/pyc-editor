@@ -2,7 +2,7 @@ use crate::{
     sir::{AuxVar, Call, SIRExpression},
     traits::SIRCFGPass,
     utils::replace_var_in_statement,
-    v310::opcodes::{Opcode, sir::SIRNode},
+    v312::opcodes::{Opcode, sir::SIRNode},
 };
 
 pub struct RemoveStackOperations;
@@ -35,7 +35,7 @@ impl RemoveStackOperations {
         }
     }
 
-    fn replace_dup(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
+    fn replace_copy(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
         let mut items_left = true;
 
         while items_left {
@@ -50,45 +50,13 @@ impl RemoveStackOperations {
                             SIRExpression::Call(Call {
                                 node:
                                     SIRNode {
-                                        opcode: Opcode::DUP_TOP,
+                                        opcode: Opcode::COPY,
                                         ..
                                     },
                                 stack_inputs,
                             }),
                         ) => {
                             assert!(outputs.len() == 2);
-                            assert!(stack_inputs.len() == 1);
-
-                            let input_var = match stack_inputs.first() {
-                                Some(SIRExpression::AuxVar(input_var)) => input_var.clone(),
-                                _ => unreachable!(),
-                            };
-
-                            if replacements.iter().any(|(saved_outputs, _): &(_, _)| {
-                                saved_outputs.contains(&input_var)
-                            }) {
-                                // We will already replace this variable once, we will have to process this one in a next iteration
-                                items_left = true;
-
-                                true
-                            } else {
-                                replacements.push((outputs.clone(), input_var));
-
-                                false
-                            }
-                        }
-                        crate::sir::SIRStatement::TupleAssignment(
-                            outputs,
-                            SIRExpression::Call(Call {
-                                node:
-                                    SIRNode {
-                                        opcode: Opcode::DUP_TOP_TWO,
-                                        ..
-                                    },
-                                stack_inputs,
-                            }),
-                        ) => {
-                            assert!(outputs.len() == 3);
                             assert!(stack_inputs.len() == 1);
 
                             let input_var = match stack_inputs.first() {
@@ -125,7 +93,7 @@ impl RemoveStackOperations {
         }
     }
 
-    fn replace_rot(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
+    fn replace_swap(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
         let mut items_left = true;
 
         while items_left {
@@ -140,14 +108,13 @@ impl RemoveStackOperations {
                             SIRExpression::Call(Call {
                                 node:
                                     SIRNode {
-                                        opcode: Opcode::ROT_TWO,
+                                        opcode: Opcode::SWAP,
                                         ..
                                     },
                                 stack_inputs,
                             }),
                         ) => {
-                            assert!(outputs.len() == 2);
-                            assert!(stack_inputs.len() == 2);
+                            assert!(outputs.len() == stack_inputs.len() && outputs.len() > 1);
 
                             let input_vars = stack_inputs
                                 .iter()
@@ -176,132 +143,6 @@ impl RemoveStackOperations {
                                 false
                             }
                         }
-                        crate::sir::SIRStatement::TupleAssignment(
-                            outputs,
-                            SIRExpression::Call(Call {
-                                node:
-                                    SIRNode {
-                                        opcode: Opcode::ROT_THREE,
-                                        ..
-                                    },
-                                stack_inputs,
-                            }),
-                        ) => {
-                            assert!(outputs.len() == 3);
-                            assert!(stack_inputs.len() == 3);
-
-                            let input_vars = stack_inputs
-                                .iter()
-                                .map(|stack_input| match stack_input {
-                                    SIRExpression::AuxVar(input_var) => input_var.clone(),
-                                    _ => unreachable!(),
-                                })
-                                .collect::<Vec<_>>();
-
-                            let mut input_vars = input_vars.clone();
-
-                            if replacements.iter().any(|(saved_outputs, _): &(_, _)| {
-                                // Check if this variable has already been used before
-                                input_vars.iter().any(|e| saved_outputs.contains(e))
-                            }) {
-                                // We will already replace this variable once, we will have to process this one in a next iteration
-                                items_left = true;
-
-                                true
-                            } else {
-                                // Simulate ROT_THREE behaviour
-                                let top = input_vars.pop().unwrap();
-                                input_vars.insert(0, top);
-
-                                replacements.push((outputs.clone(), input_vars));
-
-                                false
-                            }
-                        }
-                        crate::sir::SIRStatement::TupleAssignment(
-                            outputs,
-                            SIRExpression::Call(Call {
-                                node:
-                                    SIRNode {
-                                        opcode: Opcode::ROT_FOUR,
-                                        ..
-                                    },
-                                stack_inputs,
-                            }),
-                        ) => {
-                            assert!(outputs.len() == 4);
-                            assert!(stack_inputs.len() == 4);
-
-                            let input_vars = stack_inputs
-                                .iter()
-                                .map(|stack_input| match stack_input {
-                                    SIRExpression::AuxVar(input_var) => input_var.clone(),
-                                    _ => unreachable!(),
-                                })
-                                .collect::<Vec<_>>();
-
-                            let mut input_vars = input_vars.clone();
-
-                            if replacements.iter().any(|(saved_outputs, _): &(_, _)| {
-                                // Check if this variable has already been used before
-                                input_vars.iter().any(|e| saved_outputs.contains(e))
-                            }) {
-                                // We will already replace this variable once, we will have to process this one in a next iteration
-                                items_left = true;
-
-                                true
-                            } else {
-                                // Simulate ROT_FOUR behaviour
-                                let top = input_vars.pop().unwrap();
-                                input_vars.insert(0, top);
-
-                                replacements.push((outputs.clone(), input_vars));
-
-                                false
-                            }
-                        }
-                        crate::sir::SIRStatement::TupleAssignment(
-                            outputs,
-                            SIRExpression::Call(Call {
-                                node:
-                                    SIRNode {
-                                        opcode: Opcode::ROT_N,
-                                        ..
-                                    },
-                                stack_inputs,
-                            }),
-                        ) => {
-                            assert!(outputs.len() == 4);
-                            assert!(stack_inputs.len() == 4);
-
-                            let input_vars = stack_inputs
-                                .iter()
-                                .map(|stack_input| match stack_input {
-                                    SIRExpression::AuxVar(input_var) => input_var.clone(),
-                                    _ => unreachable!(),
-                                })
-                                .collect::<Vec<_>>();
-
-                            let mut input_vars = input_vars.clone();
-
-                            if replacements.iter().any(|(saved_outputs, _): &(_, _)| {
-                                // Check if this variable has already been used before
-                                input_vars.iter().any(|e| saved_outputs.contains(e))
-                            }) {
-                                // We will already replace this variable once, we will have to process this one in a next iteration
-                                items_left = true;
-
-                                true
-                            } else {
-                                // Simulate ROT_N behaviour
-                                let top = input_vars.pop().unwrap();
-                                input_vars.insert(0, top);
-
-                                replacements.push((outputs.clone(), input_vars));
-
-                                false
-                            }
-                        }
                         _ => true,
                     });
 
@@ -322,8 +163,8 @@ impl RemoveStackOperations {
 impl SIRCFGPass<SIRNode> for RemoveStackOperations {
     fn run_on(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
         self.remove_pop_tops(cfg);
-        self.replace_dup(cfg);
-        self.replace_rot(cfg);
+        self.replace_copy(cfg);
+        self.replace_swap(cfg);
     }
 }
 
@@ -335,14 +176,14 @@ mod tests {
             SIRStatement,
         },
         traits::SIRCFGPass,
-        v310::{
+        v312::{
             opcodes::{Opcode, sir::SIRNode},
             sir_passes::RemoveStackOperations,
         },
     };
 
     #[test]
-    fn test_replace_dup_top() {
+    fn test_replace_copy() {
         let mut cfg = SIRControlFlowGraph::<SIRNode> {
             blocks: vec![SIRBlock::<SIRNode>::NormalBlock(SIRNormalBlock {
                 nodes: vec![
@@ -372,8 +213,8 @@ mod tests {
                         ],
                         crate::sir::SIRExpression::Call(Call {
                             node: SIRNode {
-                                opcode: Opcode::DUP_TOP,
-                                oparg: 0,
+                                opcode: Opcode::COPY,
+                                oparg: 1,
                                 input: vec![], // This is not true, but it doesn't matter for the test
                                 output: vec![],
                                 net_stack_delta: 1,
@@ -433,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_replace_dup_top_two() {
+    fn test_replace_copy_two() {
         let mut cfg = SIRControlFlowGraph::<SIRNode> {
             blocks: vec![SIRBlock::<SIRNode>::NormalBlock(SIRNormalBlock {
                 nodes: vec![
@@ -460,32 +301,51 @@ mod tests {
                             AuxVar {
                                 name: "top_1".to_string(),
                             },
-                            AuxVar {
-                                name: "top_2".to_string(),
-                            },
                         ],
                         crate::sir::SIRExpression::Call(Call {
                             node: SIRNode {
-                                opcode: Opcode::DUP_TOP_TWO,
-                                oparg: 0,
+                                opcode: Opcode::COPY,
+                                oparg: 1,
                                 input: vec![], // This is not true, but it doesn't matter for the test
                                 output: vec![],
-                                net_stack_delta: 2,
+                                net_stack_delta: 1,
                             },
                             stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
                                 name: "value_0".to_string(),
                             })],
                         }),
                     ),
+                    SIRStatement::<SIRNode>::TupleAssignment(
+                        vec![
+                            AuxVar {
+                                name: "top_2".to_string(),
+                            },
+                            AuxVar {
+                                name: "top_3".to_string(),
+                            },
+                        ],
+                        crate::sir::SIRExpression::Call(Call {
+                            node: SIRNode {
+                                opcode: Opcode::COPY,
+                                oparg: 1,
+                                input: vec![], // This is not true, but it doesn't matter for the test
+                                output: vec![],
+                                net_stack_delta: 1,
+                            },
+                            stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
+                                name: "top_1".to_string(),
+                            })],
+                        }),
+                    ),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
                         name: "top_0".to_string(),
-                    }),
-                    SIRStatement::<SIRNode>::UseVar(AuxVar {
-                        name: "top_1".to_string(),
                     }),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
                         name: "top_2".to_string(),
                     }),
+                    SIRStatement::<SIRNode>::UseVar(AuxVar {
+                        name: "top_3".to_string(),
+                    }),
                 ]
                 .into(),
                 default_block: crate::sir::SIRBlockIndexInfo::NoIndex,
@@ -533,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn test_replace_rot_three() {
+    fn test_replace_swap() {
         let mut cfg = SIRControlFlowGraph::<SIRNode> {
             blocks: vec![SIRBlock::<SIRNode>::NormalBlock(SIRNormalBlock {
                 nodes: vec![
@@ -585,18 +445,15 @@ mod tests {
                     SIRStatement::<SIRNode>::TupleAssignment(
                         vec![
                             AuxVar {
-                                name: "first".to_string(),
+                                name: "top".to_string(),
                             },
                             AuxVar {
-                                name: "second".to_string(),
-                            },
-                            AuxVar {
-                                name: "third".to_string(),
+                                name: "bottom".to_string(),
                             },
                         ],
                         crate::sir::SIRExpression::Call(Call {
                             node: SIRNode {
-                                opcode: Opcode::ROT_THREE,
+                                opcode: Opcode::SWAP,
                                 oparg: 0,
                                 input: vec![], // This is not true, but it doesn't matter for the test
                                 output: vec![],
@@ -607,22 +464,19 @@ mod tests {
                                     name: "value_0".to_string(),
                                 }),
                                 SIRExpression::AuxVar(AuxVar {
-                                    name: "value_1".to_string(),
-                                }),
-                                SIRExpression::AuxVar(AuxVar {
                                     name: "value_2".to_string(),
                                 }),
                             ],
                         }),
                     ),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
-                        name: "first".to_string(),
+                        name: "top".to_string(),
                     }),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
-                        name: "second".to_string(),
+                        name: "value_1".to_string(),
                     }),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
-                        name: "third".to_string(),
+                        name: "bottom".to_string(),
                     }),
                 ]
                 .into(),
@@ -689,10 +543,10 @@ mod tests {
                         name: "value_2".into(),
                     }),
                     SIRStatement::UseVar(AuxVar {
-                        name: "value_0".into(),
+                        name: "value_1".into(),
                     }),
                     SIRStatement::UseVar(AuxVar {
-                        name: "value_1".into(),
+                        name: "value_0".into(),
                     }),
                 ]
                 .into()

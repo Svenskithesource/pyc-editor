@@ -13,6 +13,7 @@ pub mod v311;
 pub mod v312;
 #[cfg(feature = "v313")]
 pub mod v313;
+#[cfg(feature = "sir")]
 mod sir_passes;
 
 use error::Error;

@@ -3,6 +3,8 @@ pub mod code_objects;
 pub mod ext_instructions;
 pub mod instructions;
 pub mod opcodes;
+#[cfg(feature = "sir")]
+pub mod sir_passes;
 
 #[cfg(test)]
 mod tests {

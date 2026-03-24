@@ -2,7 +2,7 @@ use crate::{
     sir::{AuxVar, Call, SIRExpression},
     traits::SIRCFGPass,
     utils::replace_var_in_statement,
-    v313::opcodes::{Opcode, sir::SIRNode},
+    v313::opcodes::{sir::SIRNode, Opcode},
 };
 
 pub struct RemoveStackOperations;
@@ -177,7 +177,7 @@ mod tests {
         },
         traits::SIRCFGPass,
         v313::{
-            opcodes::{Opcode, sir::SIRNode},
+            opcodes::{sir::SIRNode, Opcode},
             sir_passes::RemoveStackOperations,
         },
     };

@@ -1,14 +1,12 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use pyc_editor::cfg::create_cfg;
-use pyc_editor::prelude::*;
 use pyc_editor::sir::cfg_to_ir;
 use pyc_editor::utils::UnusedArgument;
 use pyc_editor::v311::code_objects::RelativeJump;
 use pyc_editor::v311::opcodes::sir::SIRNode;
 use pyc_editor::v311::{
-    ext_instructions::{ExtInstruction, ExtInstructions},
+    ext_instructions::ExtInstruction,
     instructions::{Instruction, Instructions},
-    opcodes::Opcode,
 };
 use std::hint::black_box;
 

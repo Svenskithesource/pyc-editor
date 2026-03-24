@@ -1,13 +1,8 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use pyc_editor::cfg::create_cfg;
-use pyc_editor::prelude::*;
 use pyc_editor::utils::UnusedArgument;
 use pyc_editor::v311::code_objects::RelativeJump;
-use pyc_editor::v311::{
-    ext_instructions::{ExtInstruction, ExtInstructions},
-    instructions::{Instruction, Instructions},
-    opcodes::Opcode,
-};
+use pyc_editor::v311::ext_instructions::ExtInstruction;
 use std::hint::black_box;
 
 fn generate_instructions(amount_of_blocks: usize) -> Vec<ExtInstruction> {

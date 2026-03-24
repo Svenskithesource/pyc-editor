@@ -323,12 +323,13 @@ where
                 }) => (Some(branch_index), Some(reason.clone())),
                 _ => (None, None),
             },
-            Block::ExceptionBlock(block) => match &block.exception_handler {
-                BranchEdge {
+            Block::ExceptionBlock(block) => {
+                let BranchEdge {
                     block_index: branch_index,
                     reason,
-                } => (Some(branch_index), Some(reason.clone())),
-            },
+                } = &block.exception_handler;
+                (Some(branch_index), Some(reason.clone()))
+            }
         };
 
         let branch_index = branch_index.cloned();
@@ -632,13 +633,11 @@ where
         block_map: &mut nohash_hasher::IntMap<usize, BlockState>,
         block_queue: &mut VecDeque<QueueEntry>,
     ) {
-        match block_map.entry(instruction_index) {
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(BlockState::BlockIndexAssigned(BlockIndex::Index(
-                    block_index,
-                )));
-            }
-            _ => {}
+        if let std::collections::hash_map::Entry::Vacant(entry) = block_map.entry(instruction_index)
+        {
+            entry.insert(BlockState::BlockIndexAssigned(BlockIndex::Index(
+                block_index,
+            )));
         };
 
         block_queue.push_front(QueueEntry {
@@ -1098,14 +1097,12 @@ where
                 replace_block_index(&mut block.default_block, &order_map);
             }
             Block::ExceptionBlock(block) => {
-                match &mut block.exception_handler {
-                    BranchEdge {
-                        block_index: BlockIndex::Index(block_index),
-                        ..
-                    } => {
-                        *block_index = order_map[block_index];
-                    }
-                    _ => {}
+                if let BranchEdge {
+                    block_index: BlockIndex::Index(block_index),
+                    ..
+                } = &mut block.exception_handler
+                {
+                    *block_index = order_map[block_index];
                 }
 
                 replace_block_index(&mut block.default_block, &order_map);

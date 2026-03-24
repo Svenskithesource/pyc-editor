@@ -1146,7 +1146,7 @@ where
 
                 SIRBlock::ExceptionBlock(SIRExceptionBlock {
                     block_indexes: block.block_indexes.clone(),
-                    exception_handler: exception_handler,
+                    exception_handler,
                     default_block: block.default_block.clone().into_sir(
                         if temp_edges.get(index).unwrap().0.statements.is_empty() {
                             None

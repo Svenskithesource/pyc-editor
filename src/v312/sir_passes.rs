@@ -7,6 +7,12 @@ use crate::{
 
 pub struct RemoveStackOperations;
 
+impl Default for RemoveStackOperations {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RemoveStackOperations {
     pub fn new() -> Self {
         RemoveStackOperations {}
@@ -84,7 +90,7 @@ impl RemoveStackOperations {
                     for (outputs, input_var) in replacements {
                         nodes.0.iter_mut().for_each(|inner_node| {
                             for out in outputs.iter() {
-                                replace_var_in_statement(inner_node, &out, &input_var);
+                                replace_var_in_statement(inner_node, out, &input_var);
                             }
                         });
                     }
@@ -150,7 +156,7 @@ impl RemoveStackOperations {
                     for (outputs, input_vars) in replacements {
                         nodes.0.iter_mut().for_each(|inner_node| {
                             for (out_var, in_var) in outputs.iter().zip(input_vars.iter()) {
-                                replace_var_in_statement(inner_node, &out_var, &in_var);
+                                replace_var_in_statement(inner_node, out_var, in_var);
                             }
                         });
                     }

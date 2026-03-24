@@ -582,11 +582,10 @@ where
     // Keeps track of which exception indexes we already processed
     let mut exceptions_processed: nohash_hasher::IntMap<usize, ExceptionState> =
         nohash_hasher::IntMap::with_capacity_and_hasher(
-            if let Some(table) = &exception_table {
-                table.len()
-            } else {
-                0
-            },
+            exception_table
+                .as_ref()
+                .map(|table| table.len())
+                .unwrap_or(0),
             BuildHasherDefault::default(),
         );
 

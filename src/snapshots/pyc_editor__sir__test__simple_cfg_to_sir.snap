@@ -108,16 +108,12 @@ SIRControlFlowGraph {
                                         net_stack_delta: -1,
                                     },
                                     stack_inputs: [
-                                        AuxVar(
-                                            AuxVar {
-                                                name: "value_1",
-                                            },
-                                        ),
-                                        AuxVar(
-                                            AuxVar {
-                                                name: "value_2",
-                                            },
-                                        ),
+                                        AuxVar {
+                                            name: "value_1",
+                                        },
+                                        AuxVar {
+                                            name: "value_2",
+                                        },
                                     ],
                                 },
                             ),
@@ -160,11 +156,9 @@ SIRControlFlowGraph {
                                                 net_stack_delta: -1,
                                             },
                                             stack_inputs: [
-                                                AuxVar(
-                                                    AuxVar {
-                                                        name: "phi_1",
-                                                    },
-                                                ),
+                                                AuxVar {
+                                                    name: "phi_1",
+                                                },
                                             ],
                                         },
                                     ),
@@ -212,11 +206,9 @@ SIRControlFlowGraph {
                                                 net_stack_delta: -1,
                                             },
                                             stack_inputs: [
-                                                AuxVar(
-                                                    AuxVar {
-                                                        name: "phi_0",
-                                                    },
-                                                ),
+                                                AuxVar {
+                                                    name: "phi_0",
+                                                },
                                             ],
                                         },
                                     ),
@@ -250,11 +242,9 @@ SIRControlFlowGraph {
                                     net_stack_delta: -1,
                                 },
                                 stack_inputs: [
-                                    AuxVar(
-                                        AuxVar {
-                                            name: "value_0",
-                                        },
-                                    ),
+                                    AuxVar {
+                                        name: "value_0",
+                                    },
                                 ],
                             },
                         ),
@@ -297,11 +287,9 @@ SIRControlFlowGraph {
                                     net_stack_delta: -1,
                                 },
                                 stack_inputs: [
-                                    AuxVar(
-                                        AuxVar {
-                                            name: "value_3",
-                                        },
-                                    ),
+                                    AuxVar {
+                                        name: "value_3",
+                                    },
                                 ],
                             },
                         ),
@@ -331,11 +319,9 @@ SIRControlFlowGraph {
                                     net_stack_delta: -1,
                                 },
                                 stack_inputs: [
-                                    AuxVar(
-                                        AuxVar {
-                                            name: "value_0",
-                                        },
-                                    ),
+                                    AuxVar {
+                                        name: "value_0",
+                                    },
                                 ],
                             },
                         ),
@@ -378,11 +364,9 @@ SIRControlFlowGraph {
                                     net_stack_delta: -1,
                                 },
                                 stack_inputs: [
-                                    AuxVar(
-                                        AuxVar {
-                                            name: "value_4",
-                                        },
-                                    ),
+                                    AuxVar {
+                                        name: "value_4",
+                                    },
                                 ],
                             },
                         ),

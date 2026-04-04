@@ -2,7 +2,7 @@ use crate::{
     sir::{AuxVar, Call, SIRExpression},
     traits::SIRCFGPass,
     utils::replace_var_in_statement,
-    v313::opcodes::{sir::SIRNode, Opcode},
+    v313::opcodes::{Opcode, sir::SIRNode},
 };
 
 pub struct RemoveStackOperations;
@@ -66,7 +66,7 @@ impl RemoveStackOperations {
                             assert!(stack_inputs.len() == 1);
 
                             let input_var = match stack_inputs.first() {
-                                Some(SIRExpression::AuxVar(input_var)) => input_var.clone(),
+                                Some(input_var) => input_var.clone(),
                                 _ => unreachable!(),
                             };
 
@@ -122,13 +122,7 @@ impl RemoveStackOperations {
                         ) => {
                             assert!(outputs.len() == stack_inputs.len() && outputs.len() > 1);
 
-                            let input_vars = stack_inputs
-                                .iter()
-                                .map(|stack_input| match stack_input {
-                                    SIRExpression::AuxVar(input_var) => input_var.clone(),
-                                    _ => unreachable!(),
-                                })
-                                .collect::<Vec<_>>();
+                            let input_vars = stack_inputs.iter().cloned().collect::<Vec<_>>();
 
                             let mut input_vars = input_vars.clone();
 
@@ -183,7 +177,7 @@ mod tests {
         },
         traits::SIRCFGPass,
         v313::{
-            opcodes::{sir::SIRNode, Opcode},
+            opcodes::{Opcode, sir::SIRNode},
             sir_passes::RemoveStackOperations,
         },
     };
@@ -225,9 +219,9 @@ mod tests {
                                 output: vec![],
                                 net_stack_delta: 1,
                             },
-                            stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
+                            stack_inputs: vec![AuxVar {
                                 name: "value_0".to_string(),
-                            })],
+                            }],
                         }),
                     ),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
@@ -316,9 +310,9 @@ mod tests {
                                 output: vec![],
                                 net_stack_delta: 1,
                             },
-                            stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
+                            stack_inputs: vec![AuxVar {
                                 name: "value_0".to_string(),
-                            })],
+                            }],
                         }),
                     ),
                     SIRStatement::<SIRNode>::TupleAssignment(
@@ -338,9 +332,9 @@ mod tests {
                                 output: vec![],
                                 net_stack_delta: 1,
                             },
-                            stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
+                            stack_inputs: vec![AuxVar {
                                 name: "top_1".to_string(),
-                            })],
+                            }],
                         }),
                     ),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
@@ -466,12 +460,12 @@ mod tests {
                                 net_stack_delta: 0,
                             },
                             stack_inputs: vec![
-                                SIRExpression::AuxVar(AuxVar {
+                                AuxVar {
                                     name: "value_0".to_string(),
-                                }),
-                                SIRExpression::AuxVar(AuxVar {
+                                },
+                                AuxVar {
                                     name: "value_2".to_string(),
-                                }),
+                                },
                             ],
                         }),
                     ),

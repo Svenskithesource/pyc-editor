@@ -23,6 +23,12 @@ pub struct AuxVar {
     pub name: String,
 }
 
+impl std::fmt::Display for AuxVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self)
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct StackItem {
     pub name: &'static str,
@@ -45,13 +51,13 @@ pub enum SIRExpression<SIRNode: GenericSIRNode> {
 #[derive(PartialEq, Debug, Clone)]
 pub struct Call<SIRNode: GenericSIRNode> {
     pub node: SIRNode,
-    pub stack_inputs: Vec<SIRExpression<SIRNode>>, // Allow direct usage of a call as an input
+    pub stack_inputs: Vec<AuxVar>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct ExceptionCall<SIRNode: GenericSIRNode> {
     pub exception: SIRNode::SIRException,
-    pub stack_inputs: Vec<SIRExpression<SIRNode>>, // Allow direct usage of a call as an input
+    pub stack_inputs: Vec<AuxVar>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -164,17 +170,10 @@ fn process_stack_effects<SIRNode>(
     inputs: &[StackItem],
     outputs: &[StackItem],
     net_stack_delta: isize,
-    stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
+    stack: &mut InfiniteStack<AuxVar>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
-) -> Result<
-    (
-        Vec<SIRExpression<SIRNode>>,
-        Vec<AuxVar>,
-        Vec<SIRStatement<SIRNode>>,
-    ),
-    Error,
->
+) -> Result<(Vec<AuxVar>, Vec<AuxVar>, Vec<SIRStatement<SIRNode>>), Error>
 where
     SIRNode: GenericSIRNode,
 {
@@ -200,7 +199,7 @@ where
                 };
 
                 statements.push(SIRStatement::Assignment(var.clone(), phi));
-                stack_inputs.push(SIRExpression::AuxVar(var.clone()));
+                stack_inputs.push(var.clone());
 
                 insert_replace_stack(phi_stack, index, var, false)?;
             } else {
@@ -250,7 +249,7 @@ where
                 debug_assert!(phi_stack.data.get(index).is_some());
             }
 
-            insert_replace_stack(stack, index, SIRExpression::<SIRNode>::AuxVar(var), true)?;
+            insert_replace_stack(stack, index, var, true)?;
         }
     }
 
@@ -264,7 +263,7 @@ fn instruction_to_ir<ExtInstruction, SIRNode>(
     opcode: ExtInstruction::Opcode,
     oparg: ExtInstruction::OpargType,
     jump: bool,
-    stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
+    stack: &mut InfiniteStack<AuxVar>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<(Vec<SIRStatement<SIRNode>>, SIRStatement<SIRNode>), Error>
@@ -303,7 +302,7 @@ fn exception_to_ir<SIRNode>(
     lasti: bool,
     stack_depth: usize,
     jump: bool,
-    stack: &mut InfiniteStack<SIRExpression<SIRNode>>,
+    stack: &mut InfiniteStack<AuxVar>,
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode>>, Error>
@@ -379,14 +378,7 @@ fn force_exception_stack_depth<SIRNode: GenericSIRNode>(
 fn bb_to_ir<ExtInstruction, SIRNode>(
     instructions: &[ExtInstruction],
     names: &mut HashMap<&'static str, u32>,
-) -> Result<
-    (
-        SIR<SIRNode>,
-        InfiniteStack<SIRExpression<SIRNode>>,
-        InfiniteStack<AuxVar>,
-    ),
-    Error,
->
+) -> Result<(SIR<SIRNode>, InfiniteStack<AuxVar>, InfiniteStack<AuxVar>), Error>
 where
     ExtInstruction: GenericInstruction<OpargType = u32>,
     SIR<SIRNode>: SIROwned<SIRNode>,
@@ -397,7 +389,7 @@ where
 
     // Every basic block starts with an empty stack.
     // When we try to access stack items below 0, we know it's accessing items from a different basic block.
-    let mut stack: InfiniteStack<SIRExpression<SIRNode>> = vec![].into();
+    let mut stack: InfiniteStack<AuxVar> = vec![].into();
 
     // When we assign a phi node to a var we keep track of what stack index this phi node is representing
     let mut phi_stack: InfiniteStack<AuxVar> = vec![].into();
@@ -755,7 +747,7 @@ impl std::fmt::Display for Error {
 /// This will extend the vec and overwrite any items that have a corresponding negative value
 pub fn extend_merge_stack<SIRNode: GenericSIRNode>(
     vec_to_extend: &mut Vec<SIRExpression<SIRNode>>,
-    infinite_stack: &InfiniteStack<SIRExpression<SIRNode>>,
+    infinite_stack: &InfiniteStack<AuxVar>,
     phi_stack: &InfiniteStack<AuxVar>,
 ) -> Result<(), Error> {
     let original_len = vec_to_extend.len();
@@ -766,11 +758,11 @@ pub fn extend_merge_stack<SIRNode: GenericSIRNode>(
         let real_index: usize = (original_len as isize + i).try_into().unwrap();
 
         if i < 0 {
-            vec_to_extend[real_index] = item.clone();
+            vec_to_extend[real_index] = SIRExpression::AuxVar(item.clone());
         } else {
             debug_assert!(real_index == vec_to_extend.len());
 
-            vec_to_extend.push(item.clone());
+            vec_to_extend.push(SIRExpression::AuxVar(item.clone()));
         }
     }
 
@@ -809,7 +801,7 @@ where
     where
         SIRNode: Clone + std::fmt::Debug,
     {
-        stack: InfiniteStack<SIRExpression<SIRNode>>,
+        stack: InfiniteStack<AuxVar>,
         statements: SIR<SIRNode>,
         phi_stack: InfiniteStack<AuxVar>,
     }
@@ -826,7 +818,7 @@ where
 
     #[derive(Debug, Clone)]
     struct TempEdgeInfo<SIRNode: GenericSIRNode> {
-        stack: InfiniteStack<SIRExpression<SIRNode>>,
+        stack: InfiniteStack<AuxVar>,
         statements: Vec<SIRStatement<SIRNode>>,
         phi_stack: InfiniteStack<AuxVar>,
     }
@@ -1716,9 +1708,9 @@ mod test {
                             ],
                             net_stack_delta: 1,
                         },
-                        stack_inputs: vec![crate::sir::SIRExpression::AuxVar(AuxVar {
+                        stack_inputs: vec![AuxVar {
                             name: "phi_0".into()
-                        },),],
+                        },],
                     },),
                 ),
                 crate::sir::SIRStatement::DisregardCall(crate::sir::Call {
@@ -1733,9 +1725,9 @@ mod test {
                         output: vec![],
                         net_stack_delta: -1
                     },
-                    stack_inputs: vec![crate::sir::SIRExpression::AuxVar(AuxVar {
+                    stack_inputs: vec![AuxVar {
                         name: "next_0".into()
-                    },),],
+                    },],
                 },),
             ]
         );

@@ -1,7 +1,10 @@
 use std::collections::{HashMap, VecDeque};
 
 #[cfg(feature = "sir")]
-use crate::{sir::{AuxVar, SIRExpression, SIRStatement}, traits::GenericSIRNode};
+use crate::{
+    sir::{AuxVar, SIRExpression, SIRStatement},
+    traits::GenericSIRNode,
+};
 
 /// The amount of extended_args necessary to represent the arg.
 /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.
@@ -454,13 +457,17 @@ pub fn replace_var_in_expression<SIRNode: GenericSIRNode>(
             }
         }
         SIRExpression::Call(call) => {
-            for stack_input in call.stack_inputs.iter_mut() {
-                replace_var_in_expression(stack_input, og_var, new_var);
+            for var in call.stack_inputs.iter_mut() {
+                if var == og_var {
+                    *var = new_var.clone();
+                }
             }
         }
         SIRExpression::Exception(exc) => {
-            for stack_input in exc.stack_inputs.iter_mut() {
-                replace_var_in_expression(stack_input, og_var, new_var);
+            for var in exc.stack_inputs.iter_mut() {
+                if var == og_var {
+                    *var = new_var.clone();
+                }
             }
         }
         SIRExpression::PhiNode(values) => {
@@ -489,8 +496,10 @@ pub fn replace_var_in_statement<SIRNode: GenericSIRNode>(
             replace_var_in_expression(value, og_var, new_var);
         }
         SIRStatement::DisregardCall(call) => {
-            for stack_input in call.stack_inputs.iter_mut() {
-                replace_var_in_expression(stack_input, og_var, new_var);
+            for var in call.stack_inputs.iter_mut() {
+                if var == og_var {
+                    *var = new_var.clone();
+                }
             }
         }
         SIRStatement::TupleAssignment(vars, value) => {

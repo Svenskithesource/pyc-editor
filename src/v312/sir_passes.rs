@@ -35,6 +35,19 @@ impl RemoveStackOperations {
                         // Don't keep the POP_TOP
                         false
                     }
+                    crate::sir::SIRStatement::DisregardCall(Call {
+                        node:
+                            SIRNode {
+                                opcode: Opcode::END_FOR,
+                                ..
+                            },
+                        stack_inputs,
+                    }) => {
+                        assert!(stack_inputs.len() == 2);
+
+                        // Don't keep the POP_TOP
+                        false
+                    }
                     _ => true,
                 });
             }
@@ -66,7 +79,7 @@ impl RemoveStackOperations {
                             assert!(stack_inputs.len() == 1);
 
                             let input_var = match stack_inputs.first() {
-                                Some(SIRExpression::AuxVar(input_var)) => input_var.clone(),
+                                Some(input_var) => input_var.clone(),
                                 _ => unreachable!(),
                             };
 
@@ -122,13 +135,7 @@ impl RemoveStackOperations {
                         ) => {
                             assert!(outputs.len() == stack_inputs.len() && outputs.len() > 1);
 
-                            let input_vars = stack_inputs
-                                .iter()
-                                .map(|stack_input| match stack_input {
-                                    SIRExpression::AuxVar(input_var) => input_var.clone(),
-                                    _ => unreachable!(),
-                                })
-                                .collect::<Vec<_>>();
+                            let input_vars = stack_inputs.iter().cloned().collect::<Vec<_>>();
 
                             let mut input_vars = input_vars.clone();
 
@@ -225,9 +232,9 @@ mod tests {
                                 output: vec![],
                                 net_stack_delta: 1,
                             },
-                            stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
+                            stack_inputs: vec![AuxVar {
                                 name: "value_0".to_string(),
-                            })],
+                            }],
                         }),
                     ),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
@@ -316,9 +323,9 @@ mod tests {
                                 output: vec![],
                                 net_stack_delta: 1,
                             },
-                            stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
+                            stack_inputs: vec![AuxVar {
                                 name: "value_0".to_string(),
-                            })],
+                            }],
                         }),
                     ),
                     SIRStatement::<SIRNode>::TupleAssignment(
@@ -338,9 +345,9 @@ mod tests {
                                 output: vec![],
                                 net_stack_delta: 1,
                             },
-                            stack_inputs: vec![SIRExpression::AuxVar(AuxVar {
+                            stack_inputs: vec![AuxVar {
                                 name: "top_1".to_string(),
-                            })],
+                            }],
                         }),
                     ),
                     SIRStatement::<SIRNode>::UseVar(AuxVar {
@@ -466,12 +473,12 @@ mod tests {
                                 net_stack_delta: 0,
                             },
                             stack_inputs: vec![
-                                SIRExpression::AuxVar(AuxVar {
+                                AuxVar {
                                     name: "value_0".to_string(),
-                                }),
-                                SIRExpression::AuxVar(AuxVar {
+                                },
+                                AuxVar {
                                     name: "value_2".to_string(),
-                                }),
+                                },
                             ],
                         }),
                     ),

@@ -101,6 +101,30 @@ impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
             })
             .collect()
     }
+
+    pub fn is_var_used(&self, var: AuxVar) -> bool {
+        self.0.iter().any(|v| match v {
+            SIRStatement::DisregardCall(Call {
+                node: _,
+                stack_inputs,
+            }) => stack_inputs.contains(&var),
+            SIRStatement::UseVar(_) => false,
+            SIRStatement::Assignment(_, expr) | SIRStatement::TupleAssignment(_, expr) => {
+                match expr {
+                    SIRExpression::Call(Call {
+                        node: _,
+                        stack_inputs,
+                    }) => stack_inputs.contains(&var),
+                    SIRExpression::Exception(ExceptionCall {
+                        exception: _,
+                        stack_inputs,
+                    }) => stack_inputs.contains(&var),
+                    SIRExpression::PhiNode(vars) => vars.contains(&var),
+                    SIRExpression::GeneratorStart => false,
+                }
+            }
+        })
+    }
 }
 
 impl<SIRNode: GenericSIRNode> From<Vec<SIRStatement<SIRNode>>> for SIR<SIRNode> {

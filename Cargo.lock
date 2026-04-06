@@ -1651,9 +1651,9 @@ dependencies = [
 
 [[package]]
 name = "python-instruction-dsl-proc"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c12285719d6a785574886e1d28c23e8a97c8ffb73cfdcffcc4c811b8342e9e6"
+checksum = "2096d714ba8399e309fde2b9ac8d8f95894f74acd1b563587fb855bfaaf5af77"
 dependencies = [
  "heck",
  "paste",

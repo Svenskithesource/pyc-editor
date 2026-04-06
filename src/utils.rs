@@ -451,11 +451,6 @@ pub fn replace_var_in_expression<SIRNode: GenericSIRNode>(
     new_var: &AuxVar,
 ) {
     match node {
-        SIRExpression::AuxVar(var) => {
-            if var == og_var {
-                *var = new_var.clone();
-            }
-        }
         SIRExpression::Call(call) => {
             for var in call.stack_inputs.iter_mut() {
                 if var == og_var {

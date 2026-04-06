@@ -41,7 +41,6 @@ pub struct StackItem {
 pub enum SIRExpression<SIRNode: GenericSIRNode> {
     Call(Call<SIRNode>),
     Exception(ExceptionCall<SIRNode>),
-    AuxVar(AuxVar),
     PhiNode(Vec<AuxVar>),
     /// This value is used to represent the value that comes from the start of a generator
     /// In practice this should be `None` but we don't care about that
@@ -73,6 +72,37 @@ pub enum SIRStatement<SIRNode: GenericSIRNode> {
 #[derive(PartialEq, Debug, Clone)]
 pub struct SIR<SIRNode: GenericSIRNode>(pub Vec<SIRStatement<SIRNode>>);
 
+impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
+    /// Returns the indexes of the statements where the var is used
+    pub fn find_var_usages(&self, var: AuxVar) -> Vec<usize> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter_map(|(i, v)| match v {
+                SIRStatement::DisregardCall(Call {
+                    node: _,
+                    stack_inputs,
+                }) => stack_inputs.contains(&var).then(|| i),
+                SIRStatement::UseVar(_) => None,
+                SIRStatement::Assignment(_, expr) | SIRStatement::TupleAssignment(_, expr) => {
+                    match expr {
+                        SIRExpression::Call(Call {
+                            node: _,
+                            stack_inputs,
+                        }) => stack_inputs.contains(&var).then(|| i),
+                        SIRExpression::Exception(ExceptionCall {
+                            exception: _,
+                            stack_inputs,
+                        }) => stack_inputs.contains(&var).then(|| i),
+                        SIRExpression::PhiNode(vars) => vars.contains(&var).then(|| i),
+                        SIRExpression::GeneratorStart => None,
+                    }
+                }
+            })
+            .collect()
+    }
+}
+
 impl<SIRNode: GenericSIRNode> From<Vec<SIRStatement<SIRNode>>> for SIR<SIRNode> {
     fn from(value: Vec<SIRStatement<SIRNode>>) -> Self {
         SIR(value)
@@ -81,7 +111,7 @@ impl<SIRNode: GenericSIRNode> From<Vec<SIRStatement<SIRNode>>> for SIR<SIRNode> 
 
 fn process_phi_item<SIRNode>(
     phi_var: &AuxVar,
-    stack_item: &SIRExpression<SIRNode>,
+    stack_item: &StackValue,
     statements: &mut [SIRStatement<SIRNode>],
 ) -> bool
 where
@@ -95,14 +125,14 @@ where
         match (statement, stack_item) {
             (
                 SIRStatement::Assignment(var, SIRExpression::PhiNode(values)),
-                SIRExpression::AuxVar(item),
+                StackValue::AuxVar(item),
             ) => {
                 if var == phi_var {
                     values.push(item.clone());
                     found = true;
                 }
             }
-            (SIRStatement::Assignment(var, value), SIRExpression::GeneratorStart) => {
+            (SIRStatement::Assignment(var, value), StackValue::GeneratorStart) => {
                 if var == phi_var {
                     *value = SIRExpression::GeneratorStart;
                     found = true;
@@ -116,7 +146,7 @@ where
 }
 
 fn fill_phi_nodes<SIRNode: GenericSIRNode>(
-    curr_stack: &mut [SIRExpression<SIRNode>],
+    curr_stack: &mut [StackValue],
     statements: &mut [SIRStatement<SIRNode>],
     phi_stack: &InfiniteStack<AuxVar>,
 ) -> Result<(), Error> {
@@ -344,7 +374,7 @@ where
 
 fn force_exception_stack_depth<SIRNode: GenericSIRNode>(
     stack_depth: usize,
-    stack: &mut [SIRExpression<SIRNode>],
+    stack: &mut [StackValue],
     phi_stack: &mut InfiniteStack<AuxVar>,
     names: &mut HashMap<&'static str, u32>,
 ) -> Result<Vec<SIRStatement<SIRNode>>, Error> {
@@ -745,8 +775,8 @@ impl std::fmt::Display for Error {
 }
 
 /// This will extend the vec and overwrite any items that have a corresponding negative value
-pub fn extend_merge_stack<SIRNode: GenericSIRNode>(
-    vec_to_extend: &mut Vec<SIRExpression<SIRNode>>,
+fn extend_merge_stack(
+    vec_to_extend: &mut Vec<StackValue>,
     infinite_stack: &InfiniteStack<AuxVar>,
     phi_stack: &InfiniteStack<AuxVar>,
 ) -> Result<(), Error> {
@@ -758,11 +788,11 @@ pub fn extend_merge_stack<SIRNode: GenericSIRNode>(
         let real_index: usize = (original_len as isize + i).try_into().unwrap();
 
         if i < 0 {
-            vec_to_extend[real_index] = SIRExpression::AuxVar(item.clone());
+            vec_to_extend[real_index] = StackValue::AuxVar(item.clone());
         } else {
             debug_assert!(real_index == vec_to_extend.len());
 
-            vec_to_extend.push(SIRExpression::AuxVar(item.clone()));
+            vec_to_extend.push(StackValue::AuxVar(item.clone()));
         }
     }
 
@@ -782,6 +812,12 @@ pub fn extend_merge_stack<SIRNode: GenericSIRNode>(
     }
 
     Ok(())
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum StackValue {
+    AuxVar(AuxVar),
+    GeneratorStart,
 }
 
 /// In certain versions a generator starts with a value on the stack so we need to account for that
@@ -831,7 +867,7 @@ where
 
     // Keeps track of the different stacks used to enter a basic block
     // TODO: We have to find a way to merge stacks
-    let mut has_changed: nohash_hasher::IntMap<usize, Vec<Vec<SIRExpression<SIRNode>>>> =
+    let mut has_changed: nohash_hasher::IntMap<usize, Vec<Vec<StackValue>>> =
         nohash_hasher::IntMap::with_capacity_and_hasher(
             cfg.blocks.len(),
             BuildHasherDefault::default(),
@@ -955,7 +991,7 @@ where
         /// Only `None` when `block_index` is the first block.
         /// The `bool`` shows if we need to take the `branch` edge or not
         from_block_index: Option<(usize, bool)>,
-        curr_stack: Vec<SIRExpression<SIRNode>>,
+        curr_stack: Vec<StackValue>,
     }
 
     // Fill the empty phi nodes with actual values
@@ -963,7 +999,7 @@ where
         block_index: cfg.start_index.clone(),
         from_block_index: None,
         curr_stack: if add_generator_value {
-            vec![SIRExpression::GeneratorStart]
+            vec![StackValue::GeneratorStart]
         } else {
             vec![]
         },
@@ -1167,7 +1203,7 @@ mod test {
 
     use crate::cfg::{create_cfg, simple_cfg_to_ext_cfg};
     use crate::sir::{
-        AuxVar, StackItem, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
+        AuxVar, StackItem, StackValue, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
         instruction_to_ir, process_stack_effects,
     };
     use crate::traits::GenericInstruction;
@@ -1209,7 +1245,7 @@ mod test {
 
     //     let mut stack: crate::utils::InfiniteStack<_> = vec![].into();
 
-    //     let fake_var = crate::sir::SIRExpression::AuxVar(AuxVar {
+    //     let fake_var = StackValue::AuxVar(AuxVar {
     //         name: "test".into(),
     //     });
 
@@ -1245,7 +1281,7 @@ mod test {
     //         stack.iter().cloned().collect::<Vec<_>>(),
     //         vec![
     //             Some(
-    //                 crate::sir::SIRExpression::AuxVar(AuxVar {
+    //                 StackValue::AuxVar(AuxVar {
     //                     name: "res_first_0".into(),
     //                 })
     //                 .into()
@@ -1254,7 +1290,7 @@ mod test {
     //             Some(crate::sir::InfiniteStackItem::Deleted),
     //             None,
     //             Some(
-    //                 crate::sir::SIRExpression::AuxVar(AuxVar {
+    //                 StackValue::AuxVar(AuxVar {
     //                     name: "res_second_0".into(),
     //                 })
     //                 .into()
@@ -1299,14 +1335,14 @@ mod test {
     //         vec![
     //             (
     //                 0,
-    //                 &crate::sir::SIRExpression::AuxVar(AuxVar {
+    //                 &StackValue::AuxVar(AuxVar {
     //                     name: "const_0".into()
     //                 })
     //                 .into()
     //             ),
     //             (
     //                 1,
-    //                 &crate::sir::SIRExpression::AuxVar(AuxVar {
+    //                 &StackValue::AuxVar(AuxVar {
     //                     name: "const_1".into()
     //                 })
     //                 .into()
@@ -1346,21 +1382,21 @@ mod test {
     //     let mut stack: InfiniteVec<_> = vec![].into();
 
     //     stack.push(
-    //         crate::sir::SIRExpression::AuxVar(AuxVar {
+    //         StackValue::AuxVar(AuxVar {
     //             name: "null_0".into(),
     //         })
     //         .into(),
     //     );
 
     //     stack.push(
-    //         crate::sir::SIRExpression::AuxVar(AuxVar {
+    //         StackValue::AuxVar(AuxVar {
     //             name: "value_0".into(),
     //         })
     //         .into(),
     //     );
 
     //     stack.push(
-    //         crate::sir::SIRExpression::AuxVar(AuxVar {
+    //         StackValue::AuxVar(AuxVar {
     //             name: "value_1".into(),
     //         })
     //         .into(),
@@ -1389,7 +1425,7 @@ mod test {
     //     assert_eq!(
     //         stack.iter().cloned().collect::<Vec<_>>(),
     //         vec![Some(
-    //             crate::sir::SIRExpression::AuxVar(AuxVar {
+    //             StackValue::AuxVar(AuxVar {
     //                 name: "res_0".into(),
     //             })
     //             .into()
@@ -1626,7 +1662,7 @@ mod test {
             crate::v311::instructions::Instruction::StoreName(0),
         ];
 
-        let mut curr_stack = vec![crate::sir::SIRExpression::AuxVar(AuxVar {
+        let mut curr_stack = vec![StackValue::AuxVar(AuxVar {
             name: "og_iter".into(),
         })];
 
@@ -1660,7 +1696,7 @@ mod test {
         assert_eq!(curr_stack.len(), 1);
         assert_eq!(
             *curr_stack.first().unwrap(),
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "iter_0".into()
             },),
         );
@@ -1741,10 +1777,10 @@ mod test {
         ];
 
         let mut curr_stack = vec![
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "iter_0".into(),
             }),
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "next_0".into(),
             }),
         ];
@@ -1780,10 +1816,10 @@ mod test {
         assert_eq!(
             *curr_stack,
             vec![
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "iter_0".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "value_0".into()
                 },)
             ],
@@ -1821,13 +1857,13 @@ mod test {
         .as_slice();
 
         let mut curr_stack = vec![
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "first".into(),
             }),
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "second".into(),
             }),
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "third".into(),
             }),
         ];
@@ -1853,13 +1889,13 @@ mod test {
         assert_eq!(
             curr_stack,
             vec![
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "top_0".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "second".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "bottom_0".into()
                 },),
             ]
@@ -1892,13 +1928,13 @@ mod test {
         .as_slice();
 
         let mut curr_stack = vec![
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "first".into(),
             }),
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "second".into(),
             }),
-            crate::sir::SIRExpression::AuxVar(AuxVar {
+            StackValue::AuxVar(AuxVar {
                 name: "third".into(),
             }),
         ];
@@ -1928,16 +1964,16 @@ mod test {
         assert_eq!(
             sanity_stack,
             vec![
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "top_0".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "second".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "third".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "bottom_0".into()
                 },),
             ]
@@ -1973,13 +2009,13 @@ mod test {
         assert_eq!(
             sanity_stack,
             vec![
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "top_0".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "second".into()
                 },),
-                crate::sir::SIRExpression::AuxVar(AuxVar {
+                StackValue::AuxVar(AuxVar {
                     name: "third".into()
                 },),
             ]

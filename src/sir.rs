@@ -74,7 +74,7 @@ pub struct SIR<SIRNode: GenericSIRNode>(pub Vec<SIRStatement<SIRNode>>);
 
 impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
     /// Returns the indexes of the statements where the var is used
-    pub fn find_var_usages(&self, var: AuxVar) -> Vec<usize> {
+    pub fn find_var_usages(&self, var: &AuxVar) -> Vec<usize> {
         self.0
             .iter()
             .enumerate()
@@ -102,7 +102,7 @@ impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
             .collect()
     }
 
-    pub fn is_var_used(&self, var: AuxVar) -> bool {
+    pub fn is_var_used(&self, var: &AuxVar) -> bool {
         self.0.iter().any(|v| match v {
             SIRStatement::DisregardCall(Call {
                 node: _,
@@ -121,6 +121,22 @@ impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
                     }) => stack_inputs.contains(&var),
                     SIRExpression::PhiNode(vars) => vars.contains(&var),
                     SIRExpression::GeneratorStart => false,
+                }
+            }
+        })
+    }
+
+    /// Finds the definition for single assignments of a var
+    pub fn get_var_single_definition(&self, var: &AuxVar) -> Option<SIRExpression<SIRNode>> {
+        self.0.iter().find_map(|v| match v {
+            SIRStatement::DisregardCall(_) => None,
+            SIRStatement::UseVar(_) => None,
+            SIRStatement::TupleAssignment(_, _) => None,
+            SIRStatement::Assignment(assigned_var, expr) => {
+                if var == assigned_var {
+                    Some(expr.clone())
+                } else {
+                    None
                 }
             }
         })

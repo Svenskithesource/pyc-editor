@@ -805,6 +805,12 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
         Some(index)
     }
 
+    fn escape_dot(s: &str) -> String {
+        s.replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\l")
+    }
+
     pub fn make_dot_graph(&self) -> String
     where
         SIRNode: GenericSIRNode,
@@ -833,12 +839,12 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
 
                     format!(
                         r#"label = "{}", color = {}, shape=rect"#,
-                        e.weight().replace("\n", r"\l"),
+                        Self::escape_dot(e.weight()),
                         color
                     )
                 },
                 &|_, (_, (kind, s))| {
-                    let label = s.replace("\n", r"\l");
+                    let label = Self::escape_dot(s);
 
                     match kind {
                         BlockKind::NormalBlock => {

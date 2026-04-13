@@ -630,6 +630,53 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
     pub fn find_exception_block(&self, index_to_search: usize) -> Option<usize> {
         self.blocks.find_exception_block(index_to_search)
     }
+
+    /// Returns a vec tuples of the block index and the statements indexes where where the var is used
+    pub fn find_var_usages(&self, var: &AuxVar) -> Vec<(usize, Vec<usize>)> {
+        self.blocks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, block)| {
+                if let Some(nodes) = block.get_nodes_ref() {
+                    Some((i, nodes.find_var_usages(var)))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn is_var_used(&self, var: &AuxVar) -> bool {
+        self.blocks.iter().any(|block| {
+            if let Some(nodes) = block.get_nodes_ref() {
+                nodes.is_var_used(var)
+            } else {
+                false
+            }
+        })
+    }
+
+    /// Finds the definition for single assignments of a var
+    pub fn get_var_single_definition(&self, var: &AuxVar) -> Option<SIRExpression<SIRNode>> {
+        self.blocks.iter().find_map(|block| {
+            if let Some(nodes) = block.get_nodes_ref() {
+                nodes.get_var_single_definition(var)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Finds the definition for tuple assignments of a var
+    pub fn get_var_tuple_definition(&self, var: &AuxVar) -> Option<SIRExpression<SIRNode>> {
+        self.blocks.iter().find_map(|block| {
+            if let Some(nodes) = block.get_nodes_ref() {
+                nodes.get_var_tuple_definition(var)
+            } else {
+                None
+            }
+        })
+    }
 }
 
 #[cfg(feature = "dot")]

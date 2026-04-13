@@ -537,7 +537,11 @@ pub trait SIRCFGPass<SIRNode: GenericSIRNode> {
 
 #[cfg(feature = "sir")]
 pub trait ToSIR<SIRNode: GenericSIRNode> {
-    fn to_sir(&self) -> Result<SIRControlFlowGraph<SIRNode>, Error>;
+    /// Exception table should be passed for 3.11+
+    fn to_sir(
+        &self,
+        exception_table: Option<Vec<ExceptionTableEntry>>,
+    ) -> Result<SIRControlFlowGraph<SIRNode>, Error>;
 }
 
 /// Trait to show what the branch reason is (opcode or exception)

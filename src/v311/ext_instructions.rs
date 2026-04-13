@@ -2,6 +2,11 @@ use std::ops::{Deref, DerefMut};
 
 use store_interval_tree::{Interval, IntervalTree};
 
+#[cfg(feature = "sir")]
+use crate::{
+    cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, utils::ExceptionTableEntry,
+    v311::opcodes::sir::SIRNode,
+};
 use crate::{
     define_default_traits,
     error::Error,
@@ -611,6 +616,18 @@ where
         }
 
         Ok(ext_instructions)
+    }
+}
+
+#[cfg(feature = "sir")]
+impl ToSIR<SIRNode> for ExtInstructions {
+    fn to_sir(
+        &self,
+        exception_table: Option<Vec<ExceptionTableEntry>>,
+    ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
+        let cfg = create_cfg(self, exception_table)?;
+
+        Ok(cfg_to_ir(&cfg, false)?)
     }
 }
 

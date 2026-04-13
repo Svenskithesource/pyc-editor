@@ -383,9 +383,11 @@ impl Instructions {
 
 #[cfg(feature = "sir")]
 impl ToSIR<SIRNode> for Instructions {
-    fn to_sir(&self) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
-        let cfg = create_cfg(self, None)?;
-        let cfg = simple_cfg_to_ext_cfg(&cfg)?;
+    fn to_sir(
+        &self,
+        exception_table: Option<Vec<crate::utils::ExceptionTableEntry>>,
+    ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
+        let cfg = create_cfg(&self.to_resolved()?, exception_table)?;
 
         Ok(cfg_to_ir(&cfg, false)?)
     }

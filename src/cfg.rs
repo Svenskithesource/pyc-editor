@@ -18,8 +18,8 @@ use crate::{
 
 #[cfg(feature = "sir")]
 use crate::{
-    sir::SIRBranchEdge,
-    traits::{GenericSIRNode, SIROwned},
+    sir::{SIR, SIRBranchEdge, cfg_to_ir},
+    traits::{GenericSIRNode, SIROwned, ToSIR},
 };
 
 #[cfg(feature = "dot")]
@@ -185,6 +185,22 @@ where
 {
     pub blocks: Vec<Block<I>>,
     pub start_index: BlockIndexInfo<<I::Opcode as GenericOpcode>::BranchReason>,
+}
+
+#[cfg(feature = "sir")]
+impl<SIRNode: GenericSIRNode<Opcode = I::Opcode>, I: GenericInstruction<OpargType = u32>>
+    ToSIR<SIRNode> for ControlFlowGraph<I>
+where
+    SIR<SIRNode>: SIROwned<SIRNode>,
+    <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
+{
+    /// Exception table can be None here since the CFG should already have this information
+    fn to_sir(
+        &self,
+        _exception_table: Option<Vec<ExceptionTableEntry>>,
+    ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
+        Ok(cfg_to_ir::<I, SIRNode>(&self, false)?)
+    }
 }
 
 impl<I: GenericInstruction> BlockSliceExt<I> for [Block<I>] {

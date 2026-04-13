@@ -1,5 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
+#[cfg(feature = "sir")]
+use crate::{cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, v312::opcodes::sir::SIRNode};
 use crate::{
     define_default_traits,
     error::Error,
@@ -549,6 +551,18 @@ impl Instructions {
     /// Returns the instructions but with the extended_args resolved
     pub fn to_resolved(&self) -> Result<ExtInstructions, Error> {
         ExtInstructions::try_from(self.0.as_slice())
+    }
+}
+
+#[cfg(feature = "sir")]
+impl ToSIR<SIRNode> for Instructions {
+    fn to_sir(
+        &self,
+        exception_table: Option<Vec<crate::utils::ExceptionTableEntry>>,
+    ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
+        let cfg = create_cfg(&self.to_resolved()?, exception_table)?;
+
+        Ok(cfg_to_ir(&cfg, false)?)
     }
 }
 

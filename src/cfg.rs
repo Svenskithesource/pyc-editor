@@ -199,7 +199,7 @@ where
         &self,
         _exception_table: Option<Vec<ExceptionTableEntry>>,
     ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
-        Ok(cfg_to_ir::<I, SIRNode>(&self, false)?)
+        Ok(cfg_to_ir::<I, SIRNode>(self, false)?)
     }
 }
 

@@ -82,19 +82,19 @@ impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
                 SIRStatement::DisregardCall(Call {
                     node: _,
                     stack_inputs,
-                }) => stack_inputs.contains(&var).then(|| i),
+                }) => stack_inputs.contains(var).then_some(i),
                 SIRStatement::UseVar(_) => None,
                 SIRStatement::Assignment(_, expr) | SIRStatement::TupleAssignment(_, expr) => {
                     match expr {
                         SIRExpression::Call(Call {
                             node: _,
                             stack_inputs,
-                        }) => stack_inputs.contains(&var).then(|| i),
+                        }) => stack_inputs.contains(var).then_some(i),
                         SIRExpression::Exception(ExceptionCall {
                             exception: _,
                             stack_inputs,
-                        }) => stack_inputs.contains(&var).then(|| i),
-                        SIRExpression::PhiNode(vars) => vars.contains(&var).then(|| i),
+                        }) => stack_inputs.contains(var).then_some(i),
+                        SIRExpression::PhiNode(vars) => vars.contains(var).then_some(i),
                         SIRExpression::GeneratorStart => None,
                     }
                 }
@@ -107,19 +107,19 @@ impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
             SIRStatement::DisregardCall(Call {
                 node: _,
                 stack_inputs,
-            }) => stack_inputs.contains(&var),
+            }) => stack_inputs.contains(var),
             SIRStatement::UseVar(_) => false,
             SIRStatement::Assignment(_, expr) | SIRStatement::TupleAssignment(_, expr) => {
                 match expr {
                     SIRExpression::Call(Call {
                         node: _,
                         stack_inputs,
-                    }) => stack_inputs.contains(&var),
+                    }) => stack_inputs.contains(var),
                     SIRExpression::Exception(ExceptionCall {
                         exception: _,
                         stack_inputs,
-                    }) => stack_inputs.contains(&var),
-                    SIRExpression::PhiNode(vars) => vars.contains(&var),
+                    }) => stack_inputs.contains(var),
+                    SIRExpression::PhiNode(vars) => vars.contains(var),
                     SIRExpression::GeneratorStart => false,
                 }
             }

@@ -4,7 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "sir")]
-use crate::{cfg::{create_cfg, simple_cfg_to_ext_cfg}, sir::cfg_to_ir, traits::ToSIR, v311::opcodes::sir::SIRNode};
+use crate::{cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, v311::opcodes::sir::SIRNode};
 use crate::{
     define_default_traits,
     error::Error,

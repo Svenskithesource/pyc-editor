@@ -694,7 +694,7 @@ impl ToSIR<SIRNode> for ExtInstructions {
         &self,
         exception_table: Option<Vec<crate::utils::ExceptionTableEntry>>,
     ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
-        let cfg = create_cfg(&self, exception_table)?;
+        let cfg = create_cfg(self, exception_table)?;
 
         Ok(cfg_to_ir(&cfg, false)?)
     }

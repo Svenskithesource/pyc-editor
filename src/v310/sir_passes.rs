@@ -155,7 +155,7 @@ impl RemoveStackOperations {
                             assert!(outputs.len() == 2);
                             assert!(stack_inputs.len() == 2);
 
-                            let input_vars = stack_inputs.iter().cloned().collect::<Vec<_>>();
+                            let input_vars = stack_inputs.to_vec();
 
                             let mut input_vars = input_vars.clone();
 
@@ -190,7 +190,7 @@ impl RemoveStackOperations {
                             assert!(outputs.len() == 3);
                             assert!(stack_inputs.len() == 3);
 
-                            let input_vars = stack_inputs.iter().cloned().collect::<Vec<_>>();
+                            let input_vars = stack_inputs.to_vec();
 
                             let mut input_vars = input_vars.clone();
 
@@ -226,7 +226,7 @@ impl RemoveStackOperations {
                             assert!(outputs.len() == 4);
                             assert!(stack_inputs.len() == 4);
 
-                            let input_vars = stack_inputs.iter().cloned().collect::<Vec<_>>();
+                            let input_vars = stack_inputs.to_vec();
 
                             let mut input_vars = input_vars.clone();
 
@@ -262,7 +262,7 @@ impl RemoveStackOperations {
                             assert!(outputs.len() == 4);
                             assert!(stack_inputs.len() == 4);
 
-                            let input_vars = stack_inputs.iter().cloned().collect::<Vec<_>>();
+                            let input_vars = stack_inputs.to_vec();
 
                             let mut input_vars = input_vars.clone();
 

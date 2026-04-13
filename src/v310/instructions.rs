@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 #[cfg(feature = "sir")]
 use crate::{
-    cfg::{create_cfg, simple_cfg_to_ext_cfg},
+    cfg::create_cfg,
     sir::cfg_to_ir,
     traits::ToSIR,
     v310::opcodes::sir::SIRNode,

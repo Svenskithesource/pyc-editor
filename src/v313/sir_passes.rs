@@ -122,7 +122,7 @@ impl RemoveStackOperations {
                         ) => {
                             assert!(outputs.len() == stack_inputs.len() && outputs.len() > 1);
 
-                            let input_vars = stack_inputs.iter().cloned().collect::<Vec<_>>();
+                            let input_vars = stack_inputs.to_vec();
 
                             let mut input_vars = input_vars.clone();
 

@@ -141,6 +141,24 @@ impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
             }
         })
     }
+
+    /// Finds the definition for tuple assignments of a var
+    pub fn get_var_tuple_definition(&self, var: &AuxVar) -> Option<SIRExpression<SIRNode>> {
+        self.0.iter().find_map(|v| match v {
+            SIRStatement::DisregardCall(_) => None,
+            SIRStatement::UseVar(_) => None,
+            SIRStatement::Assignment(_, _) => None,
+            SIRStatement::TupleAssignment(assigned_vars, expr) => {
+                for assigned_var in assigned_vars {
+                    if var == assigned_var {
+                        return Some(expr.clone());
+                    }
+                }
+
+                None
+            }
+        })
+    }
 }
 
 impl<SIRNode: GenericSIRNode> From<Vec<SIRStatement<SIRNode>>> for SIR<SIRNode> {

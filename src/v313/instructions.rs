@@ -492,7 +492,6 @@ impl<T> InstructionAccess<u8, Instruction> for T
 where
     T: Deref<Target = [Instruction]> + AsRef<[Instruction]>,
 {
-    type Instruction = Instruction;
     type Jump = Jump;
 
     fn get_jump_value(&self, index: u32) -> Option<Self::Jump> {

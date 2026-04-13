@@ -63,19 +63,20 @@ impl Oparg for u32 {
 
 pub trait InstructionAccess<OpargType, I>
 where
-    Self: AsRef<[Self::Instruction]> + Deref<Target = [I]>,
+    Self: AsRef<[I]> + Deref<Target = [I]>,
     OpargType: Oparg,
+    I: GenericInstruction + std::fmt::Debug,
 {
-    type Instruction: GenericInstruction + std::fmt::Debug;
+    // type Instruction: GenericInstruction + std::fmt::Debug;
     type Jump;
 
-    fn get_instructions(&self) -> &[Self::Instruction] {
+    fn get_instructions(&self) -> &[I] {
         self.as_ref()
     }
 
     /// Returns the index and the instruction of the jump target. None if the index is not a valid jump.
     // TODO: Create a bounded version of this function
-    fn get_jump_target(&self, index: u32) -> Option<(u32, Self::Instruction)>;
+    fn get_jump_target(&self, index: u32) -> Option<(u32, I)>;
 
     /// Returns a list of all indexes that jump to the given index
     fn get_jump_xrefs(&self, index: u32) -> Vec<u32> {
@@ -178,7 +179,8 @@ where
 
 pub trait SimpleInstructionAccess<I>
 where
-    Self: InstructionAccess<u8, I> + AsRef<[Self::Instruction]>,
+    Self: InstructionAccess<u8, I> + AsRef<[I]>,
+    I: GenericInstruction,
 {
     /// This finds jumps that jump to instructions after an extended arg. This is a very unique case.
     /// This kind of bytecode should never be emitted by the Python compiler but it's possible for custom bytecode to have this.
@@ -318,7 +320,11 @@ where
     }
 }
 
-pub trait ExtInstructionAccess<I, ExtI> {
+pub trait ExtInstructionAccess<I, ExtI>
+where
+    ExtI: GenericInstruction,
+    I: GenericInstruction,
+{
     type ExtInstructions: InstructionAccess<u32, ExtI>;
     type Instructions: SimpleInstructionAccess<I>;
 
@@ -527,6 +533,11 @@ impl<SIRNode: GenericSIRNode> DerefMut for SIR<SIRNode> {
 /// A trait for passes that can run on a SIRControlFlowGraph
 pub trait SIRCFGPass<SIRNode: GenericSIRNode> {
     fn run_on(&self, cfg: &mut SIRControlFlowGraph<SIRNode>);
+}
+
+#[cfg(feature = "sir")]
+pub trait ToSIR<SIRNode: GenericSIRNode> {
+    fn to_sir(&self) -> Result<SIRControlFlowGraph<SIRNode>, Error>;
 }
 
 /// Trait to show what the branch reason is (opcode or exception)

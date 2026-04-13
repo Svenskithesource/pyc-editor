@@ -1,5 +1,12 @@
 use std::ops::{Deref, DerefMut};
 
+#[cfg(feature = "sir")]
+use crate::{
+    cfg::{create_cfg, simple_cfg_to_ext_cfg},
+    sir::cfg_to_ir,
+    traits::ToSIR,
+    v310::opcodes::sir::SIRNode,
+};
 use crate::{
     define_default_traits,
     error::Error,
@@ -302,7 +309,6 @@ impl<T> InstructionAccess<u8, Instruction> for T
 where
     T: Deref<Target = [Instruction]> + AsRef<[Instruction]>,
 {
-    type Instruction = Instruction;
     type Jump = Jump;
 
     fn get_jump_value(&self, index: u32) -> Option<Jump> {
@@ -372,6 +378,16 @@ impl Instructions {
             .get(jump.index as usize)
             .cloned()
             .map(|target| (jump.index, target))
+    }
+}
+
+#[cfg(feature = "sir")]
+impl ToSIR<SIRNode> for Instructions {
+    fn to_sir(&self) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
+        let cfg = create_cfg(self, None)?;
+        let cfg = simple_cfg_to_ext_cfg(&cfg)?;
+
+        Ok(cfg_to_ir(&cfg, false)?)
     }
 }
 

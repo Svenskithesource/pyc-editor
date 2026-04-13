@@ -142,7 +142,7 @@ fn test_recompile_standard_lib() {
 ///
 /// This function handles those discrepancies and treats them as if they were the same code.
 /// Returns true if they're equal, false if they're not
-fn compare_instructions<T: SimpleInstructionAccess<I>, I>(original_list: T, new_list: T) -> bool {
+fn compare_instructions<T: SimpleInstructionAccess<I>, I: GenericInstruction>(original_list: T, new_list: T) -> bool {
     let mut og_iter = original_list.as_ref().iter().enumerate();
     let mut new_iter = new_list.as_ref().iter().enumerate();
 
@@ -539,13 +539,13 @@ fn test_create_cfg_standard_lib() {
                 macro_rules! create_cfg {
                     (V310, $code_clone:ident) => {
                         create_cfg(
-                            $code_clone.code.to_vec(),
+                            &$code_clone.code,
                             None,
                         )
                     };
                     ($variant:ident, $code_clone:ident) => {
                         create_cfg(
-                            $code_clone.code.to_vec(),
+                            &$code_clone.code,
                             Some($code_clone.exception_table().unwrap()),
                         )
                     };
@@ -621,11 +621,11 @@ fn test_create_sir_standard_lib() {
             fn create_cfg_from_code(code: pyc_editor::CodeObject) {
                 macro_rules! create_cfg {
                     (V310, $code_clone:ident) => {
-                        create_cfg($code_clone.code.to_vec(), None)
+                        create_cfg(&$code_clone.code, None)
                     };
                     ($variant:ident, $code_clone:ident) => {
                         create_cfg(
-                            $code_clone.code.to_vec(),
+                            &$code_clone.code,
                             Some($code_clone.exception_table().unwrap()),
                         )
                     };

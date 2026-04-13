@@ -220,7 +220,6 @@ impl<T> InstructionAccess<u32, ExtInstruction> for T
 where
     T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
 {
-    type Instruction = ExtInstruction;
     type Jump = Jump;
 
     fn get_jump_value(&self, index: u32) -> Option<Jump> {

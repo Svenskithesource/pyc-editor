@@ -388,8 +388,10 @@ where
     }
 }
 
-impl<I, T> SimpleInstructionAccess<I> for T where
-    T: Deref<Target = [I]> + AsRef<[I]> + InstructionAccess<u8, I>
+impl<I, T> SimpleInstructionAccess<I> for T
+where
+    T: Deref<Target = [I]> + AsRef<[I]> + InstructionAccess<u8, I>,
+    I: GenericInstruction,
 {
 }
 
@@ -538,12 +540,12 @@ where
 
 /// Exception table should be passed for 3.11+
 pub fn create_cfg<I>(
-    instructions: Vec<I>,
+    instructions: &[I],
     exception_table: Option<Vec<ExceptionTableEntry>>,
 ) -> Result<ControlFlowGraph<I>, Error>
 where
     I: GenericInstruction,
-    Vec<I>: InstructionAccess<I::OpargType, I>,
+    for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
     <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
 {
     // Used for keeping track of finished blocks
@@ -1195,7 +1197,7 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1219,7 +1221,7 @@ mod test {
 
         dbg!(&instructions);
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         dbg!(&cfg);
 
@@ -1242,7 +1244,7 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1267,7 +1269,7 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1288,7 +1290,7 @@ mod test {
             Instruction::StoreName(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1306,7 +1308,7 @@ mod test {
             Instruction::JumpForward(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -1327,7 +1329,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -1351,7 +1353,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -1371,7 +1373,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -1395,7 +1397,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -1421,7 +1423,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 

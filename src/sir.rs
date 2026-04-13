@@ -2186,7 +2186,7 @@ mod test {
             Instruction::ReturnValue(0),
         ]);
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -2206,7 +2206,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -2230,7 +2230,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -2256,7 +2256,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -2276,7 +2276,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&instructions, None).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -2305,7 +2305,7 @@ mod test {
         .to_resolved()
         .unwrap();
 
-        let cfg = create_cfg(ext_instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&ext_instructions, None).unwrap();
 
         let ir_cfg = cfg_to_ir::<_, SIRNode>(&cfg, false).unwrap();
 
@@ -2334,7 +2334,7 @@ mod test {
         .to_resolved()
         .unwrap();
 
-        let cfg = create_cfg(ext_instructions.to_vec(), None).unwrap();
+        let cfg = create_cfg(&ext_instructions, None).unwrap();
 
         let ir_cfg = cfg_to_ir::<_, SIRNode>(&cfg, false).unwrap();
 
@@ -2370,7 +2370,7 @@ mod test {
             lasti: false,
         }];
 
-        let cfg = create_cfg(ext_instructions.to_vec(), Some(exception_table)).unwrap();
+        let cfg = create_cfg(&ext_instructions, Some(exception_table)).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 

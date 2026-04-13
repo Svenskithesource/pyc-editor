@@ -67,27 +67,27 @@ fn generate_instructions(amount_of_blocks: usize) -> Vec<ExtInstruction> {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let cfg = create_cfg(generate_instructions(10_000), None).unwrap();
+    let cfg = create_cfg(&generate_instructions(10_000), None).unwrap();
     c.bench_function("create sir 10K blocks", |b| {
         b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    let cfg = create_cfg(generate_instructions(5_000), None).unwrap();
+    let cfg = create_cfg(&generate_instructions(5_000), None).unwrap();
     c.bench_function("create sir 5K blocks", |b| {
         b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    let cfg = create_cfg(generate_instructions(1_000), None).unwrap();
+    let cfg = create_cfg(&generate_instructions(1_000), None).unwrap();
     c.bench_function("create sir 1K blocks", |b| {
         b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    let cfg = create_cfg(generate_instructions(100), None).unwrap();
+    let cfg = create_cfg(&generate_instructions(100), None).unwrap();
     c.bench_function("create sir 100 blocks", |b| {
         b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });
 
-    let cfg = create_cfg(generate_instructions(25), None).unwrap();
+    let cfg = create_cfg(&generate_instructions(25), None).unwrap();
     c.bench_function("create sir 25 blocks", |b| {
         b.iter(|| cfg_to_ir::<_, SIRNode>(black_box(&cfg), false))
     });

@@ -28,23 +28,23 @@ fn generate_instructions(amount_of_blocks: usize) -> Vec<ExtInstruction> {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("create cfg 10K blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(10_000)), None))
+        b.iter(|| create_cfg(black_box(&generate_instructions(10_000)), None))
     });
 
     c.bench_function("create cfg 5K blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(5_000)), None))
+        b.iter(|| create_cfg(black_box(&generate_instructions(5_000)), None))
     });
 
     c.bench_function("create cfg 1K blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(1_000)), None))
+        b.iter(|| create_cfg(black_box(&generate_instructions(1_000)), None))
     });
 
     c.bench_function("create cfg 100 blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(100)), None))
+        b.iter(|| create_cfg(black_box(&generate_instructions(100)), None))
     });
 
     c.bench_function("create cfg 25 blocks", |b| {
-        b.iter(|| create_cfg(black_box(generate_instructions(25)), None))
+        b.iter(|| create_cfg(black_box(&generate_instructions(25)), None))
     });
 }
 

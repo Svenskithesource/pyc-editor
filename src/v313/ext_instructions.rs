@@ -259,7 +259,6 @@ impl<T> InstructionAccess<u32, ExtInstruction> for T
 where
     T: Deref<Target = [ExtInstruction]> + AsRef<[ExtInstruction]>,
 {
-    type Instruction = ExtInstruction;
     type Jump = Jump;
 
     /// Returns the index and the instruction of the jump target. None if the index is invalid.

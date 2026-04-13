@@ -75,7 +75,7 @@ define_opcodes!(
     JUMP_FORWARD = 110 ( -- ),
     POP_JUMP_IF_FALSE = 114 (condition -- ),
     POP_JUMP_IF_TRUE = 115 (condition -- ),
-    LOAD_GLOBAL = 116 ( -- null[if oparg & 1 != 0 {1} else {0}], v),
+    LOAD_GLOBAL = 116 ( -- null[if oparg & 1 != 0 {1} else {0}], value),
     IS_OP = 117 (left, right -- boolean),
     CONTAINS_OP = 118 (left, right -- boolean),
     RERAISE = 119 (values[oparg], exc -- values[oparg]),

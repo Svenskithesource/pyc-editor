@@ -10,9 +10,10 @@ mod tests {
     use python_marshal::Kind::{ShortAscii, ShortAsciiInterned};
     use python_marshal::{CodeFlags, PyString};
 
+    use crate::utils::FrozenConstant;
     use crate::v310;
     use crate::v310::code_objects::CompareOperation::Equal;
-    use crate::v310::code_objects::{AbsoluteJump, Constant, FrozenConstant, LinetableEntry};
+    use crate::v310::code_objects::{AbsoluteJump, Constant, LinetableEntry};
     use crate::v310::ext_instructions::{ExtInstruction, ExtInstructions};
     use crate::v310::instructions::{
         Instruction, Instructions, get_line_number, starts_line_number,

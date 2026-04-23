@@ -1,10 +1,171 @@
 use std::collections::{HashMap, VecDeque};
 
+use hashable::HashableHashSet;
+use indexmap::IndexSet;
+use num_bigint::BigInt;
+use num_complex::Complex;
+use ordered_float::OrderedFloat;
+use python_marshal::PyString;
+
+use crate::error::Error;
 #[cfg(feature = "sir")]
 use crate::{
     sir::{AuxVar, SIRExpression, SIRStatement},
     traits::GenericSIRNode,
 };
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum FrozenConstant {
+    None,
+    StopIteration,
+    Ellipsis,
+    Bool(bool),
+    Long(BigInt),
+    Float(OrderedFloat<f64>),
+    Complex(Complex<OrderedFloat<f64>>),
+    Bytes(Vec<u8>),
+    String(PyString),
+    Tuple(Vec<FrozenConstant>),
+    List(Vec<FrozenConstant>),
+    FrozenSet(HashableHashSet<FrozenConstant>),
+}
+
+impl std::fmt::Display for FrozenConstant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrozenConstant::None => write!(f, "None"),
+            FrozenConstant::StopIteration => write!(f, "StopIteration"),
+            FrozenConstant::Ellipsis => write!(f, "Ellipsis"),
+            FrozenConstant::Bool(b) => write!(f, "{b}"),
+            FrozenConstant::Long(l) => write!(f, "{l}"),
+            FrozenConstant::Float(fl) => write!(f, "{fl}"),
+            FrozenConstant::Complex(c) => write!(f, "{}+{}j", c.re, c.im),
+            FrozenConstant::Bytes(b) => write!(f, "b{:?}", b),
+            FrozenConstant::String(s) => write!(f, "\'{}\'", s.value),
+            FrozenConstant::Tuple(t) => {
+                write!(f, "(")?;
+
+                let text = t
+                    .iter()
+                    .map(|c| format!("{c}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                write!(f, "{text}")?;
+
+                write!(f, ")")
+            }
+            FrozenConstant::List(l) => {
+                write!(f, "[")?;
+
+                let text = l
+                    .iter()
+                    .map(|c| format!("{c}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                write!(f, "{text}")?;
+
+                write!(f, "]")
+            }
+            FrozenConstant::FrozenSet(fs) => {
+                write!(f, "frozenset({{")?;
+
+                let text = fs
+                    .iter()
+                    .map(|c| format!("{c}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                write!(f, "{text}")?;
+
+                write!(f, "}})")
+            }
+        }
+    }
+}
+
+impl TryFrom<python_marshal::Object> for FrozenConstant {
+    type Error = Error;
+
+    fn try_from(value: python_marshal::Object) -> Result<Self, Self::Error> {
+        match value {
+            python_marshal::Object::None => Ok(FrozenConstant::None),
+            python_marshal::Object::StopIteration => Ok(FrozenConstant::StopIteration),
+            python_marshal::Object::Ellipsis => Ok(FrozenConstant::Ellipsis),
+            python_marshal::Object::Bool(b) => Ok(FrozenConstant::Bool(b)),
+            python_marshal::Object::Long(l) => Ok(FrozenConstant::Long(l)),
+            python_marshal::Object::Float(f) => Ok(FrozenConstant::Float(f)),
+            python_marshal::Object::Complex(c) => {
+                Ok(FrozenConstant::Complex(Complex { re: c.re, im: c.im }))
+            }
+            python_marshal::Object::Bytes(b) => Ok(FrozenConstant::Bytes(b)),
+            python_marshal::Object::String(s) => Ok(FrozenConstant::String(s)),
+            python_marshal::Object::Tuple(t) => {
+                let constants = t
+                    .into_iter()
+                    .map(FrozenConstant::try_from)
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(FrozenConstant::Tuple(constants))
+            }
+            python_marshal::Object::List(l) => {
+                let constants = l
+                    .into_iter()
+                    .map(FrozenConstant::try_from)
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(FrozenConstant::List(constants))
+            }
+            python_marshal::Object::FrozenSet(fs) => {
+                let constants = fs
+                    .into_iter()
+                    .map(python_marshal::Object::from)
+                    .map(FrozenConstant::try_from)
+                    .collect::<Result<HashableHashSet<_>, _>>()?;
+                Ok(FrozenConstant::FrozenSet(constants))
+            }
+            _ => Err(Error::InvalidConstant(value)),
+        }
+    }
+}
+
+impl From<FrozenConstant> for python_marshal::Object {
+    fn from(val: FrozenConstant) -> Self {
+        match val {
+            FrozenConstant::Bool(value) => python_marshal::ObjectHashable::Bool(value).into(),
+            FrozenConstant::None => python_marshal::ObjectHashable::None.into(),
+            FrozenConstant::StopIteration => python_marshal::ObjectHashable::StopIteration.into(),
+            FrozenConstant::Ellipsis => python_marshal::ObjectHashable::Ellipsis.into(),
+            FrozenConstant::Long(value) => python_marshal::ObjectHashable::Long(value).into(),
+            FrozenConstant::Float(value) => python_marshal::ObjectHashable::Float(value).into(),
+            FrozenConstant::Complex(value) => python_marshal::ObjectHashable::Complex(value).into(),
+            FrozenConstant::Bytes(value) => python_marshal::ObjectHashable::Bytes(value).into(),
+            FrozenConstant::String(value) => python_marshal::ObjectHashable::String(value).into(),
+            FrozenConstant::Tuple(values) => python_marshal::Object::Tuple(
+                values
+                    .into_iter()
+                    .map(Into::<python_marshal::Object>::into)
+                    .collect(),
+            ),
+            FrozenConstant::List(values) => python_marshal::Object::List(
+                values
+                    .into_iter()
+                    .map(Into::<python_marshal::Object>::into)
+                    .collect(),
+            ),
+            FrozenConstant::FrozenSet(values) => {
+                python_marshal::Object::FrozenSet(
+                    values
+                        .into_iter()
+                        .cloned()
+                        .map(Into::<python_marshal::Object>::into)
+                        .map(TryInto::<python_marshal::ObjectHashable>::try_into)
+                        .map(Result::unwrap) // The frozen set can only contain values we know for sure are hashable
+                        .collect::<IndexSet<_, _>>(),
+                )
+            }
+        }
+    }
+}
 
 /// The amount of extended_args necessary to represent the arg.
 /// This is more efficient than `get_extended_args` as we only calculate the count and the actual values.

@@ -14,11 +14,11 @@ use crate::{
         ExtInstructionAccess, ExtInstructionsOwned, GenericInstruction, InstructionAccess,
         InstructionsOwned, Oparg, SimpleInstructionAccess,
     },
-    utils::{UnusedArgument, get_extended_args_count},
+    utils::{MakeFunctionFlags, UnusedArgument, get_extended_args_count},
     v311::{
         code_objects::{
             AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex, CompareOperation,
-            ConstIndex, FormatFlag, GlobalNameIndex, Jump, JumpDirection, MakeFunctionFlags,
+            ConstIndex, FormatFlag, GlobalNameIndex, Jump, JumpDirection,
             NameIndex, OpInversion, RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount,
             VarNameIndex,
         },

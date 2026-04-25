@@ -1,5 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
+use bitflags::bitflags;
 use hashable::HashableHashSet;
 use indexmap::IndexSet;
 use num_bigint::BigInt;
@@ -164,6 +165,41 @@ impl From<FrozenConstant> for python_marshal::Object {
                 )
             }
         }
+    }
+}
+
+bitflags! {
+    /// Describes which optional data for a new function is present on the stack.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct MakeFunctionFlags: u32 { // Or u8 if the arg is always a byte
+        /// A tuple of default values for positional args.
+        const POS_DEFAULTS = 0x01;
+        /// A dictionary of keyword-only default values.
+        const KW_DEFAULTS  = 0x02;
+        /// A tuple of parameter annotations.
+        const ANNOTATIONS  = 0x04;
+        /// A tuple of cells for free variables (a closure).
+        const CLOSURE      = 0x08;
+    }
+}
+
+impl std::fmt::Display for MakeFunctionFlags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut parts = Vec::new();
+        if self.contains(MakeFunctionFlags::POS_DEFAULTS) {
+            parts.push("POS_DEFAULTS");
+        }
+        if self.contains(MakeFunctionFlags::KW_DEFAULTS) {
+            parts.push("KW_DEFAULTS");
+        }
+        if self.contains(MakeFunctionFlags::ANNOTATIONS) {
+            parts.push("ANNOTATIONS");
+        }
+        if self.contains(MakeFunctionFlags::CLOSURE) {
+            parts.push("CLOSURE");
+        }
+
+        write!(f, "{}", parts.join(", "))
     }
 }
 

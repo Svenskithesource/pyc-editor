@@ -8,7 +8,11 @@ use num_complex::Complex;
 use ordered_float::OrderedFloat;
 use python_marshal::{CodeFlags, Object, PyString, extract_object, resolver::resolve_all_refs};
 
-use crate::{error::Error, utils::{ExceptionTableEntry, FrozenConstant}, v312::instructions::Instructions};
+use crate::{
+    error::Error,
+    utils::{ExceptionTableEntry, FrozenConstant},
+    v312::instructions::Instructions,
+};
 use std::{fmt, ops::BitOr};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,8 +30,6 @@ impl fmt::Display for Constant {
     }
 }
 
-
-
 impl From<Constant> for python_marshal::Object {
     fn from(val: Constant) -> Self {
         match val {
@@ -36,8 +38,6 @@ impl From<Constant> for python_marshal::Object {
         }
     }
 }
-
-
 
 impl TryFrom<python_marshal::Object> for Constant {
     type Error = Error;
@@ -1088,41 +1088,6 @@ impl From<&CallExFlags> for u32 {
             CallExFlags::WithKeywords => 1,
             CallExFlags::Invalid(v) => *v,
         }
-    }
-}
-
-bitflags! {
-    /// Describes which optional data for a new function is present on the stack.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct MakeFunctionFlags: u32 { // Or u8 if the arg is always a byte
-        /// A tuple of default values for positional args.
-        const POS_DEFAULTS = 0x01;
-        /// A dictionary of keyword-only default values.
-        const KW_DEFAULTS  = 0x02;
-        /// A tuple of parameter annotations.
-        const ANNOTATIONS  = 0x04;
-        /// A tuple of cells for free variables (a closure).
-        const CLOSURE      = 0x08;
-    }
-}
-
-impl fmt::Display for MakeFunctionFlags {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut parts = Vec::new();
-        if self.contains(MakeFunctionFlags::POS_DEFAULTS) {
-            parts.push("POS_DEFAULTS");
-        }
-        if self.contains(MakeFunctionFlags::KW_DEFAULTS) {
-            parts.push("KW_DEFAULTS");
-        }
-        if self.contains(MakeFunctionFlags::ANNOTATIONS) {
-            parts.push("ANNOTATIONS");
-        }
-        if self.contains(MakeFunctionFlags::CLOSURE) {
-            parts.push("CLOSURE");
-        }
-
-        write!(f, "{}", parts.join(", "))
     }
 }
 

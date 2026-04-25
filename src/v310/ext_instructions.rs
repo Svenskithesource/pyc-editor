@@ -6,7 +6,10 @@ use std::{
 use store_interval_tree::{Interval, IntervalTree};
 
 #[cfg(feature = "sir")]
-use crate::{cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, utils::ExceptionTableEntry, v310::opcodes::sir::SIRNode};
+use crate::{
+    cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, utils::ExceptionTableEntry,
+    v310::opcodes::sir::SIRNode,
+};
 use crate::{
     define_default_traits,
     error::Error,
@@ -14,12 +17,12 @@ use crate::{
         ExtInstructionAccess, ExtInstructionsOwned, GenericInstruction, InstructionAccess,
         InstructionsOwned, Oparg, SimpleInstructionAccess,
     },
-    utils::{UnusedArgument, get_extended_args_count},
+    utils::{MakeFunctionFlags, UnusedArgument, get_extended_args_count},
     v310::{
         code_objects::{
             AbsoluteJump, CallExFlags, ClosureRefIndex, CompareOperation, ConstIndex, FormatFlag,
-            GenKind, Jump, MakeFunctionFlags, NameIndex, OpInversion, RaiseForms, RelativeJump,
-            Reraise, SliceCount, VarNameIndex,
+            GenKind, Jump, NameIndex, OpInversion, RaiseForms, RelativeJump, Reraise, SliceCount,
+            VarNameIndex,
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,

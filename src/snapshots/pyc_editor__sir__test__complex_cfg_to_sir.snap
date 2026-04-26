@@ -600,18 +600,6 @@ SIRControlFlowGraph {
                         statements: Some(
                             SIR(
                                 [
-                                    Assignment(
-                                        AuxVar {
-                                            name: "phi_4",
-                                        },
-                                        PhiNode(
-                                            [
-                                                AuxVar {
-                                                    name: "res_1",
-                                                },
-                                            ],
-                                        ),
-                                    ),
                                     DisregardCall(
                                         Call {
                                             node: SIRNode {
@@ -629,7 +617,7 @@ SIRControlFlowGraph {
                                             },
                                             stack_inputs: [
                                                 AuxVar {
-                                                    name: "phi_4",
+                                                    name: "res_1",
                                                 },
                                             ],
                                         },
@@ -650,18 +638,6 @@ SIRControlFlowGraph {
                         statements: Some(
                             SIR(
                                 [
-                                    Assignment(
-                                        AuxVar {
-                                            name: "phi_3",
-                                        },
-                                        PhiNode(
-                                            [
-                                                AuxVar {
-                                                    name: "res_1",
-                                                },
-                                            ],
-                                        ),
-                                    ),
                                     DisregardCall(
                                         Call {
                                             node: SIRNode {
@@ -679,7 +655,7 @@ SIRControlFlowGraph {
                                             },
                                             stack_inputs: [
                                                 AuxVar {
-                                                    name: "phi_3",
+                                                    name: "res_1",
                                                 },
                                             ],
                                         },

@@ -79,21 +79,9 @@ SIRControlFlowGraph {
                     statements: Some(
                         SIR(
                             [
-                                Assignment(
-                                    AuxVar {
-                                        name: "phi_4",
-                                    },
-                                    PhiNode(
-                                        [
-                                            AuxVar {
-                                                name: "value_1",
-                                            },
-                                        ],
-                                    ),
-                                ),
                                 UseVar(
                                     AuxVar {
-                                        name: "phi_4",
+                                        name: "value_1",
                                     },
                                 ),
                                 Assignment(

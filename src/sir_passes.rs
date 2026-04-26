@@ -1,5 +1,6 @@
+use crate::sir::{SIR, SIRBranchEdge};
 use crate::{
-    sir::{AuxVar, SIRBlockIndexInfo, SIRControlFlowGraph, SIRExpression, SIRStatement},
+    sir::{AuxVar, SIRBlock, SIRBlockIndexInfo, SIRControlFlowGraph, SIRExpression, SIRStatement},
     traits::{GenericSIRNode, SIRCFGPass},
     utils::replace_var_in_statement,
 };
@@ -12,81 +13,72 @@ impl RemoveSinglePhiNodes {
     }
 }
 
+fn remove_single_nodes<SIRNode: GenericSIRNode>(nodes: &mut SIR<SIRNode>) {
+    let mut phi_map = vec![];
+
+    // Only keep non single phi values
+    nodes.0.retain(|e| match e {
+        SIRStatement::Assignment(phi_var, SIRExpression::PhiNode(phi_values)) => {
+            if phi_values.len() == 1 {
+                phi_map.push((phi_var.clone(), phi_values[0].clone()));
+                false
+            } else {
+                true
+            }
+        }
+        _ => true,
+    });
+
+    for node in nodes.iter_mut() {
+        for (phi_var, new_var) in phi_map.iter() {
+            replace_var_in_statement(node, phi_var, new_var);
+        }
+    }
+}
+
 impl<SIRNode: GenericSIRNode> SIRCFGPass<SIRNode> for RemoveSinglePhiNodes {
     fn run_on(&self, cfg: &mut SIRControlFlowGraph<SIRNode>) {
         for block in cfg.blocks.iter_mut() {
             // Apply to main list of nodes
-            let mut phi_map: Vec<(AuxVar, AuxVar)> = vec![];
 
             if let Some(nodes) = block.get_nodes_mut() {
-                // Only keep non single phi values
-                nodes.0.retain(|e| match e {
-                    SIRStatement::Assignment(phi_var, SIRExpression::PhiNode(phi_values)) => {
-                        if phi_values.len() == 1 {
-                            phi_map.push((phi_var.clone(), phi_values[0].clone()));
-                            false
-                        } else {
-                            true
-                        }
-                    }
-                    _ => true,
-                });
-
-                for node in nodes.iter_mut() {
-                    for (phi_var, new_var) in phi_map.iter() {
-                        replace_var_in_statement(node, phi_var, new_var);
-                    }
-                }
+                remove_single_nodes(nodes);
             }
 
-            // Apply to branch statements
-            let mut phi_map: Vec<(AuxVar, AuxVar)> = vec![];
+            // Apply to edge statements
+            match block {
+                SIRBlock::NormalBlock(normal_block) => {
+                    match &mut normal_block.branch_block {
+                        SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                            statements: Some(nodes),
+                            ..
+                        }) => remove_single_nodes(nodes),
+                        _ => {}
+                    }
 
-            if let SIRBlockIndexInfo::Edge(edge) = block.get_branch_block() {
-                if let Some(mut nodes) = edge.statements {
-                    // Only keep non single phi values
-                    nodes.0.retain(|e| match e {
-                        SIRStatement::Assignment(phi_var, SIRExpression::PhiNode(phi_values)) => {
-                            if phi_values.len() == 1 {
-                                phi_map.push((phi_var.clone(), phi_values[0].clone()));
-                                false
-                            } else {
-                                true
-                            }
-                        }
-                        _ => true,
-                    });
-
-                    for node in nodes.iter_mut() {
-                        for (phi_var, new_var) in phi_map.iter() {
-                            replace_var_in_statement(node, phi_var, new_var);
-                        }
+                    match &mut normal_block.default_block {
+                        SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                            statements: Some(nodes),
+                            ..
+                        }) => remove_single_nodes(nodes),
+                        _ => {}
                     }
                 }
-            }
+                SIRBlock::ExceptionBlock(exception_block) => {
+                    match &mut exception_block.exception_handler {
+                        SIRBranchEdge {
+                            statements: Some(nodes),
+                            ..
+                        } => remove_single_nodes(nodes),
+                        _ => {}
+                    }
 
-            // Apply to default statements
-            let mut phi_map: Vec<(AuxVar, AuxVar)> = vec![];
-
-            if let SIRBlockIndexInfo::Edge(edge) = block.get_default_block() {
-                if let Some(mut nodes) = edge.statements {
-                    // Only keep non single phi values
-                    nodes.0.retain(|e| match e {
-                        SIRStatement::Assignment(phi_var, SIRExpression::PhiNode(phi_values)) => {
-                            if phi_values.len() == 1 {
-                                phi_map.push((phi_var.clone(), phi_values[0].clone()));
-                                false
-                            } else {
-                                true
-                            }
-                        }
-                        _ => true,
-                    });
-
-                    for node in nodes.iter_mut() {
-                        for (phi_var, new_var) in phi_map.iter() {
-                            replace_var_in_statement(node, phi_var, new_var);
-                        }
+                    match &mut exception_block.default_block {
+                        SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                            statements: Some(nodes),
+                            ..
+                        }) => remove_single_nodes(nodes),
+                        _ => {}
                     }
                 }
             }

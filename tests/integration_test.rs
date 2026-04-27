@@ -142,7 +142,10 @@ fn test_recompile_standard_lib() {
 ///
 /// This function handles those discrepancies and treats them as if they were the same code.
 /// Returns true if they're equal, false if they're not
-fn compare_instructions<T: SimpleInstructionAccess<I>, I: GenericInstruction>(original_list: T, new_list: T) -> bool {
+fn compare_instructions<T: SimpleInstructionAccess<I>, I: GenericInstruction>(
+    original_list: T,
+    new_list: T,
+) -> bool {
     let mut og_iter = original_list.as_ref().iter().enumerate();
     let mut new_iter = new_list.as_ref().iter().enumerate();
 
@@ -680,6 +683,60 @@ fn test_create_sir_standard_lib() {
                     create_cfg_from_code(pyc_editor::CodeObject::$variant(
                         $pyc.code_object.clone(),
                     ));
+                }};
+            }
+
+            handle_pyc_versions!(parsed_pyc, create_cfgs, immutable);
+        });
+    });
+}
+
+#[test]
+fn test_jump_target_standard_lib() {
+    LOGGER_INIT.call_once(|| {
+        common::setup();
+        env_logger::init();
+    });
+
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+        println!("Testing with Python version: {}", version);
+        let pyc_files = common::find_pyc_files(version);
+
+        pyc_files.par_iter().for_each(|pyc_file| {
+            println!("Testing pyc file: {:?}", pyc_file);
+            let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
+            let reader = BufReader::new(file);
+
+            let parsed_pyc = load_pyc(reader).unwrap();
+
+            fn check_jump_targets(code: pyc_editor::CodeObject) {
+                macro_rules! cfg_from_instructions {
+                    ($variant:ident, $module:ident, $code:expr) => {{
+                        let jump_map = $code.code.get_jump_map();
+
+                        for target in jump_map.values() {
+                            // make sure jump target is not cache and is valid
+                            assert!(!$code.code.get(*target as usize).unwrap().is_cache());
+                        }
+
+                        for constant in $code.consts {
+                            if let $module::code_objects::Constant::CodeObject(const_code) =
+                                constant
+                            {
+                                check_jump_targets(pyc_editor::CodeObject::$variant(
+                                    const_code.clone(),
+                                ));
+                            }
+                        }
+                    }};
+                }
+
+                handle_code_object_versions!(code, cfg_from_instructions)
+            }
+
+            macro_rules! create_cfgs {
+                ($variant:ident, $module:ident, $pyc:expr) => {{
+                    check_jump_targets(pyc_editor::CodeObject::$variant($pyc.code_object.clone()));
                 }};
             }
 

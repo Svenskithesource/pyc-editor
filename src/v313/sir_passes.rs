@@ -41,6 +41,28 @@ impl RemoveStackOperations {
         }
     }
 
+    fn remove_end_for(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
+        for block in cfg.blocks.iter_mut() {
+            if let Some(nodes) = block.get_nodes_mut() {
+                nodes.0.retain_mut(|node| match node {
+                    crate::sir::SIRStatement::DisregardCall(Call {
+                        node:
+                            SIRNode {
+                                opcode: Opcode::END_FOR,
+                                ..
+                            },
+                        stack_inputs,
+                    }) => {
+                        assert!(stack_inputs.len() == 1);
+
+                        false
+                    }
+                    _ => true,
+                });
+            }
+        }
+    }
+
     fn replace_copy(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
         let mut items_left = true;
 
@@ -163,6 +185,7 @@ impl RemoveStackOperations {
 impl SIRCFGPass<SIRNode> for RemoveStackOperations {
     fn run_on(&self, cfg: &mut crate::sir::SIRControlFlowGraph<SIRNode>) {
         self.remove_pop_tops(cfg);
+        self.remove_end_for(cfg);
         self.replace_copy(cfg);
         self.replace_swap(cfg);
     }

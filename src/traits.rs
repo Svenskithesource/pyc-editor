@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    cfg::ControlFlowGraph,
     error::Error,
     utils::{ExceptionTableEntry, StackEffect},
 };
@@ -565,6 +566,31 @@ pub trait BranchReasonTrait: Clone + Debug + std::fmt::Display + PartialEq {
 
 pub trait BlockSliceExt<I> {
     fn find_exception_block(&self, index_to_search: usize) -> Option<usize>;
+}
+
+pub trait CreateCFG<I> {
+    fn create_cfg(
+        self,
+        exception_table: Option<Vec<ExceptionTableEntry>>,
+    ) -> Result<ControlFlowGraph<I>, Error>
+    where
+        I: GenericInstruction,
+        for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
+        <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>;
+}
+
+impl<I> CreateCFG<I> for &[I] {
+    fn create_cfg(
+        self,
+        exception_table: Option<Vec<ExceptionTableEntry>>,
+    ) -> Result<ControlFlowGraph<I>, Error>
+    where
+        I: GenericInstruction,
+        for<'a> &'a [I]: InstructionAccess<<I>::OpargType, I>,
+        <<I>::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = <I>::Opcode>,
+    {
+        crate::cfg::create_cfg(self, exception_table)
+    }
 }
 
 #[cfg(all(test, feature = "v311"))]

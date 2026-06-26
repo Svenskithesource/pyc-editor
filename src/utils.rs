@@ -417,17 +417,17 @@ macro_rules! define_default_traits {
     };
 }
 
-pub fn generate_var_name(
-    stack_name: &'static str,
-    names: &mut HashMap<&'static str, u32>,
-) -> String {
-    if names.contains_key(stack_name) {
-        *names.get_mut(stack_name).unwrap() += 1;
+pub fn generate_var_name<K>(stack_name: K, names: &mut HashMap<K, u32>) -> String
+where
+    K: Eq + std::hash::Hash + std::fmt::Display + Clone,
+{
+    if names.contains_key(&stack_name) {
+        *names.get_mut(&stack_name).unwrap() += 1;
     } else {
-        names.insert(stack_name, 0);
+        names.insert(stack_name.clone(), 0);
     }
 
-    format!("{}_{}", stack_name, names[stack_name])
+    format!("{}_{}", &stack_name, names[&stack_name])
 }
 
 /// A vector that allows for negative indexes and automatically fills elements with an "empty" value when inserting at an arbitrary index below 0.

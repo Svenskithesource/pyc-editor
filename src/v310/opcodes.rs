@@ -143,8 +143,8 @@ define_opcodes!(
     CALL_METHOD = 161 (null_or_method, method_or_self, pos_args[oparg] -- res),
     LIST_EXTEND = 162 (list, unused[oparg-1], iterable -- list, unused[oparg-1]),
     SET_UPDATE = 163 (set, unused[oparg-1], iterable -- set, unused[oparg-1]),
-    DICT_MERGE = 164 (update --),
-    DICT_UPDATE = 165 (update --),
+    DICT_MERGE = 164 (dict, unused[oparg - 1], update -- dict, unused[oparg - 1]),
+    DICT_UPDATE = 165 (dict, unused[oparg - 1], update -- dict, unused[oparg - 1]),
 );
 
 impl GenericOpcode for Opcode {

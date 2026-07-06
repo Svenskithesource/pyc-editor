@@ -10,8 +10,8 @@ use crate::utils::BlockKind;
 use crate::{
     error::Error,
     traits::{
-        BlockSliceExt, BranchReasonTrait, ExtInstructionAccess, GenericInstruction, GenericOpcode,
-        InstructionAccess, SimpleInstructionAccess,
+        BlockSliceExt, BranchReasonTrait, ExtInstructionAccess, FinalizeCFG, GenericInstruction,
+        GenericOpcode, InstructionAccess, SimpleInstructionAccess,
     },
     utils::ExceptionTableEntry,
 };
@@ -111,6 +111,7 @@ pub struct NormalBlock<I: GenericInstruction> {
 /// Represents an exception block in the control flow graph
 /// This includes a list of block indexes that belong to this exception block
 pub struct ExceptionBlock<I: GenericInstruction> {
+    /// List of block indexes that belong to this exception block
     pub block_indexes: Vec<usize>,
     /// Index to the exception handler block
     pub exception_handler: BranchEdge<<I::Opcode as GenericOpcode>::BranchReason>,
@@ -554,13 +555,39 @@ where
     }
 }
 
+pub(crate) fn replace_block_index<BranchReason>(
+    block_index: &mut BlockIndexInfo<BranchReason>,
+    map: &nohash_hasher::IntMap<usize, usize>,
+) where
+    BranchReason: BranchReasonTrait,
+{
+    match block_index {
+        BlockIndexInfo::Edge(BranchEdge {
+            block_index: BlockIndex::Index(block_index),
+            ..
+        }) => {
+            if let Some(mapped_index) = map.get(block_index) {
+                *block_index = *mapped_index;
+            }
+        }
+        BlockIndexInfo::Fallthrough(BlockIndex::Index(block_index)) => {
+            if let Some(mapped_index) = map.get(block_index) {
+                *block_index = *mapped_index;
+            }
+        }
+        _ => {}
+    };
+}
+
 /// Exception table should be passed for 3.11+
+#[allow(private_bounds)]
 pub fn create_cfg<I>(
     instructions: &[I],
     exception_table: Option<Vec<ExceptionTableEntry>>,
 ) -> Result<ControlFlowGraph<I>, Error>
 where
     I: GenericInstruction,
+    ControlFlowGraph<I>: FinalizeCFG<I>,
     for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
     <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
 {
@@ -1028,31 +1055,11 @@ where
 
     temp_blocks.sort_by_key(|(i, _)| *i);
 
-    let order_map: HashMap<usize, usize> = temp_blocks
+    let order_map: nohash_hasher::IntMap<usize, usize> = temp_blocks
         .iter()
         .enumerate()
         .map(|(i, (index, _))| (*index, i))
         .collect();
-
-    fn replace_block_index<BranchReason>(
-        block_index: &mut BlockIndexInfo<BranchReason>,
-        order_map: &HashMap<usize, usize>,
-    ) where
-        BranchReason: BranchReasonTrait,
-    {
-        match block_index {
-            BlockIndexInfo::Edge(BranchEdge {
-                block_index: BlockIndex::Index(block_index),
-                ..
-            }) => {
-                *block_index = order_map[block_index];
-            }
-            BlockIndexInfo::Fallthrough(BlockIndex::Index(block_index)) => {
-                *block_index = order_map[block_index];
-            }
-            _ => {}
-        };
-    }
 
     if exception_table.is_some() {
         // Fill the missing block indexes in the exception blocks

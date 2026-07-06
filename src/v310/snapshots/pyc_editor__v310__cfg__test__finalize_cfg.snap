@@ -1,0 +1,205 @@
+---
+source: src/v310/cfg.rs
+expression: cfg
+---
+ControlFlowGraph {
+    blocks: [
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        0,
+                    ),
+                    StoreName(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        5,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    PopTop(
+                        0,
+                    ),
+                    PopTop(
+                        0,
+                    ),
+                    PopTop(
+                        0,
+                    ),
+                    LoadName(
+                        1,
+                    ),
+                    LoadConst(
+                        2,
+                    ),
+                    CallFunction(
+                        1,
+                    ),
+                    PopTop(
+                        0,
+                    ),
+                    PopExcept(
+                        0,
+                    ),
+                    LoadConst(
+                        3,
+                    ),
+                    ReturnValue(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadName(
+                        0,
+                    ),
+                    LoadConst(
+                        1,
+                    ),
+                    CompareOp(
+                        2,
+                    ),
+                ],
+                branch_block: Edge(
+                    BranchEdge {
+                        reason: POP_JUMP_IF_FALSE,
+                        block_index: Index(
+                            3,
+                        ),
+                    },
+                ),
+                default_block: Edge(
+                    BranchEdge {
+                        reason: POP_JUMP_IF_FALSE,
+                        block_index: Index(
+                            4,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadName(
+                        1,
+                    ),
+                    LoadName(
+                        2,
+                    ),
+                    CallFunction(
+                        1,
+                    ),
+                    PopTop(
+                        0,
+                    ),
+                    PopBlock(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        7,
+                    ),
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadName(
+                        1,
+                    ),
+                    LoadName(
+                        0,
+                    ),
+                    CallFunction(
+                        1,
+                    ),
+                    PopTop(
+                        0,
+                    ),
+                    PopBlock(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        6,
+                    ),
+                ),
+            },
+        ),
+        ExceptionBlock(
+            ExceptionBlock {
+                block_indexes: [
+                    2,
+                    4,
+                    3,
+                ],
+                exception_handler: BranchEdge {
+                    reason: SETUP_FINALLY,
+                    block_index: Index(
+                        1,
+                    ),
+                },
+                default_block: Edge(
+                    BranchEdge {
+                        reason: SETUP_FINALLY,
+                        block_index: Index(
+                            2,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        3,
+                    ),
+                    ReturnValue(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        3,
+                    ),
+                    ReturnValue(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+    ],
+    start_index: Fallthrough(
+        Index(
+            0,
+        ),
+    ),
+}

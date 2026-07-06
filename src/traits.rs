@@ -568,6 +568,17 @@ pub trait BlockSliceExt<I> {
     fn find_exception_block(&self, index_to_search: usize) -> Option<usize>;
 }
 
+/// This trait allows modification of the CFG after creating it.
+/// This is necessary for versions where there is no exception table and we need to do block stack analysis to find the exception ranges.
+pub(crate) trait FinalizeCFG<I> {
+    fn finalize_cfg(&mut self) -> Result<(), Error>
+    where
+        I: GenericInstruction,
+        for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
+        <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>;
+}
+
+#[allow(private_bounds)]
 pub trait CreateCFG<I> {
     fn create_cfg(
         self,
@@ -575,10 +586,12 @@ pub trait CreateCFG<I> {
     ) -> Result<ControlFlowGraph<I>, Error>
     where
         I: GenericInstruction,
+        ControlFlowGraph<I>: FinalizeCFG<I>,
         for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
         <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>;
 }
 
+#[allow(private_bounds)]
 impl<I> CreateCFG<I> for &[I] {
     fn create_cfg(
         self,
@@ -586,6 +599,7 @@ impl<I> CreateCFG<I> for &[I] {
     ) -> Result<ControlFlowGraph<I>, Error>
     where
         I: GenericInstruction,
+        ControlFlowGraph<I>: FinalizeCFG<I>,
         for<'a> &'a [I]: InstructionAccess<<I>::OpargType, I>,
         <<I>::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = <I>::Opcode>,
     {

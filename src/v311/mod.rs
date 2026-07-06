@@ -4,6 +4,7 @@ pub mod instructions;
 pub mod opcodes;
 #[cfg(feature = "sir")]
 pub mod sir_passes;
+pub(crate) mod cfg;
 
 #[cfg(test)]
 mod tests {

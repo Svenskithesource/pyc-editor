@@ -79,7 +79,7 @@ define_opcodes!(
     LOAD_GLOBAL = 116 (-- null[if oparg & 0x01 != 0 {1} else {0}], value),
     IS_OP = 117 (left, right -- boolean),
     CONTAINS_OP = 118 (left, right -- boolean),
-    RERAISE = 119 (values[oparg] ,exc -- values[oparg]),
+    RERAISE = 119 (values[oparg], exc -- values[oparg]),
     COPY = 120 (bottom, unused[oparg-1] -- bottom, unused[oparg-1], top),
     BINARY_OP = 122 (left, right -- res),
     SEND = 123 (receiver, value -- receiver[if jump && !calculate_max {0} else {1}], return_value),

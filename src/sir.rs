@@ -159,6 +159,30 @@ impl<SIRNode: GenericSIRNode> SIR<SIRNode> {
             }
         })
     }
+
+    /// Finds the definition for any kind of assignment of a var
+    pub fn get_var_definition(&self, var: &AuxVar) -> Option<SIRExpression<SIRNode>> {
+        self.0.iter().find_map(|v| match v {
+            SIRStatement::DisregardCall(_) => None,
+            SIRStatement::UseVar(_) => None,
+            SIRStatement::Assignment(assigned_var, expr) => {
+                if var == assigned_var {
+                    Some(expr.clone())
+                } else {
+                    None
+                }
+            }
+            SIRStatement::TupleAssignment(assigned_vars, expr) => {
+                for assigned_var in assigned_vars {
+                    if var == assigned_var {
+                        return Some(expr.clone());
+                    }
+                }
+
+                None
+            }
+        })
+    }
 }
 
 impl<SIRNode: GenericSIRNode> From<Vec<SIRStatement<SIRNode>>> for SIR<SIRNode> {
@@ -186,7 +210,10 @@ where
                 StackValue::AuxVar(item),
             ) => {
                 if var == phi_var {
-                    values.push(item.clone());
+                    if !values.contains(item) {
+                        values.push(item.clone());
+                    }
+
                     found = true;
                 }
             }
@@ -672,6 +699,16 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
         self.blocks.iter().find_map(|block| {
             if let Some(nodes) = block.get_nodes_ref() {
                 nodes.get_var_tuple_definition(var)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn get_var_definition(&self, var: &AuxVar) -> Option<SIRExpression<SIRNode>> {
+        self.blocks.iter().find_map(|block| {
+            if let Some(nodes) = block.get_nodes_ref() {
+                nodes.get_var_definition(var)
             } else {
                 None
             }

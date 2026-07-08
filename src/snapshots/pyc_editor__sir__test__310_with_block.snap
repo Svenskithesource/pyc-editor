@@ -69,7 +69,7 @@ SIRControlFlowGraph {
                         DisregardCall(
                             Call {
                                 node: SIRNode {
-                                    opcode: POP_BLOCK,
+                                    opcode: NOP,
                                     oparg: 0,
                                     input: [],
                                     output: [],

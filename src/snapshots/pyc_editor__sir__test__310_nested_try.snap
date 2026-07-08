@@ -9,91 +9,11 @@ SIRControlFlowGraph {
                 nodes: SIR(
                     [],
                 ),
-                branch_block: Edge(
-                    SIRBranchEdge {
-                        reason: SETUP_FINALLY,
-                        statements: Some(
-                            SIR(
-                                [
-                                    TupleAssignment(
-                                        [
-                                            AuxVar {
-                                                name: "exceptions_0",
-                                            },
-                                            AuxVar {
-                                                name: "exceptions_1",
-                                            },
-                                            AuxVar {
-                                                name: "exceptions_2",
-                                            },
-                                            AuxVar {
-                                                name: "exceptions_3",
-                                            },
-                                            AuxVar {
-                                                name: "exceptions_4",
-                                            },
-                                            AuxVar {
-                                                name: "exceptions_5",
-                                            },
-                                        ],
-                                        Call(
-                                            Call {
-                                                node: SIRNode {
-                                                    opcode: SETUP_FINALLY,
-                                                    oparg: 0,
-                                                    input: [],
-                                                    output: [
-                                                        StackItem {
-                                                            name: "exceptions",
-                                                            count: 6,
-                                                            index: 0,
-                                                        },
-                                                    ],
-                                                    net_stack_delta: 6,
-                                                },
-                                                stack_inputs: [],
-                                            },
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                        block_index: Index(
-                            1,
-                        ),
-                    },
-                ),
-                default_block: Edge(
-                    SIRBranchEdge {
-                        reason: SETUP_FINALLY,
-                        statements: Some(
-                            SIR(
-                                [
-                                    DisregardCall(
-                                        Call {
-                                            node: SIRNode {
-                                                opcode: SETUP_FINALLY,
-                                                oparg: 0,
-                                                input: [],
-                                                output: [
-                                                    StackItem {
-                                                        name: "exceptions",
-                                                        count: 0,
-                                                        index: 0,
-                                                    },
-                                                ],
-                                                net_stack_delta: 0,
-                                            },
-                                            stack_inputs: [],
-                                        },
-                                    ),
-                                ],
-                            ),
-                        ),
-                        block_index: Index(
-                            2,
-                        ),
-                    },
+                branch_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        3,
+                    ),
                 ),
             },
         ),
@@ -311,32 +231,14 @@ SIRControlFlowGraph {
                                 ],
                             },
                         ),
-                        DisregardCall(
-                            Call {
-                                node: SIRNode {
-                                    opcode: RETURN_VALUE,
-                                    oparg: 0,
-                                    input: [
-                                        StackItem {
-                                            name: "return_value",
-                                            count: 1,
-                                            index: -1,
-                                        },
-                                    ],
-                                    output: [],
-                                    net_stack_delta: -1,
-                                },
-                                stack_inputs: [
-                                    AuxVar {
-                                        name: "first_0",
-                                    },
-                                ],
-                            },
-                        ),
                     ],
                 ),
                 branch_block: NoIndex,
-                default_block: NoIndex,
+                default_block: Fallthrough(
+                    Index(
+                        4,
+                    ),
+                ),
             },
         ),
         NormalBlock(
@@ -384,6 +286,129 @@ SIRControlFlowGraph {
                                 stack_inputs: [
                                     AuxVar {
                                         name: "value_1",
+                                    },
+                                ],
+                            },
+                        ),
+                    ],
+                ),
+                branch_block: NoIndex,
+                default_block: NoIndex,
+            },
+        ),
+        ExceptionBlock(
+            SIRExceptionBlock {
+                block_indexes: [
+                    2,
+                ],
+                exception_handler: SIRBranchEdge {
+                    reason: SETUP_FINALLY,
+                    statements: Some(
+                        SIR(
+                            [
+                                TupleAssignment(
+                                    [
+                                        AuxVar {
+                                            name: "exceptions_0",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_1",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_2",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_3",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_4",
+                                        },
+                                        AuxVar {
+                                            name: "exceptions_5",
+                                        },
+                                    ],
+                                    Call(
+                                        Call {
+                                            node: SIRNode {
+                                                opcode: SETUP_FINALLY,
+                                                oparg: 0,
+                                                input: [],
+                                                output: [
+                                                    StackItem {
+                                                        name: "exceptions",
+                                                        count: 6,
+                                                        index: 0,
+                                                    },
+                                                ],
+                                                net_stack_delta: 6,
+                                            },
+                                            stack_inputs: [],
+                                        },
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                    block_index: Index(
+                        1,
+                    ),
+                },
+                default_block: Edge(
+                    SIRBranchEdge {
+                        reason: SETUP_FINALLY,
+                        statements: Some(
+                            SIR(
+                                [
+                                    DisregardCall(
+                                        Call {
+                                            node: SIRNode {
+                                                opcode: SETUP_FINALLY,
+                                                oparg: 0,
+                                                input: [],
+                                                output: [
+                                                    StackItem {
+                                                        name: "exceptions",
+                                                        count: 0,
+                                                        index: 0,
+                                                    },
+                                                ],
+                                                net_stack_delta: 0,
+                                            },
+                                            stack_inputs: [],
+                                        },
+                                    ),
+                                ],
+                            ),
+                        ),
+                        block_index: Index(
+                            2,
+                        ),
+                    },
+                ),
+            },
+        ),
+        NormalBlock(
+            SIRNormalBlock {
+                nodes: SIR(
+                    [
+                        DisregardCall(
+                            Call {
+                                node: SIRNode {
+                                    opcode: RETURN_VALUE,
+                                    oparg: 0,
+                                    input: [
+                                        StackItem {
+                                            name: "return_value",
+                                            count: 1,
+                                            index: -1,
+                                        },
+                                    ],
+                                    output: [],
+                                    net_stack_delta: -1,
+                                },
+                                stack_inputs: [
+                                    AuxVar {
+                                        name: "first_0",
                                     },
                                 ],
                             },

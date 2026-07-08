@@ -17,7 +17,7 @@ ControlFlowGraph {
                 branch_block: NoIndex,
                 default_block: Fallthrough(
                     Index(
-                        5,
+                        6,
                     ),
                 ),
             },
@@ -53,7 +53,7 @@ ControlFlowGraph {
                 branch_block: NoIndex,
                 default_block: Fallthrough(
                     Index(
-                        8,
+                        7,
                     ),
                 ),
             },
@@ -111,7 +111,7 @@ ControlFlowGraph {
                 branch_block: NoIndex,
                 default_block: Fallthrough(
                     Index(
-                        7,
+                        5,
                     ),
                 ),
             },
@@ -138,9 +138,23 @@ ControlFlowGraph {
                 branch_block: NoIndex,
                 default_block: Fallthrough(
                     Index(
-                        6,
+                        5,
                     ),
                 ),
+            },
+        ),
+        NormalBlock(
+            NormalBlock {
+                instructions: [
+                    LoadConst(
+                        3,
+                    ),
+                    ReturnValue(
+                        0,
+                    ),
+                ],
+                branch_block: NoIndex,
+                default_block: NoIndex,
             },
         ),
         ExceptionBlock(
@@ -164,34 +178,6 @@ ControlFlowGraph {
                         ),
                     },
                 ),
-            },
-        ),
-        NormalBlock(
-            NormalBlock {
-                instructions: [
-                    LoadConst(
-                        3,
-                    ),
-                    ReturnValue(
-                        0,
-                    ),
-                ],
-                branch_block: NoIndex,
-                default_block: NoIndex,
-            },
-        ),
-        NormalBlock(
-            NormalBlock {
-                instructions: [
-                    LoadConst(
-                        3,
-                    ),
-                    ReturnValue(
-                        0,
-                    ),
-                ],
-                branch_block: NoIndex,
-                default_block: NoIndex,
             },
         ),
         NormalBlock(

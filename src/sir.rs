@@ -2385,7 +2385,7 @@ mod test {
         let ext_instructions = Instructions::new(vec![
             Instruction::LoadConst(0),
             Instruction::JumpForward(0), // We do this so the value comes from a different BB
-            Instruction::PopBlock(0),
+            Instruction::Nop(0),
             Instruction::LoadConst(0),
             Instruction::DupTop(0),
             Instruction::DupTop(0),

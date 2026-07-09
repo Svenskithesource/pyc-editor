@@ -495,8 +495,8 @@ fn test_stacksize_standard_lib() {
 
 #[test]
 fn test_create_cfg_standard_lib() {
-    use pyc_editor::cfg::create_cfg;
     use pyc_editor::cfg::BlockIndex;
+    use pyc_editor::cfg::create_cfg;
 
     fn get_reachable_block_count<I: GenericInstruction>(cfg: &ControlFlowGraph<I>) -> usize {
         let mut visited = vec![false; cfg.blocks.len()];

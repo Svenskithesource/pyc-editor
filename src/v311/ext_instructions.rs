@@ -18,9 +18,8 @@ use crate::{
     v311::{
         code_objects::{
             AwaitableWhere, BinaryOperation, CallExFlags, ClosureRefIndex, CompareOperation,
-            ConstIndex, FormatFlag, GlobalNameIndex, Jump, JumpDirection,
-            NameIndex, OpInversion, RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount,
-            VarNameIndex,
+            ConstIndex, FormatFlag, GlobalNameIndex, Jump, JumpDirection, NameIndex, OpInversion,
+            RaiseForms, RelativeJump, Reraise, ResumeWhere, SliceCount, VarNameIndex,
         },
         instructions::{Instruction, Instructions},
         opcodes::Opcode,

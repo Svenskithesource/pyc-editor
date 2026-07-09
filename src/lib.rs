@@ -3,6 +3,8 @@ pub mod error;
 pub mod prelude;
 #[cfg(feature = "sir")]
 pub mod sir;
+#[cfg(feature = "sir")]
+mod sir_passes;
 pub mod traits;
 pub mod utils;
 #[cfg(feature = "v310")]
@@ -13,8 +15,6 @@ pub mod v311;
 pub mod v312;
 #[cfg(feature = "v313")]
 pub mod v313;
-#[cfg(feature = "sir")]
-mod sir_passes;
 
 use error::Error;
 use python_marshal::{self, magic::PyVersion, minimize_references};

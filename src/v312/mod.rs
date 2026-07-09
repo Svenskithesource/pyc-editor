@@ -1,11 +1,11 @@
 pub mod cache;
+pub(crate) mod cfg;
 pub mod code_objects;
 pub mod ext_instructions;
 pub mod instructions;
 pub mod opcodes;
 #[cfg(feature = "sir")]
 pub mod sir_passes;
-pub(crate) mod cfg;
 
 #[cfg(test)]
 mod tests {

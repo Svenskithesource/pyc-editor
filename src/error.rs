@@ -48,8 +48,12 @@ impl fmt::Display for Error {
                 "There is a jump skipping over an extended arg. We cannot convert to resolved instructions because of this."
             ),
             Error::RecursiveReference(s) => write!(f, "Recursive reference: {}", s),
-            Error::InvalidBlockStackUsage => write!(f, "Tried to pop an item from the block stack while empty"),
-            Error::NonEmptyBlockStack => write!(f, "Block stack is not empty after reaching terminator"),
+            Error::InvalidBlockStackUsage => {
+                write!(f, "Tried to pop an item from the block stack while empty")
+            }
+            Error::NonEmptyBlockStack => {
+                write!(f, "Block stack is not empty after reaching terminator")
+            }
             #[cfg(feature = "sir")]
             Error::SIRError(error) => write!(f, "{}", error),
         }

@@ -1,11 +1,6 @@
 use bitflags::bitflags;
 
 use displaydoc::Display;
-use hashable::HashableHashSet;
-use indexmap::IndexSet;
-use num_bigint::BigInt;
-use num_complex::Complex;
-use ordered_float::OrderedFloat;
 use python_marshal::{CodeFlags, Object, PyString, extract_object, resolver::resolve_all_refs};
 
 use crate::{

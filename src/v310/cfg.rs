@@ -1,7 +1,7 @@
 use crate::{
     cfg::{
         Block, BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph, ExceptionBlock,
-        NormalBlock, replace_block_index,
+        NormalBlock,
     },
     traits::FinalizeCFG,
     v310::{ext_instructions::ExtInstruction, instructions::Instruction, opcodes::Opcode},

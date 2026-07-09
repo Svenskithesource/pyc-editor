@@ -1,6 +1,6 @@
 use crate::sir::{SIR, SIRBranchEdge};
 use crate::{
-    sir::{AuxVar, SIRBlock, SIRBlockIndexInfo, SIRControlFlowGraph, SIRExpression, SIRStatement},
+    sir::{SIRBlock, SIRBlockIndexInfo, SIRControlFlowGraph, SIRExpression, SIRStatement},
     traits::{GenericSIRNode, SIRCFGPass},
     utils::replace_var_in_statement,
 };
@@ -48,38 +48,26 @@ impl<SIRNode: GenericSIRNode> SIRCFGPass<SIRNode> for RemoveSinglePhiNodes {
             // Apply to edge statements
             match block {
                 SIRBlock::NormalBlock(normal_block) => {
-                    match &mut normal_block.branch_block {
-                        SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                    if let SIRBlockIndexInfo::Edge(SIRBranchEdge {
                             statements: Some(nodes),
                             ..
-                        }) => remove_single_nodes(nodes),
-                        _ => {}
-                    }
+                        }) = &mut normal_block.branch_block { remove_single_nodes(nodes) }
 
-                    match &mut normal_block.default_block {
-                        SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                    if let SIRBlockIndexInfo::Edge(SIRBranchEdge {
                             statements: Some(nodes),
                             ..
-                        }) => remove_single_nodes(nodes),
-                        _ => {}
-                    }
+                        }) = &mut normal_block.default_block { remove_single_nodes(nodes) }
                 }
                 SIRBlock::ExceptionBlock(exception_block) => {
-                    match &mut exception_block.exception_handler {
-                        SIRBranchEdge {
+                    if let SIRBranchEdge {
                             statements: Some(nodes),
                             ..
-                        } => remove_single_nodes(nodes),
-                        _ => {}
-                    }
+                        } = &mut exception_block.exception_handler { remove_single_nodes(nodes) }
 
-                    match &mut exception_block.default_block {
-                        SIRBlockIndexInfo::Edge(SIRBranchEdge {
+                    if let SIRBlockIndexInfo::Edge(SIRBranchEdge {
                             statements: Some(nodes),
                             ..
-                        }) => remove_single_nodes(nodes),
-                        _ => {}
-                    }
+                        }) = &mut exception_block.default_block { remove_single_nodes(nodes) }
                 }
             }
         }

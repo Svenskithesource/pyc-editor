@@ -513,12 +513,11 @@ fn test_create_cfg_standard_lib() {
             let block = &cfg.blocks[index];
 
             for successor in [block.get_branch_block(), block.get_default_block()] {
-                if let Some(BlockIndex::Index(next)) = successor.get_block_index() {
-                    if !visited[*next] {
+                if let Some(BlockIndex::Index(next)) = successor.get_block_index()
+                    && !visited[*next] {
                         visited[*next] = true;
                         stack.push(*next);
                     }
-                }
             }
         }
 

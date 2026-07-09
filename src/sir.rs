@@ -664,11 +664,7 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
             .iter()
             .enumerate()
             .filter_map(|(i, block)| {
-                if let Some(nodes) = block.get_nodes_ref() {
-                    Some((i, nodes.find_var_usages(var)))
-                } else {
-                    None
-                }
+                block.get_nodes_ref().map(|nodes| (i, nodes.find_var_usages(var)))
             })
             .collect()
     }

@@ -496,6 +496,34 @@ fn test_stacksize_standard_lib() {
 #[test]
 fn test_create_cfg_standard_lib() {
     use pyc_editor::cfg::create_cfg;
+    use pyc_editor::cfg::BlockIndex;
+
+    fn get_reachable_block_count<I: GenericInstruction>(cfg: &ControlFlowGraph<I>) -> usize {
+        let mut visited = vec![false; cfg.blocks.len()];
+        let mut stack = Vec::new();
+
+        if let Some(BlockIndex::Index(start)) = cfg.start_index.get_block_index() {
+            visited[*start] = true;
+            stack.push(*start);
+        } else {
+            return 0;
+        }
+
+        while let Some(index) = stack.pop() {
+            let block = &cfg.blocks[index];
+
+            for successor in [block.get_branch_block(), block.get_default_block()] {
+                if let Some(BlockIndex::Index(next)) = successor.get_block_index() {
+                    if !visited[*next] {
+                        visited[*next] = true;
+                        stack.push(*next);
+                    }
+                }
+            }
+        }
+
+        visited.iter().filter(|&&reachable| reachable).count()
+    }
 
     fn get_len_without_cache<I: GenericInstruction>(instructions: &[I]) -> usize {
         instructions
@@ -526,11 +554,11 @@ fn test_create_cfg_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
 
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
@@ -568,7 +596,13 @@ fn test_create_cfg_standard_lib() {
                         //     get_len_without_cache(&code_clone.code)
                         // );
 
+                        if count_cfg_instructions(&cfg) > get_len_without_cache(&code_clone.code) {
+                            dbg!(&cfg);
+                            dbg!(&code_clone.code);
+                        }
                         assert!(count_cfg_instructions(&cfg) <= get_len_without_cache(&code_clone.code));
+
+                        assert_eq!(get_reachable_block_count(&cfg), cfg.blocks.len());
 
                         for constant in code_clone.consts {
                             if let $module::code_objects::Constant::CodeObject(const_code) =

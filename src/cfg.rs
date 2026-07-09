@@ -1153,9 +1153,9 @@ where
 
     fix_extended_args(&mut cfg, &block_indexes_to_fix);
 
-    println!("{}", cfg.make_dot_graph());
+    // println!("{}", cfg.make_dot_graph());
     cfg.finalize_cfg()?;
-    println!("{}", cfg.make_dot_graph());
+    // println!("{}", cfg.make_dot_graph());
 
     Ok(cfg)
 }

@@ -2410,7 +2410,8 @@ mod test {
         use crate::v310::opcodes::sir::SIRNode;
 
         let ext_instructions = Instructions::new(vec![
-            Instruction::SetupFinally(2),
+            Instruction::SetupFinally(3),
+            Instruction::PopBlock(0),
             Instruction::LoadConst(0),
             Instruction::ReturnValue(0),
             Instruction::PopTop(0), // exc, tb, type, exc, tb, type

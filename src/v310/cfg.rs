@@ -16,14 +16,7 @@ macro_rules! generate_cfg_finalize {
                 return Ok(());
             };
 
-        // (index of the block in self.blocks, block)
-        let mut temp_blocks: Vec<(usize, Block<$instruction>)> = vec![];
-
         let mut visited_blocks: Vec<usize> = Vec::with_capacity($self.blocks.len());
-
-        // Maps old block indexes to the new one
-        let mut block_index_map: nohash_hasher::IntMap<usize, usize> =
-            nohash_hasher::IntMap::default();
 
         /// The index is an index into `temp_exception_blocks`
         #[derive(Debug, Clone)]
@@ -42,7 +35,7 @@ macro_rules! generate_cfg_finalize {
                 continue;
             }
 
-            let block = $self.blocks.get_mut(block_index).unwrap();
+            let block = &$self.blocks.get(block_index).unwrap().clone();
             visited_blocks.push(block_index);
 
             let original_branch_block = block.get_branch_block();
@@ -61,10 +54,10 @@ macro_rules! generate_cfg_finalize {
             // It's not possible to have exception blocks here yet, since we're still creating them
             assert!(matches!(block, crate::cfg::Block::NormalBlock(_)));
 
+            let instructions = block.get_instructions_slice().unwrap();
+
             // We view other instructions that pop from the block stack as pop_blocks
-            let pop_block_indexes = block
-                .get_instructions_slice()
-                .unwrap()
+            let pop_block_indexes = instructions
                 .iter()
                 .enumerate()
                 .filter_map(|(index, instruction)| {
@@ -72,9 +65,6 @@ macro_rules! generate_cfg_finalize {
                 })
                 .collect::<Vec<_>>();
 
-            dbg!(&exception_block_indexes);
-
-            let instructions = block.clone().get_instructions().unwrap();
             let last_block_index = if !pop_block_indexes.is_empty() {
                 // We will split the instructions up, based on the POP_BLOCK indexes.
                 // Then make them fallthrough to each other.
@@ -96,11 +86,11 @@ macro_rules! generate_cfg_finalize {
                         });
 
                         let temp_block_index = if i == 0 {
-                            *block = new_block;
+                            *$self.blocks.get_mut(block_index).unwrap() = new_block;
 
                             block_index
                         } else {
-                            temp_blocks.push((current_block_index, new_block));
+                            $self.blocks.push(new_block);
 
                             current_block_index += 1;
 
@@ -109,7 +99,7 @@ macro_rules! generate_cfg_finalize {
 
                         // Populate block index lists of current scope
                         for exception_block_index in &exception_block_indexes {
-                            let (_, block) = temp_blocks.get_mut(exception_block_index.0.0).unwrap();
+                            let block = $self.blocks.get_mut(exception_block_index.0.0).unwrap();
 
                             assert!(matches!(block, Block::ExceptionBlock(_)));
                             match block {
@@ -140,20 +130,17 @@ macro_rules! generate_cfg_finalize {
 
                 let new_block = Block::NormalBlock(NormalBlock {
                     instructions: new_instructions,
-                    branch_block: original_branch_block,
+                    branch_block: original_branch_block.clone(),
                     default_block: original_default_block,
                 });
 
                 if let Some(pop_block_index) = pop_block_indexes.last() && *pop_block_index == instructions.len() - 1 && pop_block_indexes.len() == 1 {
                     // If there is only one pop block, at the end of the basic block, then we just replace the block inplace.
-                    *block = new_block;
+                    *$self.blocks.get_mut(block_index).unwrap() = new_block;
 
                     block_index
                 } else {
-                    temp_blocks.push((
-                        current_block_index,
-                        new_block,
-                    ));
+                    $self.blocks.push(new_block);
 
                     current_block_index += 1;
 
@@ -165,7 +152,7 @@ macro_rules! generate_cfg_finalize {
 
             // Populate block index lists of current scope
             for exception_block_index in &exception_block_indexes {
-                let (_, block) = temp_blocks.get_mut(exception_block_index.0.0).unwrap();
+                let block = $self.blocks.get_mut(exception_block_index.0.0).unwrap();
 
                 assert!(matches!(block, Block::ExceptionBlock(_)));
                 match block {
@@ -187,15 +174,14 @@ macro_rules! generate_cfg_finalize {
             }
 
             // Check if we're starting an exception block
-            match block.get_branch_block() {
+            match original_branch_block {
                 BlockIndexInfo::Edge(BranchEdge {
                     reason: reason @ (Opcode::SETUP_FINALLY | Opcode::SETUP_WITH | Opcode::SETUP_ASYNC_WITH),
                     block_index: branch_block_index,
                 }) => {
                     // Add an ExceptionBlock and "reroute" jumps to the target block to the exception block instead (this happens later)
 
-                    temp_blocks.push((
-                        current_block_index,
+                    $self.blocks.push(
                         Block::ExceptionBlock(ExceptionBlock {
                             block_indexes: vec![],
                             exception_handler: BranchEdge {
@@ -203,14 +189,14 @@ macro_rules! generate_cfg_finalize {
                                 block_index: branch_block_index,
                             },
                             default_block: block.get_default_block(),
-                        }),
+                        }
                     ));
 
                     current_block_index += 1;
 
                     let exception_block_index = current_block_index - 1;
 
-                    match block {
+                    match $self.blocks.get_mut(last_block_index).unwrap() {
                         Block::NormalBlock(block) => {
                             block.branch_block = BlockIndexInfo::NoIndex;
 
@@ -218,14 +204,12 @@ macro_rules! generate_cfg_finalize {
                                 // Points to the exception block we just pushed
                                 exception_block_index,
                             ));
-
-                            block_index_map.insert(block_index, exception_block_index);
                         }
                         Block::ExceptionBlock(_) => unreachable!(),
                     }
 
                     if let Some(index) = original_branch_index {
-                        exception_block_indexes.push((ExceptionBlockIndex(temp_blocks.len() - 1), false));
+                        exception_block_indexes.push((ExceptionBlockIndex(exception_block_index), false));
 
                         // The branch edge needs to be visited with the bool set to false
                         visit_queue.push((index, exception_block_indexes.clone()));
@@ -233,7 +217,7 @@ macro_rules! generate_cfg_finalize {
                         exception_block_indexes.pop();
 
                         // The default edge with the bool set to true
-                        exception_block_indexes.push((ExceptionBlockIndex(temp_blocks.len() - 1), true));
+                        exception_block_indexes.push((ExceptionBlockIndex(exception_block_index), true));
                     } else {
                         unreachable!();
                     }
@@ -247,37 +231,18 @@ macro_rules! generate_cfg_finalize {
             }
 
             if let Some(index) = original_default_index {
-                visit_queue.push((index, exception_block_indexes))
+                visit_queue.push((index, exception_block_indexes.clone()))
             }
-        }
 
-        $self.blocks.extend(temp_blocks.into_iter().map(|(_, b)| b));
-
-        // Replace the old block indexes with their new indexes
-        for block in $self.blocks.iter_mut() {
-            match block {
-                Block::NormalBlock(block) => {
-                    replace_block_index(&mut block.branch_block, &block_index_map);
-                    replace_block_index(&mut block.default_block, &block_index_map);
-                }
-                Block::ExceptionBlock(block) => {
-                    if let BranchEdge {
-                        block_index: BlockIndex::Index(block_index),
-                        ..
-                    } = &mut block.exception_handler
-                    {
-                        if let Some(mapped_index) = block_index_map.get(block_index) {
-                            *block_index = *mapped_index;
-                        }
+            if original_branch_index.is_none() && original_default_index.is_none() && !exception_block_indexes.is_empty() {
+                if exception_block_indexes.iter().any(|(_, is_real)| *is_real) {
+                    if instructions.is_empty()  {
+                        return Err(crate::Error::NonEmptyBlockStack);
                     }
 
-                    replace_block_index(&mut block.default_block, &block_index_map);
-
-                    block.block_indexes.iter_mut().for_each(|i| {
-                        if let Some(mapped_index) = block_index_map.get(i) {
-                            *i = *mapped_index;
-                        }
-                    });
+                    if let Some(instruction) = instructions.last() && !matches!(instruction, $instruction::Reraise(_) | $instruction::RaiseVarargs(_)) {
+                        return Err(crate::Error::NonEmptyBlockStack);
+                    }
                 }
             }
         }

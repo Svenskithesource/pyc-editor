@@ -15,6 +15,7 @@ pub enum Error {
     ExtendedArgJump,
     RecursiveReference(&'static str),
     InvalidBlockStackUsage,
+    NonEmptyBlockStack,
     #[cfg(feature = "sir")]
     SIRError(crate::sir::Error),
 }
@@ -48,6 +49,7 @@ impl fmt::Display for Error {
             ),
             Error::RecursiveReference(s) => write!(f, "Recursive reference: {}", s),
             Error::InvalidBlockStackUsage => write!(f, "Tried to pop an item from the block stack while empty"),
+            Error::NonEmptyBlockStack => write!(f, "Block stack is not empty after reaching terminator"),
             #[cfg(feature = "sir")]
             Error::SIRError(error) => write!(f, "{}", error),
         }

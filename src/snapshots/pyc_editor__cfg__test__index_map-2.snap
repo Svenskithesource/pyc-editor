@@ -1,0 +1,26 @@
+---
+source: src/cfg.rs
+expression: map
+---
+InstructionIndexMap {
+    cfg_ranges: [
+        CFGIndexRange {
+            start_instruction_index: 0,
+            instruction_length: 4,
+            block_index: 0,
+            has_branch_instruction: true,
+        },
+        CFGIndexRange {
+            start_instruction_index: 6,
+            instruction_length: 2,
+            block_index: 1,
+            has_branch_instruction: false,
+        },
+        CFGIndexRange {
+            start_instruction_index: 4,
+            instruction_length: 2,
+            block_index: 2,
+            has_branch_instruction: false,
+        },
+    ],
+}

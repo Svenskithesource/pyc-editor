@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    cfg::ControlFlowGraph,
+    cfg::{CFGIndexRange, ControlFlowGraph},
     error::Error,
     utils::{ExceptionTableEntry, StackEffect},
 };
@@ -321,6 +321,8 @@ where
     }
 }
 
+pub trait IsExtInstruction {}
+
 pub trait ExtInstructionAccess<I, ExtI>
 where
     ExtI: GenericInstruction,
@@ -571,7 +573,7 @@ pub trait BlockSliceExt<I> {
 /// This trait allows modification of the CFG after creating it.
 /// This is necessary for versions where there is no exception table and we need to do block stack analysis to find the exception ranges.
 pub(crate) trait FinalizeCFG<I> {
-    fn finalize_cfg(&mut self) -> Result<(), Error>
+    fn finalize_cfg(&mut self, map: Option<&mut Vec<CFGIndexRange>>) -> Result<(), Error>
     where
         I: GenericInstruction,
         for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,

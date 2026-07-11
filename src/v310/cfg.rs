@@ -1,14 +1,14 @@
 use crate::{
     cfg::{
-        Block, BlockIndex, BlockIndexInfo, BranchEdge, ControlFlowGraph, ExceptionBlock,
-        NormalBlock,
+        Block, BlockIndex, BlockIndexInfo, BranchEdge, CFGIndexRange, ControlFlowGraph,
+        ExceptionBlock, NormalBlock,
     },
-    traits::FinalizeCFG,
+    traits::{BranchReasonTrait, FinalizeCFG},
     v310::{ext_instructions::ExtInstruction, instructions::Instruction, opcodes::Opcode},
 };
 
 macro_rules! generate_cfg_finalize {
-    ($instruction:ident, $self:ident) => {
+    ($instruction:ident, $self:ident, $map:ident) => {
         let start_block_index =
             if let BlockIndex::Index(index) = $self.start_index.get_block_index().unwrap() {
                 *index
@@ -71,6 +71,13 @@ macro_rules! generate_cfg_finalize {
 
                 let mut current_instruction_index = 0;
 
+                let mut current_start_instruction_index = if let Some(ref mut index_map) = $map {
+                    index_map.get(block_index).unwrap().start_instruction_index
+                } else {
+                    // Not used, does not matter
+                    0
+                };
+
                 for (i, pop_block_index) in pop_block_indexes.iter().enumerate() {
                     let new_instructions =
                         instructions[current_instruction_index..=*pop_block_index].to_vec();
@@ -85,17 +92,43 @@ macro_rules! generate_cfg_finalize {
                             )),
                         });
 
+                        let instruction_length = new_block.get_instructions_slice().unwrap().len();
+
                         let temp_block_index = if i == 0 {
+                            if let Some(ref mut index_map) = $map {
+                                let entry = index_map.get(block_index).unwrap();
+
+                                index_map[block_index] = CFGIndexRange {
+                                    start_instruction_index: entry.start_instruction_index,
+                                    instruction_length,
+                                    block_index: entry.block_index,
+                                    has_branch_instruction: false,
+                                };
+                            }
+
                             *$self.blocks.get_mut(block_index).unwrap() = new_block;
 
                             block_index
                         } else {
+                            if let Some(ref mut index_map) = $map {
+                                let entry = index_map.get(block_index).unwrap();
+
+                                index_map.push(CFGIndexRange {
+                                    start_instruction_index: current_start_instruction_index,
+                                    instruction_length: instruction_length,
+                                    block_index: $self.blocks.len(),
+                                    has_branch_instruction: entry.has_branch_instruction,
+                                });
+                            }
+
                             $self.blocks.push(new_block);
 
                             current_block_index += 1;
 
                             current_block_index - 1
                         };
+
+                        current_start_instruction_index += instruction_length;
 
                         // Populate block index lists of current scope
                         for exception_block_index in &exception_block_indexes {
@@ -136,10 +169,34 @@ macro_rules! generate_cfg_finalize {
 
                 if let Some(pop_block_index) = pop_block_indexes.last() && *pop_block_index == instructions.len() - 1 && pop_block_indexes.len() == 1 {
                     // If there is only one pop block, at the end of the basic block, then we just replace the block inplace.
+                    if let Some(ref mut index_map) = $map {
+                        let entry = index_map.get(block_index).unwrap();
+                        
+                        index_map[block_index] = CFGIndexRange {
+                            start_instruction_index: entry.start_instruction_index,
+                            instruction_length: new_block.get_instructions_slice().unwrap().len()
+                                                    + if let BlockIndexInfo::Edge(BranchEdge { reason, ..}) = new_block.get_branch_block()
+                                                            && reason.is_opcode() { 1 } else { 0 },
+                            block_index: entry.block_index,
+                            has_branch_instruction: entry.has_branch_instruction,
+                        }
+                    }
+
                     *$self.blocks.get_mut(block_index).unwrap() = new_block;
 
                     block_index
                 } else {
+                    if let Some(ref mut index_map) = $map {
+                        index_map.push(CFGIndexRange {
+                            start_instruction_index: current_start_instruction_index,
+                            instruction_length: new_block.get_instructions_slice().unwrap().len()
+                                                    + if let BlockIndexInfo::Edge(BranchEdge { reason, ..}) = new_block.get_branch_block()
+                                                            && reason.is_opcode() { 1 } else { 0 },
+                            block_index: $self.blocks.len(),
+                            has_branch_instruction: false,
+                        });
+                    }
+
                     $self.blocks.push(new_block);
 
                     current_block_index += 1;
@@ -180,6 +237,26 @@ macro_rules! generate_cfg_finalize {
                     block_index: branch_block_index,
                 }) => {
                     // Add an ExceptionBlock and "reroute" jumps to the target block to the exception block instead (this happens later)
+
+                    if let Some(ref mut index_map) = $map {
+                        let entry = index_map.get(block_index).unwrap().clone();
+
+                        index_map[block_index] = CFGIndexRange {
+                            start_instruction_index: entry.start_instruction_index,
+                            // We will move the SETUP_FINALLY branch edge to a different block, so the instruction count decreases by 1
+                            instruction_length: entry.instruction_length - 1,
+                            block_index: entry.block_index,
+                            has_branch_instruction: false,
+                        };
+
+                        index_map.push(CFGIndexRange {
+                            start_instruction_index: entry.start_instruction_index + entry.instruction_length - 1,
+                            instruction_length: 1,
+                            block_index: $self.blocks.len(),
+                            has_branch_instruction: true,
+                        });
+
+                    }
 
                     $self.blocks.push(
                         Block::ExceptionBlock(ExceptionBlock {
@@ -250,16 +327,22 @@ macro_rules! generate_cfg_finalize {
 }
 
 impl FinalizeCFG<Instruction> for ControlFlowGraph<Instruction> {
-    fn finalize_cfg(&mut self) -> Result<(), crate::error::Error> {
-        generate_cfg_finalize!(Instruction, self);
+    fn finalize_cfg(
+        &mut self,
+        mut map: Option<&mut Vec<CFGIndexRange>>,
+    ) -> Result<(), crate::error::Error> {
+        generate_cfg_finalize!(Instruction, self, map);
 
         Ok(())
     }
 }
 
 impl FinalizeCFG<ExtInstruction> for ControlFlowGraph<ExtInstruction> {
-    fn finalize_cfg(&mut self) -> Result<(), crate::error::Error> {
-        generate_cfg_finalize!(ExtInstruction, self);
+    fn finalize_cfg(
+        &mut self,
+        mut map: Option<&mut Vec<CFGIndexRange>>,
+    ) -> Result<(), crate::error::Error> {
+        generate_cfg_finalize!(ExtInstruction, self, map);
 
         Ok(())
     }
@@ -345,7 +428,7 @@ mod test {
             start_index: BlockIndexInfo::Fallthrough(BlockIndex::Index(0)),
         };
 
-        cfg.finalize_cfg().unwrap();
+        cfg.finalize_cfg(None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 
@@ -429,9 +512,11 @@ mod test {
             start_index: BlockIndexInfo::Fallthrough(BlockIndex::Index(0)),
         };
 
-        cfg.finalize_cfg().unwrap();
+        cfg.finalize_cfg(None).unwrap();
 
         println!("{}", cfg.make_dot_graph());
+
+        dbg!(&cfg);
 
         insta::assert_debug_snapshot!(cfg);
     }

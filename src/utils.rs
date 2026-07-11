@@ -358,6 +358,8 @@ macro_rules! define_default_traits {
             }
         }
 
+        impl IsExtInstruction for $crate::$variant::ext_instructions::ExtInstruction {}
+
         // impl<T> SimpleInstructionAccess<$crate::$variant::instructions::Instruction> for T where
         //     T: Deref<Target = [Instruction]> + AsRef<[Instruction]>
         // {

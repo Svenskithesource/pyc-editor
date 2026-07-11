@@ -1,6 +1,6 @@
 use core::panic;
 use pyc_editor::{
-    cfg::{BlockIndexInfo, BranchEdge, ControlFlowGraph},
+    cfg::{BlockIndexInfo, BranchEdge, ControlFlowGraph, InstructionIndexMap},
     dump_pyc, load_pyc,
     prelude::*,
     traits::GenericInstruction,
@@ -497,6 +497,7 @@ fn test_stacksize_standard_lib() {
 fn test_create_cfg_standard_lib() {
     use pyc_editor::cfg::BlockIndex;
     use pyc_editor::cfg::create_cfg;
+    use pyc_editor::cfg::create_mapped_cfg;
 
     fn get_reachable_block_count<I: GenericInstruction>(cfg: &ControlFlowGraph<I>) -> usize {
         let mut visited = vec![false; cfg.blocks.len()];
@@ -514,10 +515,11 @@ fn test_create_cfg_standard_lib() {
 
             for successor in [block.get_branch_block(), block.get_default_block()] {
                 if let Some(BlockIndex::Index(next)) = successor.get_block_index()
-                    && !visited[*next] {
-                        visited[*next] = true;
-                        stack.push(*next);
-                    }
+                    && !visited[*next]
+                {
+                    visited[*next] = true;
+                    stack.push(*next);
+                }
             }
         }
 
@@ -548,16 +550,38 @@ fn test_create_cfg_standard_lib() {
         instruction_count
     }
 
+    fn no_map_overlap(map: InstructionIndexMap, total_instruction_count: usize) -> bool {
+        let mut current_instruction_index = 0;
+
+        let ranges = map.get_cfg_ranges();
+
+        if !ranges.is_empty() {
+            for entry in map.get_cfg_ranges() {
+                if entry.start_instruction_index != current_instruction_index {
+                    return false;
+                } else {
+                    current_instruction_index += entry.instruction_length;
+                }
+            }
+
+            current_instruction_index == total_instruction_count
+        } else if total_instruction_count == 0 {
+            true
+        } else {
+            false
+        }
+    }
+
     LOGGER_INIT.call_once(|| {
         common::setup();
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
+    common::PYTHON_VERSIONS.iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.par_iter().for_each(|pyc_file| {
+        pyc_files.iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
 
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
@@ -581,11 +605,33 @@ fn test_create_cfg_standard_lib() {
                     };
                 }
 
+                macro_rules! create_mapped_cfg {
+                    (V310, $code_clone:ident) => {
+                        create_mapped_cfg(
+                            &$code_clone.code.to_resolved().unwrap(),
+                            None,
+                        )
+                    };
+                    ($variant:ident, $code_clone:ident) => {
+                        create_mapped_cfg(
+                            &$code_clone.code.to_resolved().unwrap(),
+                            Some($code_clone.exception_table().unwrap()),
+                        )
+                    };
+                }
+
                 macro_rules! cfg_from_instructions {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let code_clone = $code.clone();
 
                         let cfg = create_cfg!($variant, code_clone).unwrap();
+                        let (map, _) = create_mapped_cfg!($variant, code_clone).unwrap();
+
+                        let instruction_len = get_len_without_cache(&code_clone.code);
+
+                        if !no_map_overlap(map, instruction_len) {
+                            assert!(false, "This map has a mismatch");
+                        }
 
                         // I thought this would be a good way to find bugs but it turns out that Python
                         // generates bytecode that can't be reached and will be automatically removed by the cfg construction.
@@ -595,11 +641,11 @@ fn test_create_cfg_standard_lib() {
                         //     get_len_without_cache(&code_clone.code)
                         // );
 
-                        if count_cfg_instructions(&cfg) > get_len_without_cache(&code_clone.code) {
+                        if count_cfg_instructions(&cfg) > instruction_len {
                             dbg!(&cfg);
                             dbg!(&code_clone.code);
                         }
-                        assert!(count_cfg_instructions(&cfg) <= get_len_without_cache(&code_clone.code));
+                        assert!(count_cfg_instructions(&cfg) <= instruction_len);
 
                         assert_eq!(get_reachable_block_count(&cfg), cfg.blocks.len());
 

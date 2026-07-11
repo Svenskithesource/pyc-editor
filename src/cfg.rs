@@ -8,12 +8,9 @@ use std::{
 #[cfg(feature = "dot")]
 use crate::utils::BlockKind;
 use crate::{
-    error::Error,
-    traits::{
-        BlockSliceExt, BranchReasonTrait, ExtInstructionAccess, FinalizeCFG, GenericInstruction,
-        GenericOpcode, InstructionAccess, SimpleInstructionAccess,
-    },
-    utils::ExceptionTableEntry,
+    error::Error, traits::{
+        BlockSliceExt, BranchReasonTrait, ExtInstructionAccess, FinalizeCFG, GenericInstruction, GenericOpcode, InstructionAccess, IsExtInstruction, SimpleInstructionAccess,
+    }, utils::ExceptionTableEntry,
 };
 
 #[cfg(feature = "sir")]
@@ -591,12 +588,103 @@ where
     for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
     <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
 {
+    create_cfg_optional_map(instructions, exception_table, false).map(|(_, cfg)| cfg)
+}
+
+/// Represent an index into the CFG
+#[derive(Clone)]
+pub enum CFGInstructionIndex {
+    /// When the instruction has no CFG instruction equivalent.
+    NoIndex,
+    /// Used for instructions inside a block
+    /// The first usize is the block index, the second usize is the instruction index in that block.
+    BlockIndex(usize, usize),
+    /// Used for instructions inside an edge
+    /// usize is the block index of the edge (only look at the branch edge)
+    EdgeIndex(usize),
+}
+
+/// Shows what blocks have instructions of which ranges
+#[derive(Clone, Debug)]
+pub struct CFGIndexRange {
+    /// The index of the first instruction in the block
+    /// This index is an index into the original instruction list
+    pub start_instruction_index: usize,
+    /// Amount of instructions in the block (including the edge)
+    pub instruction_length: usize,
+    /// Index of the block
+    pub block_index: usize,
+    /// If true, the last instruction index can be found in the branch edge.
+    /// Not the instructions in the block.
+    pub has_branch_instruction: bool,
+}
+
+/// Provides a map of indexes in the original instruction list to instructions indexes in the CFG blocks (and vice versa).
+#[derive(Debug)]
+pub struct InstructionIndexMap {
+    /// This Vec has the same length as the amount of blocks, where each value is a CFGIndexRange.
+    cfg_ranges: Vec<CFGIndexRange>,
+}
+
+impl InstructionIndexMap {
+    pub fn new() -> Self {
+        InstructionIndexMap { cfg_ranges: vec![] }
+    }
+
+    pub fn from(cfg_ranges: Vec<CFGIndexRange>) -> Self {
+        InstructionIndexMap { cfg_ranges }
+    }
+
+    /// Returns the internal data structure
+    pub fn get_cfg_ranges(&self) -> &[CFGIndexRange] {
+        &self.cfg_ranges
+    }
+}
+
+/// Exception table should be passed for 3.11+
+/// This also returns a map of indexes in the original instruction list to instructions indexes in the CFG blocks.
+/// Should only be used on ExtInstructions since the extended_arg removal in crucial to having a correct map.
+#[allow(private_bounds)]
+pub fn create_mapped_cfg<I>(
+    instructions: &[I],
+    exception_table: Option<Vec<ExceptionTableEntry>>,
+) -> Result<(InstructionIndexMap, ControlFlowGraph<I>), Error>
+where
+    I: IsExtInstruction + GenericInstruction,
+    ControlFlowGraph<I>: FinalizeCFG<I>,
+    for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
+    <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
+{
+    create_cfg_optional_map(instructions, exception_table, true)
+        .map(|(map, cfg)| (map.unwrap(), cfg))
+}
+
+/// Exception table should be passed for 3.11+
+#[allow(private_bounds)]
+fn create_cfg_optional_map<I>(
+    instructions: &[I],
+    exception_table: Option<Vec<ExceptionTableEntry>>,
+    map_instructions: bool,
+) -> Result<(Option<InstructionIndexMap>, ControlFlowGraph<I>), Error>
+where
+    I: GenericInstruction,
+    ControlFlowGraph<I>: FinalizeCFG<I>,
+    for<'a> &'a [I]: InstructionAccess<I::OpargType, I>,
+    <I::Opcode as GenericOpcode>::BranchReason: BranchReasonTrait<Opcode = I::Opcode>,
+{
     // Used for keeping track of finished blocks
     let mut temp_blocks: nohash_hasher::IntMap<usize, Block<I>> =
         nohash_hasher::IntMap::with_capacity_and_hasher(
-            instructions.len().div_ceil(5),
+            // Approximation of how many blocks we will have
+            instructions.len().div_ceil(100),
             BuildHasherDefault::default(),
         );
+
+    let mut index_map: Option<Vec<CFGIndexRange>> = if map_instructions {
+        Some(Vec::with_capacity(instructions.len().div_ceil(100)))
+    } else {
+        None
+    };
 
     enum BlockState {
         BlockIndexAssigned(BlockIndex),
@@ -741,6 +829,15 @@ where
                     // Push current block that falls through to the empty exception block
                     curr_block_index += 1;
 
+                    if let Some(ref mut index_map) = index_map {
+                        index_map.push(CFGIndexRange {
+                            start_instruction_index: start_index,
+                            instruction_length: curr_block.len(),
+                            block_index,
+                            has_branch_instruction: false,
+                        });
+                    }
+
                     temp_blocks.insert(
                         block_index,
                         Block::NormalBlock(NormalBlock {
@@ -777,6 +874,15 @@ where
                             _ => {
                                 if instruction_index != start_index {
                                     // Another block already in the queue will handle it in the future
+                                    if let Some(ref mut index_map) = index_map {
+                                        index_map.push(CFGIndexRange {
+                                            start_instruction_index: start_index,
+                                            instruction_length: curr_block.len(),
+                                            block_index,
+                                            has_branch_instruction: false,
+                                        });
+                                    }
+
                                     temp_blocks.insert(
                                         block_index,
                                         Block::NormalBlock(NormalBlock {
@@ -793,6 +899,15 @@ where
                             }
                         }
                     } else {
+                        if let Some(ref mut index_map) = index_map {
+                            index_map.push(CFGIndexRange {
+                                start_instruction_index: start_index,
+                                instruction_length: curr_block.len(),
+                                block_index,
+                                has_branch_instruction: false,
+                            });
+                        }
+
                         temp_blocks.insert(
                             block_index,
                             Block::NormalBlock(NormalBlock {
@@ -812,6 +927,15 @@ where
             {
                 // If this is a jump target, place it in a new block (used to support backwards jumps)
                 curr_block_index += 1;
+
+                if let Some(ref mut index_map) = index_map {
+                    index_map.push(CFGIndexRange {
+                        start_instruction_index: start_index,
+                        instruction_length: curr_block.len(),
+                        block_index,
+                        has_branch_instruction: false,
+                    });
+                }
 
                 temp_blocks.insert(
                     block_index,
@@ -928,6 +1052,15 @@ where
                     }
                 }
 
+                if let Some(ref mut index_map) = index_map {
+                    index_map.push(CFGIndexRange {
+                        start_instruction_index: start_index,
+                        instruction_length: curr_block.len() + 1,
+                        block_index,
+                        has_branch_instruction: true,
+                    });
+                }
+
                 temp_blocks.insert(
                     block_index,
                     Block::NormalBlock(NormalBlock {
@@ -999,6 +1132,15 @@ where
             curr_block.push(instruction.clone());
 
             if instruction.stops_execution() {
+                if let Some(ref mut index_map) = index_map {
+                    index_map.push(CFGIndexRange {
+                        start_instruction_index: start_index,
+                        instruction_length: curr_block.len(),
+                        block_index,
+                        has_branch_instruction: false,
+                    });
+                }
+
                 temp_blocks.insert(
                     block_index,
                     Block::NormalBlock(NormalBlock {
@@ -1014,6 +1156,15 @@ where
             if instruction_index + 1 < instructions.len() {
                 instruction_index += 1;
             } else {
+                if let Some(ref mut index_map) = index_map {
+                    index_map.push(CFGIndexRange {
+                        start_instruction_index: start_index,
+                        instruction_length: curr_block.len(),
+                        block_index,
+                        has_branch_instruction: false,
+                    });
+                }
+
                 temp_blocks.insert(
                     block_index,
                     Block::NormalBlock(NormalBlock {
@@ -1139,6 +1290,13 @@ where
         }
     }
 
+    // Fix block indexes in index_map as well
+    if let Some(ref mut index_map) = index_map {
+        for range in index_map.iter_mut() {
+            range.block_index = order_map[&range.block_index];
+        }
+    }
+
     let blocks: Vec<Block<I>> = temp_blocks.into_iter().map(|(_, b)| b).collect();
 
     let mut cfg = ControlFlowGraph::<I> {
@@ -1151,11 +1309,17 @@ where
         blocks,
     };
 
+    // TODO: Fix index map in call below
     fix_extended_args(&mut cfg, &block_indexes_to_fix);
 
-    cfg.finalize_cfg()?;
+    cfg.finalize_cfg(index_map.as_mut())?;
 
-    Ok(cfg)
+    // Sort the index_map by increasing start instruction index
+    if let Some(ref mut index_map) = index_map {
+        index_map.sort_by_key(|v| v.start_instruction_index);
+    }
+
+    Ok((index_map.map(|v| InstructionIndexMap::from(v)), cfg))
 }
 
 // Convert a cfg that consists of simple instructions to a cfg where the extended args are resolved.
@@ -1205,7 +1369,7 @@ where
 mod test {
     use crate::{
         CodeObject,
-        cfg::{create_cfg, simple_cfg_to_ext_cfg},
+        cfg::{create_cfg, create_mapped_cfg, simple_cfg_to_ext_cfg},
         v311::instructions::{Instruction, Instructions},
     };
 
@@ -1455,5 +1619,30 @@ mod test {
         println!("{}", cfg.make_dot_graph());
 
         insta::assert_debug_snapshot!(cfg);
+    }
+
+    #[test]
+    fn test_index_map() {
+        let instructions = Instructions::new(vec![
+            Instruction::ExtendedArg(1),
+            Instruction::LoadConst(0),
+            Instruction::LoadConst(1),
+            Instruction::CompareOp(0),
+            Instruction::PopJumpForwardIfTrue(2),
+            Instruction::LoadConst(2),
+            Instruction::ReturnValue(0),
+            Instruction::LoadConst(3),
+            Instruction::ReturnValue(0),
+        ])
+        .to_resolved()
+        .unwrap();
+
+        let (map, cfg) = create_mapped_cfg(&instructions, None).unwrap();
+
+        dbg!(&map);
+        println!("{}", cfg.make_dot_graph());
+
+        insta::assert_debug_snapshot!(cfg);
+        insta::assert_debug_snapshot!(map);
     }
 }

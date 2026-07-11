@@ -8,7 +8,7 @@ use crate::{cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, v311::opcodes::sir::
 use crate::{
     define_default_traits,
     error::Error,
-    traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess},
+    traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess, IsExtInstruction},
     v311::{
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},
         ext_instructions::{ExtInstruction, ExtInstructions},

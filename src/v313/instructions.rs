@@ -5,7 +5,7 @@ use crate::{cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, v313::opcodes::sir::
 use crate::{
     define_default_traits,
     error::Error,
-    traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess},
+    traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess, IsExtInstruction},
     v313::{
         cache::get_cache_count,
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},

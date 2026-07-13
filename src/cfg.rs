@@ -8,9 +8,12 @@ use std::{
 #[cfg(feature = "dot")]
 use crate::utils::BlockKind;
 use crate::{
-    error::Error, traits::{
-        BlockSliceExt, BranchReasonTrait, ExtInstructionAccess, FinalizeCFG, GenericInstruction, GenericOpcode, InstructionAccess, IsExtInstruction, SimpleInstructionAccess,
-    }, utils::ExceptionTableEntry,
+    error::Error,
+    traits::{
+        BlockSliceExt, BranchReasonTrait, ExtInstructionAccess, FinalizeCFG, GenericInstruction,
+        GenericOpcode, InstructionAccess, IsExtInstruction, SimpleInstructionAccess,
+    },
+    utils::ExceptionTableEntry,
 };
 
 #[cfg(feature = "sir")]
@@ -620,7 +623,7 @@ pub struct CFGIndexRange {
 }
 
 /// Provides a map of indexes in the original instruction list to instructions indexes in the CFG blocks (and vice versa).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InstructionIndexMap {
     /// This Vec has the same length as the amount of blocks, where each value is a CFGIndexRange.
     cfg_ranges: Vec<CFGIndexRange>,
@@ -647,7 +650,7 @@ impl InstructionIndexMap {
 #[allow(private_bounds)]
 pub fn create_mapped_cfg<I>(
     instructions: &[I],
-    exception_table: Option<Vec<ExceptionTableEntry>>,
+    exception_table: Option<&[ExceptionTableEntry]>,
 ) -> Result<(InstructionIndexMap, ControlFlowGraph<I>), Error>
 where
     I: IsExtInstruction + GenericInstruction,
@@ -663,7 +666,7 @@ where
 #[allow(private_bounds)]
 fn create_cfg_optional_map<I>(
     instructions: &[I],
-    exception_table: Option<Vec<ExceptionTableEntry>>,
+    exception_table: Option<&[ExceptionTableEntry]>,
     map_instructions: bool,
 ) -> Result<(Option<InstructionIndexMap>, ControlFlowGraph<I>), Error>
 where
@@ -794,6 +797,8 @@ where
         let mut curr_block = vec![];
 
         let start_index = instruction_index;
+
+        if start_index == 697 {}
 
         macro_rules! block_exists {
             ($instruction_index:expr, is_curr_instruction) => {
@@ -1372,6 +1377,7 @@ mod test {
     use crate::{
         CodeObject,
         cfg::{create_cfg, create_mapped_cfg, simple_cfg_to_ext_cfg},
+        traits::ToExtInstructions,
         v311::instructions::{Instruction, Instructions},
     };
 
@@ -1636,8 +1642,9 @@ mod test {
             Instruction::LoadConst(3),
             Instruction::ReturnValue(0),
         ])
-        .to_resolved()
-        .unwrap();
+        .to_resolved(None)
+        .unwrap()
+        .0;
 
         let (map, cfg) = create_mapped_cfg(&instructions, None).unwrap();
 

@@ -2423,7 +2423,8 @@ mod test {
             Instruction::ReturnValue(0),
         ])
         .to_resolved(None)
-        .unwrap().0;
+        .unwrap()
+        .0;
 
         let cfg = create_cfg(&ext_instructions, None).unwrap();
 

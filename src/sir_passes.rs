@@ -49,25 +49,37 @@ impl<SIRNode: GenericSIRNode> SIRCFGPass<SIRNode> for RemoveSinglePhiNodes {
             match block {
                 SIRBlock::NormalBlock(normal_block) => {
                     if let SIRBlockIndexInfo::Edge(SIRBranchEdge {
-                            statements: Some(nodes),
-                            ..
-                        }) = &mut normal_block.branch_block { remove_single_nodes(nodes) }
+                        statements: Some(nodes),
+                        ..
+                    }) = &mut normal_block.branch_block
+                    {
+                        remove_single_nodes(nodes)
+                    }
 
                     if let SIRBlockIndexInfo::Edge(SIRBranchEdge {
-                            statements: Some(nodes),
-                            ..
-                        }) = &mut normal_block.default_block { remove_single_nodes(nodes) }
+                        statements: Some(nodes),
+                        ..
+                    }) = &mut normal_block.default_block
+                    {
+                        remove_single_nodes(nodes)
+                    }
                 }
                 SIRBlock::ExceptionBlock(exception_block) => {
                     if let SIRBranchEdge {
-                            statements: Some(nodes),
-                            ..
-                        } = &mut exception_block.exception_handler { remove_single_nodes(nodes) }
+                        statements: Some(nodes),
+                        ..
+                    } = &mut exception_block.exception_handler
+                    {
+                        remove_single_nodes(nodes)
+                    }
 
                     if let SIRBlockIndexInfo::Edge(SIRBranchEdge {
-                            statements: Some(nodes),
-                            ..
-                        }) = &mut exception_block.default_block { remove_single_nodes(nodes) }
+                        statements: Some(nodes),
+                        ..
+                    }) = &mut exception_block.default_block
+                    {
+                        remove_single_nodes(nodes)
+                    }
                 }
             }
         }

@@ -10,10 +10,9 @@ use crate::{
     error::Error,
     traits::{
         ExtInstructionAccess, GenericInstruction, InstructionAccess, InstructionsOwned,
-        SimpleInstructionAccess, ToExtInstructions,IsExtInstruction
+        IsExtInstruction, SimpleInstructionAccess, ToExtInstructions,
     },
     utils::ExceptionTableEntry,
-
     v311::{
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},
         ext_instructions::{ExtInstruction, ExtInstructions},

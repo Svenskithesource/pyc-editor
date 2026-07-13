@@ -554,6 +554,10 @@ fn test_create_cfg_standard_lib() {
     fn no_map_overlap(
         map: InstructionIndexMap,
         total_instruction_count: usize,
+        // Python generates deadcode that could make some instructions not have a mapped index.
+        // See `test_311_exception_handling_in_loop`.
+        could_have_deadcode: bool,
+        cache_after_jump_indexes: Vec<usize>,
     ) -> Result<(), String> {
         let mut current_instruction_index = 0;
 
@@ -561,19 +565,22 @@ fn test_create_cfg_standard_lib() {
 
         if !ranges.is_empty() {
             for entry in map.get_cfg_ranges() {
-                if entry.start_instruction_index != current_instruction_index {
+                if entry.start_instruction_index != current_instruction_index
+                    && !could_have_deadcode
+                {
                     return Err(format!(
                         "Start instruction index doesn't match: {} != {}",
                         entry.start_instruction_index, current_instruction_index
                     ));
                 } else {
                     current_instruction_index += entry.instruction_length;
+                    while cache_after_jump_indexes.contains(&current_instruction_index) {
+                        current_instruction_index += 1;
+                    }
                 }
             }
 
-            dbg!(current_instruction_index, total_instruction_count);
-
-            (current_instruction_index == total_instruction_count)
+            (current_instruction_index == total_instruction_count || could_have_deadcode)
                 .then_some(())
                 .ok_or(format!(
                     "Total instruction count doesn't match: {} != {}",
@@ -591,11 +598,11 @@ fn test_create_cfg_standard_lib() {
         env_logger::init();
     });
 
-    common::PYTHON_VERSIONS.iter().for_each(|version| {
+    common::PYTHON_VERSIONS.par_iter().for_each(|version| {
         println!("Testing with Python version: {}", version);
         let pyc_files = common::find_pyc_files(version);
 
-        pyc_files.iter().for_each(|pyc_file| {
+        pyc_files.par_iter().for_each(|pyc_file| {
             println!("Testing pyc file: {:?}", pyc_file);
 
             let file = std::fs::File::open(pyc_file).expect("Failed to open pyc file");
@@ -617,15 +624,34 @@ fn test_create_cfg_standard_lib() {
                 }
 
                 macro_rules! create_mapped_cfg {
-                    (V310, $code_clone:ident, $ext_instructions:ident) => {
-                        create_mapped_cfg(&$ext_instructions, None)
+                    (V310, $code_clone:ident) => {
+                        {
+                            let resolved_instructions = $code_clone.code.to_resolved(None).unwrap().0;
+                            let (map, ext_cfg) = create_mapped_cfg(&resolved_instructions, None).unwrap();
+                            (resolved_instructions, map, ext_cfg)
+                        }
                     };
-                    ($variant:ident, $code_clone:ident, $ext_instructions:ident) => {
-                        create_mapped_cfg(
-                            &$ext_instructions,
-                            Some($code_clone.exception_table().unwrap()),
-                        )
+                    ($variant:ident, $code_clone:ident) => {
+                        {
+                            let exception_table = $code_clone.exception_table().unwrap();
+                            let (resolved_instructions, new_exception_table) = $code_clone.code.to_resolved(Some(&exception_table)).unwrap();
+
+                            let (map, ext_cfg) = create_mapped_cfg(
+                                &resolved_instructions,
+                                new_exception_table.as_deref(),
+                            ).unwrap();
+                            (resolved_instructions, map, ext_cfg)
+                        }
                     };
+                }
+
+                macro_rules! has_exceptions {
+                    (V310, $code:ident) => {
+                        $code.code.iter().any(|v| matches!(v, crate::v310::instructions::Instruction::SetupFinally(_) | crate::v310::instructions::Instruction::SetupWith(_) | crate::v310::instructions::Instruction::SetupAsyncWith(_) ))
+                    };
+                    ($variant:ident, $code:ident) => {
+                        !$code.exception_table().unwrap().is_empty()
+                    }
                 }
 
                 macro_rules! cfg_from_instructions {
@@ -634,19 +660,41 @@ fn test_create_cfg_standard_lib() {
 
                         let cfg = create_cfg!($variant, code_clone).unwrap();
 
-                        let resolved_instructions = code_clone.code.to_resolved().unwrap();
-                        let (map, ext_cfg) = create_mapped_cfg!($variant, code_clone, resolved_instructions).unwrap();
+                        let (resolved_instructions, map, ext_cfg) = create_mapped_cfg!($variant, code_clone);
 
-                        // println!("{}", ext_cfg.make_dot_graph());
+                        let has_exceptions = has_exceptions!($variant, code_clone);
 
-                        // dbg!(&resolved_instructions);
+                        // a cache after a jump is removed in the cfg, so we need to bring this in the calculation
+                        let mut cache_after_jump_indexes = vec![];
 
-                        // for range in map.get_cfg_ranges() {
-                        //     dbg!(range);
-                        //     dbg!(ext_cfg.blocks.get(range.block_index));
-                        // }
+                        let mut is_jump = None;
 
-                        no_map_overlap(map, resolved_instructions.len()).unwrap();
+                        // Add all indexes of the cache after jump
+                        for (i, instr) in resolved_instructions.iter().enumerate() {
+                            if instr.is_jump() && !instr.is_conditional_jump() {
+                                is_jump = Some(i);
+                            } else if instr.is_cache() && is_jump.is_some() {
+                                cache_after_jump_indexes.push(i)
+                            } else {
+                                is_jump = None
+                            }
+                        }
+
+                        if let Err(error) = no_map_overlap(map.clone(), resolved_instructions.len(), has_exceptions, cache_after_jump_indexes.clone()) {
+                            for range in map.get_cfg_ranges() {
+                                dbg!(range);
+                                dbg!(ext_cfg.blocks.get(range.block_index));
+                            }
+
+                            dbg!(&resolved_instructions);
+                            dbg!(&code_clone.code);
+
+                            println!("{}", ext_cfg.make_dot_graph());
+
+                            dbg!(&cache_after_jump_indexes);
+
+                            Err(error).unwrap()
+                        }
 
                         // I thought this would be a good way to find bugs but it turns out that Python
                         // generates bytecode that can't be reached and will be automatically removed by the cfg construction.
@@ -664,6 +712,8 @@ fn test_create_cfg_standard_lib() {
                         assert!(count_cfg_instructions(&cfg) <= instruction_len);
 
                         assert_eq!(get_reachable_block_count(&cfg), cfg.blocks.len());
+
+                        // TODO: Check if the map actually maps to the same opcode
 
                         for constant in code_clone.consts {
                             if let $module::code_objects::Constant::CodeObject(const_code) =

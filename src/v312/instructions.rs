@@ -7,10 +7,9 @@ use crate::{
     error::Error,
     traits::{
         ExtInstructionAccess, GenericInstruction, InstructionAccess, InstructionsOwned,
-        SimpleInstructionAccess, ToExtInstructions, IsExtInstruction
+        IsExtInstruction, SimpleInstructionAccess, ToExtInstructions,
     },
     utils::ExceptionTableEntry,
-
     v312::{
         cache::get_cache_count,
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},

@@ -171,7 +171,7 @@ macro_rules! generate_cfg_finalize {
                     // If there is only one pop block, at the end of the basic block, then we just replace the block inplace.
                     if let Some(ref mut index_map) = $map {
                         let entry = index_map.get(block_index).unwrap();
-                        
+
                         index_map[block_index] = CFGIndexRange {
                             start_instruction_index: entry.start_instruction_index,
                             instruction_length: new_block.get_instructions_slice().unwrap().len()

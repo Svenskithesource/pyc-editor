@@ -550,7 +550,10 @@ fn test_create_cfg_standard_lib() {
         instruction_count
     }
 
-    fn no_map_overlap(map: InstructionIndexMap, total_instruction_count: usize) -> bool {
+    fn no_map_overlap(
+        map: InstructionIndexMap,
+        total_instruction_count: usize,
+    ) -> Result<(), String> {
         let mut current_instruction_index = 0;
 
         let ranges = map.get_cfg_ranges();
@@ -558,17 +561,27 @@ fn test_create_cfg_standard_lib() {
         if !ranges.is_empty() {
             for entry in map.get_cfg_ranges() {
                 if entry.start_instruction_index != current_instruction_index {
-                    return false;
+                    return Err(format!(
+                        "Start instruction index doesn't match: {} != {}",
+                        entry.start_instruction_index, current_instruction_index
+                    ));
                 } else {
                     current_instruction_index += entry.instruction_length;
                 }
             }
 
-            current_instruction_index == total_instruction_count
+            dbg!(current_instruction_index, total_instruction_count);
+
+            (current_instruction_index == total_instruction_count)
+                .then_some(())
+                .ok_or(format!(
+                    "Total instruction count doesn't match: {} != {}",
+                    current_instruction_index, total_instruction_count
+                ))
         } else if total_instruction_count == 0 {
-            true
+            Ok(())
         } else {
-            false
+            Err("No ranges found, despite expected empty instruction count".to_string())
         }
     }
 
@@ -592,10 +605,7 @@ fn test_create_cfg_standard_lib() {
             fn create_cfg_from_code(code: pyc_editor::CodeObject) {
                 macro_rules! create_cfg {
                     (V310, $code_clone:ident) => {
-                        create_cfg(
-                            &$code_clone.code,
-                            None,
-                        )
+                        create_cfg(&$code_clone.code, None)
                     };
                     ($variant:ident, $code_clone:ident) => {
                         create_cfg(
@@ -606,15 +616,12 @@ fn test_create_cfg_standard_lib() {
                 }
 
                 macro_rules! create_mapped_cfg {
-                    (V310, $code_clone:ident) => {
-                        create_mapped_cfg(
-                            &$code_clone.code.to_resolved().unwrap(),
-                            None,
-                        )
+                    (V310, $code_clone:ident, $ext_instructions:ident) => {
+                        create_mapped_cfg(&$ext_instructions, None)
                     };
-                    ($variant:ident, $code_clone:ident) => {
+                    ($variant:ident, $code_clone:ident, $ext_instructions:ident) => {
                         create_mapped_cfg(
-                            &$code_clone.code.to_resolved().unwrap(),
+                            &$ext_instructions,
                             Some($code_clone.exception_table().unwrap()),
                         )
                     };
@@ -625,13 +632,20 @@ fn test_create_cfg_standard_lib() {
                         let code_clone = $code.clone();
 
                         let cfg = create_cfg!($variant, code_clone).unwrap();
-                        let (map, _) = create_mapped_cfg!($variant, code_clone).unwrap();
 
-                        let instruction_len = get_len_without_cache(&code_clone.code);
+                        let resolved_instructions = code_clone.code.to_resolved().unwrap();
+                        let (map, ext_cfg) = create_mapped_cfg!($variant, code_clone, resolved_instructions).unwrap();
 
-                        if !no_map_overlap(map, instruction_len) {
-                            assert!(false, "This map has a mismatch");
-                        }
+                        // println!("{}", ext_cfg.make_dot_graph());
+
+                        // dbg!(&resolved_instructions);
+
+                        // for range in map.get_cfg_ranges() {
+                        //     dbg!(range);
+                        //     dbg!(ext_cfg.blocks.get(range.block_index));
+                        // }
+
+                        no_map_overlap(map, resolved_instructions.len()).unwrap();
 
                         // I thought this would be a good way to find bugs but it turns out that Python
                         // generates bytecode that can't be reached and will be automatically removed by the cfg construction.
@@ -641,6 +655,7 @@ fn test_create_cfg_standard_lib() {
                         //     get_len_without_cache(&code_clone.code)
                         // );
 
+                        let instruction_len = get_len_without_cache(&code_clone.code);
                         if count_cfg_instructions(&cfg) > instruction_len {
                             dbg!(&cfg);
                             dbg!(&code_clone.code);

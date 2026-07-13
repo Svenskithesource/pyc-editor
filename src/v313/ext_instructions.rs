@@ -630,14 +630,24 @@ where
                 }
 
                 // Update indexes in exception_table
-                if let Some(ref mut exception_jump_indexes) = new_exception_table {
-                    for ExceptionTableEntry {
-                        start, end, target, ..
-                    } in exception_jump_indexes.iter_mut()
+                if let Some(ref mut new_exception_table) = new_exception_table
+                    && let Some(old_exception_table) = exception_table
+                {
+                    for (
+                        i,
+                        ExceptionTableEntry {
+                            start, end, target, ..
+                        },
+                    ) in new_exception_table.iter_mut().enumerate()
                     {
-                        for value in [start, end, target] {
-                            if *value >= index as u32 {
-                                *value -= 1;
+                        // Compare to old value, since new value might go below necessary index when updating while looping
+                        for (new_value, old_value) in [
+                            (start, old_exception_table[i].start),
+                            (end, old_exception_table[i].end),
+                            (target, old_exception_table[i].target),
+                        ] {
+                            if old_value >= index as u32 {
+                                *new_value -= 1;
                             }
                         }
                     }

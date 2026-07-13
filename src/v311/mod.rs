@@ -460,4 +460,36 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_exception_table_with_extended_arg() {
+        let instructions = Instructions::new(vec![
+            Instruction::ExtendedArg(0),
+            Instruction::LoadConst(0),
+            Instruction::ReturnValue(0),
+            Instruction::ExtendedArg(0),
+            Instruction::Nop(0),
+        ]);
+
+        let exception_table = vec![ExceptionTableEntry {
+            start: 1,
+            end: 1,
+            target: 4,
+            depth: 0,
+            lasti: false,
+        }];
+
+        let (_, exception_table) = instructions.to_resolved(Some(&exception_table)).unwrap();
+
+        assert_eq!(
+            exception_table.unwrap()[0],
+            ExceptionTableEntry {
+                start: 0,
+                end: 0,
+                target: 2,
+                depth: 0,
+                lasti: false,
+            },
+        );
+    }
 }

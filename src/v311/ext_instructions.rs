@@ -566,7 +566,7 @@ where
                         } in exception_jump_indexes.iter_mut()
                         {
                             for value in [start, end, target] {
-                                if *value > index as u32 {
+                                if *value >= index as u32 {
                                     *value -= 1;
                                 }
                             }

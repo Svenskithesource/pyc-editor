@@ -7,7 +7,7 @@ use crate::{
 impl FinalizeCFG<Instruction> for ControlFlowGraph<Instruction> {
     fn finalize_cfg(
         &mut self,
-        map: Option<&mut Vec<CFGIndexRange>>,
+        _map: Option<&mut Vec<CFGIndexRange>>,
     ) -> Result<(), crate::error::Error> {
         Ok(())
     }
@@ -16,7 +16,7 @@ impl FinalizeCFG<Instruction> for ControlFlowGraph<Instruction> {
 impl FinalizeCFG<ExtInstruction> for ControlFlowGraph<ExtInstruction> {
     fn finalize_cfg(
         &mut self,
-        map: Option<&mut Vec<CFGIndexRange>>,
+        _map: Option<&mut Vec<CFGIndexRange>>,
     ) -> Result<(), crate::error::Error> {
         Ok(())
     }

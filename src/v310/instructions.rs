@@ -382,7 +382,7 @@ impl ToExtInstructions<Instruction> for Instructions {
     /// See the docs of `find_ext_arg_jumps` for more info
     fn to_resolved(
         &self,
-        exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
+        _exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
     ) -> Result<(ExtInstructions, Option<Vec<ExceptionTableEntry>>), Error> {
         ExtInstructions::from_instructions(self.0.as_slice(), None)
     }
@@ -393,7 +393,7 @@ impl ToSIR<SIRNode> for Instructions {
     // exception_table will be ignored as we're in 3.10 which doesn't have this feature. (3.11+ only)
     fn to_sir(
         &self,
-        exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
+        _exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
     ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
         let cfg = create_cfg(&self.to_resolved(None)?.0, None)?;
 

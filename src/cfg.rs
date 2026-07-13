@@ -629,6 +629,12 @@ pub struct InstructionIndexMap {
     cfg_ranges: Vec<CFGIndexRange>,
 }
 
+impl Default for InstructionIndexMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InstructionIndexMap {
     pub fn new() -> Self {
         InstructionIndexMap { cfg_ranges: vec![] }
@@ -797,8 +803,6 @@ where
         let mut curr_block = vec![];
 
         let start_index = instruction_index;
-
-        if start_index == 697 {}
 
         macro_rules! block_exists {
             ($instruction_index:expr, is_curr_instruction) => {
@@ -1324,7 +1328,7 @@ where
         index_map.sort_by_key(|v| v.start_instruction_index);
     }
 
-    Ok((index_map.map(|v| InstructionIndexMap::from(v)), cfg))
+    Ok((index_map.map(InstructionIndexMap::from), cfg))
 }
 
 // Convert a cfg that consists of simple instructions to a cfg where the extended args are resolved.

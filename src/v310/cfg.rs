@@ -115,7 +115,7 @@ macro_rules! generate_cfg_finalize {
 
                                 index_map.push(CFGIndexRange {
                                     start_instruction_index: current_start_instruction_index,
-                                    instruction_length: instruction_length,
+                                    instruction_length,
                                     block_index: $self.blocks.len(),
                                     has_branch_instruction: entry.has_branch_instruction,
                                 });

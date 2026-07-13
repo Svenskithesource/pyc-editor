@@ -409,7 +409,7 @@ where
 
     fn from_instructions(
         instructions: &[Instruction],
-        exception_table: Option<&[ExceptionTableEntry]>,
+        _exception_table: Option<&[ExceptionTableEntry]>,
     ) -> Result<(Self::ExtInstructions, Option<Vec<ExceptionTableEntry>>), Error> {
         if !instructions.find_ext_arg_jumps().is_empty() {
             return Err(Error::ExtendedArgJump);
@@ -540,7 +540,7 @@ impl ToSIR<SIRNode> for ExtInstructions {
     // exception_table will be ignored as we're in 3.10 which doesn't have this feature. (3.11+ only)
     fn to_sir(
         &self,
-        exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
+        _exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
     ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
         let cfg = create_cfg(self, None)?;
 

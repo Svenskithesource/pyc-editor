@@ -1,6 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use pyc_editor::cfg::create_cfg;
 use pyc_editor::sir::cfg_to_ir;
+use pyc_editor::traits::ToExtInstructions;
 use pyc_editor::utils::UnusedArgument;
 use pyc_editor::v311::code_objects::RelativeJump;
 use pyc_editor::v311::opcodes::sir::SIRNode;
@@ -48,8 +49,9 @@ fn generate_instructions(amount_of_blocks: usize) -> Vec<ExtInstruction> {
                 Instruction::Cache(0),
                 Instruction::PopTop(0),
             ])
-            .to_resolved()
+            .to_resolved(None)
             .unwrap()
+            .0
             .as_ref(),
         );
         instructions.push(ExtInstruction::Copy(1));

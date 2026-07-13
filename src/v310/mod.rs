@@ -72,7 +72,7 @@ mod tests {
 
         dbg!(og_target);
 
-        let resolved = instructions.to_instructions().to_resolved().unwrap();
+        let resolved = instructions.to_instructions().to_resolved(None).unwrap().0;
         match resolved
             .iter()
             .find(|i| i.get_opcode() == Opcode::POP_JUMP_IF_FALSE)
@@ -129,7 +129,7 @@ mod tests {
 
         instructions.append_instruction(Instruction::ReturnValue(0));
 
-        let resolved = instructions.to_resolved().unwrap();
+        let resolved = instructions.to_resolved(None).unwrap().0;
 
         let resolved_jump: AbsoluteJump = resolved.first().unwrap().get_raw_value().into();
         let jump: AbsoluteJump = instructions.get_full_arg(1).unwrap().into();
@@ -185,7 +185,7 @@ mod tests {
 
         instructions.append_instruction(Instruction::ReturnValue(0));
 
-        let resolved = instructions.to_resolved().unwrap();
+        let resolved = instructions.to_resolved(None).unwrap().0;
 
         assert_eq!(resolved.len(), 17);
 

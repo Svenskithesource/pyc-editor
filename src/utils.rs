@@ -395,18 +395,6 @@ macro_rules! define_default_traits {
             }
         }
 
-        impl TryFrom<&[$crate::$variant::instructions::Instruction]>
-            for $crate::$variant::ext_instructions::ExtInstructions
-        {
-            type Error = Error;
-
-            fn try_from(
-                value: &[$crate::$variant::instructions::Instruction],
-            ) -> Result<Self, Self::Error> {
-                $crate::$variant::ext_instructions::ExtInstructions::from_instructions(value)
-            }
-        }
-
         impl From<&[$crate::$variant::ext_instructions::ExtInstruction]>
             for $crate::$variant::ext_instructions::ExtInstructions
         {

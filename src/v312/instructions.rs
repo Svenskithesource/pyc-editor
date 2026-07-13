@@ -5,7 +5,11 @@ use crate::{cfg::create_cfg, sir::cfg_to_ir, traits::ToSIR, v312::opcodes::sir::
 use crate::{
     define_default_traits,
     error::Error,
-    traits::{GenericInstruction, InstructionAccess, InstructionsOwned, SimpleInstructionAccess},
+    traits::{
+        ExtInstructionAccess, GenericInstruction, InstructionAccess, InstructionsOwned,
+        SimpleInstructionAccess, ToExtInstructions,
+    },
+    utils::ExceptionTableEntry,
     v312::{
         cache::get_cache_count,
         code_objects::{Jump, JumpDirection, LinetableEntry, RelativeJump},
@@ -547,10 +551,14 @@ impl Instructions {
     pub fn new(instructions: Vec<Instruction>) -> Self {
         Instructions(instructions)
     }
+}
 
-    /// Returns the instructions but with the extended_args resolved
-    pub fn to_resolved(&self) -> Result<ExtInstructions, Error> {
-        ExtInstructions::try_from(self.0.as_slice())
+impl ToExtInstructions<Instruction> for Instructions {
+    fn to_resolved(
+        &self,
+        exception_table: Option<&[ExceptionTableEntry]>,
+    ) -> Result<(ExtInstructions, Option<Vec<ExceptionTableEntry>>), Error> {
+        ExtInstructions::from_instructions(self.0.as_slice(), exception_table)
     }
 }
 
@@ -558,9 +566,10 @@ impl Instructions {
 impl ToSIR<SIRNode> for Instructions {
     fn to_sir(
         &self,
-        exception_table: Option<Vec<crate::utils::ExceptionTableEntry>>,
+        exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
     ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
-        let cfg = create_cfg(&self.to_resolved()?, exception_table)?;
+        let (instructions, exception_table) = self.to_resolved(exception_table)?;
+        let cfg = create_cfg(&instructions, exception_table.as_deref())?;
 
         Ok(cfg_to_ir(&cfg, false)?)
     }

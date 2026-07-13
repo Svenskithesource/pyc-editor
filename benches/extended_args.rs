@@ -8,7 +8,7 @@ use pyc_editor::v310::{
 use std::hint::black_box;
 
 fn resolve_instructions(instructions: Instructions) -> ExtInstructions {
-    instructions.to_resolved().unwrap()
+    instructions.to_resolved(None).unwrap().0
 }
 
 fn to_instructions(instructions: ExtInstructions) -> Instructions {
@@ -40,7 +40,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         }
     }
 
-    let resolved_instructions = instructions.to_resolved().unwrap();
+    let resolved_instructions = instructions.to_resolved(None).unwrap().0;
 
     c.bench_function("resolve extended_arg 100K", |b| {
         b.iter(|| resolve_instructions(black_box(instructions.clone())))
@@ -64,7 +64,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         }
     }
 
-    let resolved_instructions = instructions.to_resolved().unwrap();
+    let resolved_instructions = instructions.to_resolved(None).unwrap().0;
 
     c.bench_function("resolve extended_arg 10", |b| {
         b.iter(|| resolve_instructions(black_box(instructions.clone())))

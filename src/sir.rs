@@ -664,7 +664,9 @@ impl<SIRNode: GenericSIRNode> SIRControlFlowGraph<SIRNode> {
             .iter()
             .enumerate()
             .filter_map(|(i, block)| {
-                block.get_nodes_ref().map(|nodes| (i, nodes.find_var_usages(var)))
+                block
+                    .get_nodes_ref()
+                    .map(|nodes| (i, nodes.find_var_usages(var)))
             })
             .collect()
     }
@@ -1350,7 +1352,7 @@ mod test {
         AuxVar, StackItem, StackValue, bb_to_ir, cfg_to_ir, extend_merge_stack, fill_phi_nodes,
         instruction_to_ir, process_stack_effects,
     };
-    use crate::traits::GenericInstruction;
+    use crate::traits::{GenericInstruction, ToExtInstructions};
     use crate::utils::{ExceptionTableEntry, InfiniteStack};
     use crate::v311::ext_instructions::ExtInstruction;
     use crate::v311::instructions::Instruction;
@@ -2244,8 +2246,9 @@ mod test {
             Instruction::LoadConst(3),
             Instruction::ReturnValue(0),
         ])
-        .to_resolved()
-        .unwrap();
+        .to_resolved(None)
+        .unwrap()
+        .0;
 
         println!(
             "{}",
@@ -2342,7 +2345,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(&exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -2388,8 +2391,9 @@ mod test {
             Instruction::CallFunction(3),
             Instruction::PopTop(0),
         ])
-        .to_resolved()
-        .unwrap();
+        .to_resolved(None)
+        .unwrap()
+        .0;
 
         let cfg = create_cfg(&ext_instructions, None).unwrap();
 
@@ -2418,8 +2422,8 @@ mod test {
             Instruction::PopExcept(0),
             Instruction::ReturnValue(0),
         ])
-        .to_resolved()
-        .unwrap();
+        .to_resolved(None)
+        .unwrap().0;
 
         let cfg = create_cfg(&ext_instructions, None).unwrap();
 
@@ -2446,8 +2450,9 @@ mod test {
             Instruction::LoadConst(0),
             Instruction::ReturnValue(0),
         ])
-        .to_resolved()
-        .unwrap();
+        .to_resolved(None)
+        .unwrap()
+        .0;
 
         let exception_table = vec![ExceptionTableEntry {
             start: 2,
@@ -2457,7 +2462,7 @@ mod test {
             lasti: false,
         }];
 
-        let cfg = create_cfg(&ext_instructions, Some(exception_table)).unwrap();
+        let cfg = create_cfg(&ext_instructions, Some(&exception_table)).unwrap();
 
         println!("{}", cfg.make_dot_graph());
 

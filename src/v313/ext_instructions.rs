@@ -11,7 +11,7 @@ use crate::{
         ExtInstructionsOwned, GenericInstruction, InstructionAccess, InstructionsOwned, Oparg,
         SimpleInstructionAccess,
     },
-    utils::{UnusedArgument, get_extended_args_count},
+    utils::{ExceptionTableEntry, UnusedArgument, get_extended_args_count},
     v313::{
         cache::get_cache_count,
         code_objects::{
@@ -550,12 +550,17 @@ where
         instructions
     }
 
-    fn from_instructions(instructions: &[Instruction]) -> Result<Self::ExtInstructions, Error> {
+    fn from_instructions(
+        instructions: &[Instruction],
+        exception_table: Option<&[ExceptionTableEntry]>,
+    ) -> Result<(Self::ExtInstructions, Option<Vec<ExceptionTableEntry>>), Error> {
         if !instructions.find_ext_arg_jumps().is_empty() {
             return Err(Error::ExtendedArgJump);
         }
 
         let mut extended_arg = 0; // Used to keep track of extended arguments between instructions
+
+        let mut new_exception_table = exception_table.map(|m| m.to_vec());
         let mut relative_jump_indexes: IntervalTree<u32, u32> = IntervalTree::new();
 
         for (index, instruction) in instructions.iter().enumerate() {
@@ -622,6 +627,20 @@ where
 
                 for mut entry in relative_jump_indexes.query_mut(&Interval::point(index as u32)) {
                     *entry.value() -= 1
+                }
+
+                // Update indexes in exception_table
+                if let Some(ref mut exception_jump_indexes) = new_exception_table {
+                    for ExceptionTableEntry {
+                        start, end, target, ..
+                    } in exception_jump_indexes.iter_mut()
+                    {
+                        for value in [start, end, target] {
+                            if *value > index as u32 {
+                                *value -= 1;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -695,7 +714,7 @@ where
             extended_arg = 0;
         }
 
-        Ok(ext_instructions)
+        Ok((ext_instructions, new_exception_table))
     }
 }
 
@@ -703,7 +722,7 @@ where
 impl ToSIR<SIRNode> for ExtInstructions {
     fn to_sir(
         &self,
-        exception_table: Option<Vec<crate::utils::ExceptionTableEntry>>,
+        exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
     ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
         let cfg = create_cfg(self, exception_table)?;
 

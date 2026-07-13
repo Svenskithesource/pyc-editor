@@ -321,6 +321,25 @@ where
     }
 }
 
+pub trait ToExtInstructions<I>
+where
+    Self: SimpleInstructionAccess<I>,
+    I: GenericInstruction,
+{
+    /// Returns the instructions but with the extended_args resolved
+    /// For 3.11+: Also pass exception table so that it can return the new exception table with updated indexes
+    fn to_resolved(
+        &self,
+        exception_table: Option<&[ExceptionTableEntry]>,
+    ) -> Result<
+        (
+            <I::OtherType as GenericInstruction>::Instructions,
+            Option<Vec<ExceptionTableEntry>>,
+        ),
+        Error,
+    >;
+}
+
 pub trait ExtInstructionAccess<I, ExtI>
 where
     ExtI: GenericInstruction,
@@ -333,7 +352,11 @@ where
     fn to_instructions(&self) -> Self::Instructions;
 
     /// Resolve instructions into extended instructions.
-    fn from_instructions(instructions: &[I]) -> Result<Self::ExtInstructions, Error>;
+    /// For 3.11+, also pass the exception_table to update the indexes when removing extended_args
+    fn from_instructions(
+        instructions: &[I],
+        exception_table: Option<&[ExceptionTableEntry]>,
+    ) -> Result<(Self::ExtInstructions, Option<Vec<ExceptionTableEntry>>), Error>;
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_instructions().to_bytes()
@@ -346,6 +369,8 @@ where
     T: Copy,
 {
     type Instruction;
+
+    // TODO: REQUIRE EXCEPTION TABLE TO BE PASSED
 
     fn push(&mut self, item: T);
 
@@ -541,7 +566,7 @@ pub trait ToSIR<SIRNode: GenericSIRNode> {
     /// Exception table should be passed for 3.11+
     fn to_sir(
         &self,
-        exception_table: Option<Vec<ExceptionTableEntry>>,
+        exception_table: Option<&[ExceptionTableEntry]>,
     ) -> Result<SIRControlFlowGraph<SIRNode>, Error>;
 }
 
@@ -582,7 +607,7 @@ pub(crate) trait FinalizeCFG<I> {
 pub trait CreateCFG<I> {
     fn create_cfg(
         self,
-        exception_table: Option<Vec<ExceptionTableEntry>>,
+        exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
     ) -> Result<ControlFlowGraph<I>, Error>
     where
         I: GenericInstruction,
@@ -595,7 +620,7 @@ pub trait CreateCFG<I> {
 impl<I> CreateCFG<I> for &[I] {
     fn create_cfg(
         self,
-        exception_table: Option<Vec<ExceptionTableEntry>>,
+        exception_table: Option<&[crate::utils::ExceptionTableEntry]>,
     ) -> Result<ControlFlowGraph<I>, Error>
     where
         I: GenericInstruction,

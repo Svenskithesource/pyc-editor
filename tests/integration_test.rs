@@ -272,7 +272,8 @@ fn test_recompile_resolved_standard_lib() {
                     ($variant:ident, $module:ident, $code:expr) => {{
                         let mut code = $code.clone();
                         let mut new_code = $code.clone();
-                        new_code.code = new_code.code.to_resolved().unwrap().to_instructions();
+                        new_code.code =
+                            new_code.code.to_resolved(None).unwrap().0.to_instructions();
                         match compare_instructions(
                             $code.code.iter().as_slice(),
                             new_code.code.iter().as_slice(),
@@ -610,7 +611,7 @@ fn test_create_cfg_standard_lib() {
                     ($variant:ident, $code_clone:ident) => {
                         create_cfg(
                             &$code_clone.code,
-                            Some($code_clone.exception_table().unwrap()),
+                            Some(&$code_clone.exception_table().unwrap()),
                         )
                     };
                 }
@@ -723,7 +724,7 @@ fn test_create_sir_standard_lib() {
                     ($variant:ident, $code_clone:ident) => {
                         create_cfg(
                             &$code_clone.code,
-                            Some($code_clone.exception_table().unwrap()),
+                            Some(&$code_clone.exception_table().unwrap()),
                         )
                     };
                 }

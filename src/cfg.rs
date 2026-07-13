@@ -195,7 +195,7 @@ where
     /// Exception table can be None here since the CFG should already have this information
     fn to_sir(
         &self,
-        _exception_table: Option<Vec<ExceptionTableEntry>>,
+        _exception_table: Option<&[ExceptionTableEntry]>,
     ) -> Result<crate::sir::SIRControlFlowGraph<SIRNode>, Error> {
         Ok(cfg_to_ir::<I, SIRNode>(self, false)?)
     }
@@ -580,7 +580,7 @@ pub(crate) fn replace_block_index<BranchReason>(
 #[allow(private_bounds)]
 pub fn create_cfg<I>(
     instructions: &[I],
-    exception_table: Option<Vec<ExceptionTableEntry>>,
+    exception_table: Option<&[ExceptionTableEntry]>,
 ) -> Result<ControlFlowGraph<I>, Error>
 where
     I: GenericInstruction,
@@ -1341,7 +1341,9 @@ where
         match block {
             Block::NormalBlock(block) => {
                 let ext_instructions =
-                    ExtInstructions::from_instructions(&block.instructions)?.to_vec();
+                    ExtInstructions::from_instructions(&block.instructions, None)?
+                        .0
+                        .to_vec();
 
                 blocks.push(Block::NormalBlock(NormalBlock {
                     instructions: ext_instructions,
@@ -1518,7 +1520,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(&exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -1562,7 +1564,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(&exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -1586,7 +1588,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(&exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 
@@ -1612,7 +1614,7 @@ mod test {
             _ => unreachable!(),
         };
 
-        let cfg = create_cfg(&instructions, Some(exception_table)).unwrap();
+        let cfg = create_cfg(&instructions, Some(&exception_table)).unwrap();
 
         let cfg = simple_cfg_to_ext_cfg(&cfg).unwrap();
 

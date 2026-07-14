@@ -640,15 +640,14 @@ fn test_create_cfg_standard_lib() {
                     {
                         let opcode = reason.get_opcode();
 
-                        if let Some(opcode) = opcode {
-                            if *opcode != instruction.get_opcode() {
+                        if let Some(opcode) = opcode
+                            && *opcode != instruction.get_opcode() {
                                 return Err(format!(
                                     "original branch opcode doesn't match CFG opcode: {:#?} != {:#?}",
                                     opcode,
                                     instruction.get_opcode(),
                                 ));
                             }
-                        }
                     } else {
                         return Err(format!(
                             "expected block {} to be a branch block with opcode",

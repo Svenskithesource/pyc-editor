@@ -671,7 +671,7 @@ impl InstructionIndexMap {
             }
         }
 
-        return CFGInstructionIndex::NoIndex;
+        CFGInstructionIndex::NoIndex
     }
 
     /// Get the instruction index in the instruction list from a CFG instruction index

@@ -595,9 +595,9 @@ where
 }
 
 /// Represent an index into the CFG
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CFGInstructionIndex {
-    /// When the instruction has no CFG instruction equivalent.
+    /// When the instruction has no CFG instruction equivalent. (e.g. from deadcode that was removed)
     NoIndex,
     /// Used for instructions inside a block
     /// The first usize is the block index, the second usize is the instruction index in that block.
@@ -647,6 +647,54 @@ impl InstructionIndexMap {
     /// Returns the internal data structure
     pub fn get_cfg_ranges(&self) -> &[CFGIndexRange] {
         &self.cfg_ranges
+    }
+
+    /// Get the instruction index in the CFG from a instruction index of the instruction list.
+    pub fn get_cfg_index(&self, instruction_index: usize) -> CFGInstructionIndex {
+        for range in &self.cfg_ranges {
+            if (range.start_instruction_index
+                ..(range.start_instruction_index + range.instruction_length))
+                .contains(&instruction_index)
+            {
+                return if instruction_index
+                    == range.start_instruction_index + range.instruction_length - 1
+                    && range.has_branch_instruction
+                {
+                    // Last instruction and branch
+                    CFGInstructionIndex::EdgeIndex(range.block_index)
+                } else {
+                    CFGInstructionIndex::BlockIndex(
+                        range.block_index,
+                        instruction_index - range.start_instruction_index,
+                    )
+                };
+            }
+        }
+
+        return CFGInstructionIndex::NoIndex;
+    }
+
+    /// Get the instruction index in the instruction list from a CFG instruction index
+    pub fn get_instruction_index(&self, cfg_index: CFGInstructionIndex) -> Option<usize> {
+        match cfg_index {
+            CFGInstructionIndex::NoIndex => None,
+            CFGInstructionIndex::BlockIndex(block_index, instruction_index) => self
+                .cfg_ranges
+                .iter()
+                .find(|range| range.block_index == block_index)
+                .and_then(|range| {
+                    if instruction_index < range.instruction_length {
+                        Some(range.start_instruction_index + instruction_index)
+                    } else {
+                        None
+                    }
+                }),
+            CFGInstructionIndex::EdgeIndex(block_index) => self
+                .cfg_ranges
+                .iter()
+                .find(|range| range.block_index == block_index && range.has_branch_instruction)
+                .map(|range| range.start_instruction_index + range.instruction_length - 1),
+        }
     }
 }
 
@@ -1380,7 +1428,7 @@ where
 mod test {
     use crate::{
         CodeObject,
-        cfg::{create_cfg, create_mapped_cfg, simple_cfg_to_ext_cfg},
+        cfg::{CFGInstructionIndex, create_cfg, create_mapped_cfg, simple_cfg_to_ext_cfg},
         traits::ToExtInstructions,
         v311::instructions::{Instruction, Instructions},
     };
@@ -1514,6 +1562,71 @@ mod test {
         println!("{}", cfg.make_dot_graph());
 
         insta::assert_debug_snapshot!(cfg);
+    }
+
+    #[test]
+    fn test_index_map_api() {
+        let instructions = Instructions::new(vec![
+            Instruction::LoadConst(0),
+            Instruction::LoadConst(1),
+            Instruction::CompareOp(0),
+            Instruction::PopJumpForwardIfTrue(2),
+            Instruction::LoadConst(2),
+            Instruction::ReturnValue(0),
+        ])
+        .to_resolved(None)
+        .unwrap()
+        .0;
+
+        let (map, _cfg) = create_mapped_cfg(&instructions, None).unwrap();
+
+        assert_eq!(map.get_cfg_index(0), CFGInstructionIndex::BlockIndex(0, 0));
+        assert_eq!(map.get_cfg_index(1), CFGInstructionIndex::BlockIndex(0, 1));
+        assert_eq!(map.get_cfg_index(2), CFGInstructionIndex::BlockIndex(0, 2));
+        assert_eq!(map.get_cfg_index(3), CFGInstructionIndex::EdgeIndex(0));
+        assert_eq!(map.get_cfg_index(4), CFGInstructionIndex::BlockIndex(1, 0));
+        assert_eq!(map.get_cfg_index(5), CFGInstructionIndex::BlockIndex(1, 1));
+        assert_eq!(
+            map.get_instruction_index(CFGInstructionIndex::BlockIndex(0, 0)),
+            Some(0)
+        );
+        assert_eq!(
+            map.get_instruction_index(CFGInstructionIndex::BlockIndex(0, 1)),
+            Some(1)
+        );
+        assert_eq!(
+            map.get_instruction_index(CFGInstructionIndex::BlockIndex(0, 2)),
+            Some(2)
+        );
+        assert_eq!(
+            map.get_instruction_index(CFGInstructionIndex::EdgeIndex(0)),
+            Some(3)
+        );
+        assert_eq!(
+            map.get_instruction_index(CFGInstructionIndex::BlockIndex(1, 0)),
+            Some(4)
+        );
+        assert_eq!(
+            map.get_instruction_index(CFGInstructionIndex::BlockIndex(1, 1)),
+            Some(5)
+        );
+        assert_eq!(
+            map.get_instruction_index(CFGInstructionIndex::NoIndex),
+            None
+        );
+
+        assert!(
+            map.get_instruction_index(CFGInstructionIndex::EdgeIndex(3))
+                .is_none()
+        );
+        assert!(
+            map.get_instruction_index(CFGInstructionIndex::BlockIndex(42, 0))
+                .is_none()
+        );
+        assert!(
+            map.get_instruction_index(CFGInstructionIndex::BlockIndex(1, 99))
+                .is_none()
+        );
     }
 
     #[test]

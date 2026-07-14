@@ -111,13 +111,11 @@ macro_rules! generate_cfg_finalize {
                             block_index
                         } else {
                             if let Some(ref mut index_map) = $map {
-                                let entry = index_map.get(block_index).unwrap();
-
                                 index_map.push(CFGIndexRange {
                                     start_instruction_index: current_start_instruction_index,
                                     instruction_length,
                                     block_index: $self.blocks.len(),
-                                    has_branch_instruction: entry.has_branch_instruction,
+                                    has_branch_instruction: false,
                                 });
                             }
 
@@ -167,6 +165,8 @@ macro_rules! generate_cfg_finalize {
                     default_block: original_default_block,
                 });
 
+                let has_branch_instruction = matches!(original_branch_block, BlockIndexInfo::Edge(BranchEdge { .. }));
+
                 if let Some(pop_block_index) = pop_block_indexes.last() && *pop_block_index == instructions.len() - 1 && pop_block_indexes.len() == 1 {
                     // If there is only one pop block, at the end of the basic block, then we just replace the block inplace.
                     if let Some(ref mut index_map) = $map {
@@ -178,7 +178,7 @@ macro_rules! generate_cfg_finalize {
                                                     + if let BlockIndexInfo::Edge(BranchEdge { reason, ..}) = new_block.get_branch_block()
                                                             && reason.is_opcode() { 1 } else { 0 },
                             block_index: entry.block_index,
-                            has_branch_instruction: entry.has_branch_instruction,
+                            has_branch_instruction,
                         }
                     }
 
@@ -193,7 +193,7 @@ macro_rules! generate_cfg_finalize {
                                                     + if let BlockIndexInfo::Edge(BranchEdge { reason, ..}) = new_block.get_branch_block()
                                                             && reason.is_opcode() { 1 } else { 0 },
                             block_index: $self.blocks.len(),
-                            has_branch_instruction: false,
+                            has_branch_instruction,
                         });
                     }
 
@@ -239,9 +239,9 @@ macro_rules! generate_cfg_finalize {
                     // Add an ExceptionBlock and "reroute" jumps to the target block to the exception block instead (this happens later)
 
                     if let Some(ref mut index_map) = $map {
-                        let entry = index_map.get(block_index).unwrap().clone();
+                        let entry = index_map.get(last_block_index).unwrap().clone();
 
-                        index_map[block_index] = CFGIndexRange {
+                        index_map[last_block_index] = CFGIndexRange {
                             start_instruction_index: entry.start_instruction_index,
                             // We will move the SETUP_FINALLY branch edge to a different block, so the instruction count decreases by 1
                             instruction_length: entry.instruction_length - 1,

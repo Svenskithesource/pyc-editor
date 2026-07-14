@@ -1,6 +1,6 @@
 use core::panic;
 use pyc_editor::{
-    cfg::{BlockIndexInfo, BranchEdge, ControlFlowGraph, InstructionIndexMap},
+    cfg::{BlockIndexInfo, BranchEdge, CFGInstructionIndex, ControlFlowGraph, InstructionIndexMap},
     dump_pyc, load_pyc,
     prelude::*,
     traits::GenericInstruction,
@@ -593,6 +593,75 @@ fn test_create_cfg_standard_lib() {
         }
     }
 
+    fn check_opcode_map_match<I: GenericInstruction>(
+        instructions: &[I],
+        map: InstructionIndexMap,
+        cfg: ControlFlowGraph<I>,
+    ) -> Result<(), String>
+    where
+        <<I::Opcode as GenericOpcode>::BranchReason as BranchReasonTrait>::Opcode:
+            PartialEq<I::Opcode>,
+    {
+        for (i, instruction) in instructions.iter().enumerate() {
+            let cfg_index = map.get_cfg_index(i);
+
+            match cfg_index {
+                CFGInstructionIndex::NoIndex => {}
+                CFGInstructionIndex::BlockIndex(block_index, instruction_index) => {
+                    let block = cfg.blocks.get(block_index).unwrap();
+
+                    let cfg_instruction = block
+                        .get_instructions_slice()
+                        .unwrap()
+                        .get(instruction_index)
+                        .unwrap_or_else(|| {
+                            dbg!(
+                                instruction_index,
+                                &block,
+                                i,
+                                map.get_cfg_ranges(),
+                                &cfg.blocks
+                            );
+                            panic!()
+                        });
+
+                    if cfg_instruction != instruction {
+                        return Err(format!(
+                            "original instruction doesn't match CFG instruction: {:#?} != {:#?}",
+                            cfg_instruction, instruction,
+                        ));
+                    }
+                }
+                CFGInstructionIndex::EdgeIndex(block_index) => {
+                    let block = cfg.blocks.get(block_index).unwrap();
+
+                    if let BlockIndexInfo::Edge(BranchEdge { reason, .. }) =
+                        block.get_branch_block()
+                    {
+                        let opcode = reason.get_opcode();
+
+                        if let Some(opcode) = opcode {
+                            if *opcode != instruction.get_opcode() {
+                                return Err(format!(
+                                    "original branch opcode doesn't match CFG opcode: {:#?} != {:#?}",
+                                    opcode,
+                                    instruction.get_opcode(),
+                                ));
+                            }
+                        }
+                    } else {
+                        return Err(format!(
+                            "expected block {} to be a branch block with opcode",
+                            block_index
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     LOGGER_INIT.call_once(|| {
         common::setup();
         env_logger::init();
@@ -695,6 +764,24 @@ fn test_create_cfg_standard_lib() {
 
                             Err(error).unwrap()
                         }
+
+                        for range in map.get_cfg_ranges() {
+                            // Check if block has branch if range says so
+
+                            let condition = range.has_branch_instruction == matches!(ext_cfg.blocks.get(range.block_index).unwrap().get_branch_block(), BlockIndexInfo::Edge(BranchEdge { .. }));
+
+                            if !condition {
+                                dbg!(range, ext_cfg.blocks.get(range.block_index).unwrap());
+
+                                // println!("{}", ext_cfg.make_dot_graph());
+
+                                dbg!(&resolved_instructions);
+                            }
+
+                            assert!(condition);
+                        }
+
+                        check_opcode_map_match(&resolved_instructions, map, ext_cfg).unwrap();
 
                         // I thought this would be a good way to find bugs but it turns out that Python
                         // generates bytecode that can't be reached and will be automatically removed by the cfg construction.

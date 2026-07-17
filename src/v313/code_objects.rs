@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 
 use displaydoc::Display;
-use python_marshal::{CodeFlags, Object, PyString, extract_object, resolver::resolve_all_refs};
+use python_marshal::{CodeFlags, Object, PyString, PycMetadata, extract_object, resolver::resolve_all_refs};
 
 use crate::{
     error::Error,
@@ -110,12 +110,12 @@ impl Code {
             let first_byte = self.linetable[i];
 
             // Check if most significant bit is set (location entry)
-            if first_byte & 0x80 == 0 {
+            if (first_byte & 0x80) == 0 {
                 return Err(Error::InvalidLinetable);
             }
 
             // Extract code and length from first byte
-            let code = (first_byte >> 3) & 0x0F; // Bits 3-6
+            let code = (first_byte >> 3) & 0x0f; // Bits 3-6
             let length = (first_byte & 0x07) + 1; // Bits 0-2, plus 1
 
             i += 1;
@@ -129,7 +129,7 @@ impl Code {
                     let second_byte = self.linetable[i];
                     i += 1;
 
-                    let start_column = (code * 8) + ((second_byte >> 4) & 7);
+                    let start_column = code * 8 + ((second_byte >> 4) & 7);
                     let end_column = start_column + (second_byte & 15);
                     (0i32, Some(start_column as u32), Some(end_column as u32))
                 }
@@ -179,25 +179,27 @@ impl Code {
                 // No location (15)
                 15 => (0i32, None, None),
 
-                _ => return Err(Error::InvalidLinetable),
+                _ => {
+                    return Err(Error::InvalidLinetable);
+                }
             };
 
             // Update line number
             if delta_line != 0 {
-                line = (line as i32 + delta_line) as u32;
+                line = ((line as i32) + delta_line) as u32;
             }
 
             // Create entry
             let entry = LinetableEntry {
                 start: offset,
-                end: offset + length as u32 * 2, // length is in code units (2 bytes each)
+                end: offset + (length as u32) * 2, // length is in code units (2 bytes each)
                 line_number: if code == 15 { None } else { Some(line) },
                 column_start: start_col,
                 column_end: end_col,
             };
 
             entries.push(entry);
-            offset += length as u32 * 2;
+            offset += (length as u32) * 2;
         }
 
         Ok(entries)
@@ -211,10 +213,10 @@ impl Code {
 
         while i < data.len() {
             let byte = data[i];
-            result |= ((byte & 0x3F) as u32) << shift;
+            result |= ((byte & 0x3f) as u32) << shift;
             i += 1;
 
-            if byte & 0x40 == 0 {
+            if (byte & 0x40) == 0 {
                 // Last chunk
                 break;
             }
@@ -233,7 +235,7 @@ impl Code {
         let (unsigned_val, bytes_read) = Self::read_location_varint(data)?;
 
         // Convert unsigned to signed according to CPython spec
-        let signed_val = if unsigned_val & 1 != 0 {
+        let signed_val = if (unsigned_val & 1) != 0 {
             -((unsigned_val >> 1) as i32)
         } else {
             (unsigned_val >> 1) as i32
@@ -253,7 +255,7 @@ impl Code {
         let mut val: u32 = (first & 63) as u32;
         let mut b = first;
 
-        while b & 64 != 0 {
+        while (b & 64) != 0 {
             let next_byte = *iter.next().ok_or(Error::InvalidExceptionTable)?; // return None if input ended early
             consumed += 1;
 
@@ -963,16 +965,16 @@ enum ComparisonBits {
     LessThan = 2,
     GreaterThan = 4,
     Equals = 8,
-    NotEquals = (ComparisonBits::Unordered as u8
-        | ComparisonBits::LessThan as u8
-        | ComparisonBits::GreaterThan as u8),
+    NotEquals = (ComparisonBits::Unordered as u8)
+        | (ComparisonBits::LessThan as u8)
+        | (ComparisonBits::GreaterThan as u8),
 }
 
 impl BitOr for ComparisonBits {
     type Output = u8;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        self as u8 | rhs as u8
+        (self as u8) | (rhs as u8)
     }
 }
 
@@ -981,13 +983,13 @@ impl From<&CompareOps> for u32 {
         match val {
             CompareOps::Smaller => ComparisonBits::LessThan as u32,
             CompareOps::SmallerOrEqual => {
-                (1 << 5) | (ComparisonBits::LessThan | ComparisonBits::Equals) as u32
+                (1 << 5) | ((ComparisonBits::LessThan | ComparisonBits::Equals) as u32)
             }
-            CompareOps::Equal => (2 << 5) | ComparisonBits::Equals as u32,
-            CompareOps::NotEqual => (3 << 5) | ComparisonBits::NotEquals as u32,
-            CompareOps::Bigger => (4 << 5) | ComparisonBits::GreaterThan as u32,
+            CompareOps::Equal => (2 << 5) | (ComparisonBits::Equals as u32),
+            CompareOps::NotEqual => (3 << 5) | (ComparisonBits::NotEquals as u32),
+            CompareOps::Bigger => (4 << 5) | (ComparisonBits::GreaterThan as u32),
             CompareOps::BiggerOrEqual => {
-                (5 << 5) | (ComparisonBits::GreaterThan | ComparisonBits::Equals) as u32
+                (5 << 5) | ((ComparisonBits::GreaterThan | ComparisonBits::Equals) as u32)
             }
             CompareOps::Invalid(v) => *v,
         }
@@ -1312,8 +1314,7 @@ impl From<&GenKind> for u32 {
 #[derive(Debug, Clone)]
 pub struct Pyc {
     pub python_version: python_marshal::magic::PyVersion,
-    pub timestamp: u32,
-    pub hash: u64,
+    pub metadata: Option<PycMetadata>,
     pub code_object: Code,
 }
 
@@ -1323,10 +1324,7 @@ impl TryFrom<python_marshal::PycFile> for Pyc {
     fn try_from(pyc: python_marshal::PycFile) -> Result<Self, Self::Error> {
         Ok(Pyc {
             python_version: pyc.python_version,
-            timestamp: pyc
-                .timestamp
-                .ok_or(Error::UnsupportedVersion(pyc.python_version))?,
-            hash: pyc.hash,
+            metadata: pyc.metadata,
             code_object: (pyc.object, pyc.references).try_into()?,
         })
     }

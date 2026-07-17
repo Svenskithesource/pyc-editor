@@ -39,8 +39,7 @@ impl From<PycFile> for python_marshal::PycFile {
             PycFile::V310(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
-                    timestamp: Some(pyc.timestamp),
-                    hash: pyc.hash,
+                    metadata: pyc.metadata,
                     object: python_marshal::Object::Code(pyc.code_object.into()),
                     references: Vec::new(), // All references are resolved in this editor.
                 }
@@ -49,8 +48,7 @@ impl From<PycFile> for python_marshal::PycFile {
             PycFile::V311(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
-                    timestamp: Some(pyc.timestamp),
-                    hash: pyc.hash,
+                    metadata: pyc.metadata,
                     object: python_marshal::Object::Code(pyc.code_object.into()),
                     references: Vec::new(), // All references are resolved in this editor.
                 }
@@ -59,8 +57,7 @@ impl From<PycFile> for python_marshal::PycFile {
             PycFile::V312(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
-                    timestamp: Some(pyc.timestamp),
-                    hash: pyc.hash,
+                    metadata: pyc.metadata,
                     object: python_marshal::Object::Code(pyc.code_object.into()),
                     references: Vec::new(), // All references are resolved in this editor.
                 }
@@ -69,8 +66,7 @@ impl From<PycFile> for python_marshal::PycFile {
             PycFile::V313(pyc) => {
                 python_marshal::PycFile {
                     python_version: pyc.python_version,
-                    timestamp: Some(pyc.timestamp),
-                    hash: pyc.hash,
+                    metadata: pyc.metadata,
                     object: python_marshal::Object::Code(pyc.code_object.into()),
                     references: Vec::new(), // All references are resolved in this editor.
                 }

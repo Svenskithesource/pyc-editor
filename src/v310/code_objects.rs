@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 
-use python_marshal::{CodeFlags, Object, PyString, extract_object, resolver::resolve_all_refs};
+use python_marshal::{CodeFlags, Object, PyString, PycMetadata, extract_object, resolver::resolve_all_refs};
 
 use crate::{error::Error, utils::FrozenConstant, v310::instructions::Instructions};
 use std::fmt;
@@ -761,8 +761,7 @@ impl From<&GenKind> for u32 {
 #[derive(Debug, Clone)]
 pub struct Pyc {
     pub python_version: python_marshal::magic::PyVersion,
-    pub timestamp: u32,
-    pub hash: u64,
+    pub metadata: Option<PycMetadata>,
     pub code_object: Code,
 }
 
@@ -772,10 +771,7 @@ impl TryFrom<python_marshal::PycFile> for Pyc {
     fn try_from(pyc: python_marshal::PycFile) -> Result<Self, Self::Error> {
         Ok(Pyc {
             python_version: pyc.python_version,
-            timestamp: pyc
-                .timestamp
-                .ok_or(Error::UnsupportedVersion(pyc.python_version))?,
-            hash: pyc.hash,
+            metadata: pyc.metadata,
             code_object: (pyc.object, pyc.references).try_into()?,
         })
     }

@@ -1601,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "pyc_editor"
-version = "0.4.9"
+version = "0.4.10"
 dependencies = [
  "bitflags 2.13.1",
  "cmd_lib",
